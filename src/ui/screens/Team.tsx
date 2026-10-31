@@ -1,6 +1,7 @@
 import { useGame } from "../../app/useGame";
 import {
   academicFactor,
+  canWork,
   clockToDate,
   DISCIPLINES,
   isOverloaded,
@@ -9,7 +10,7 @@ import {
   type Member
 } from "../../sim";
 import { Meter } from "../components/Controls";
-import { canWork, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
+import { DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
 
 // Tela Equipe (design §5), só leitura: elenco, conhecimento tácito por disciplina e o acervo
 // documentado da equipe. Alocação e seletiva chegam com os comandos da simulação.

@@ -1,6 +1,6 @@
 // Formatação e rótulos da interface. Puro (sem Preact) para poder ser testado em tests/ui/.
 
-import type { Cost, Crew, Discipline, Member, RiskLevel, Role } from "../sim";
+import type { Cost, Crew, Discipline, RiskLevel, Role } from "../sim";
 
 /** Número no padrão pt-BR com casas fixas: 1234.5 → "1.234,50". */
 export function formatNumber(value: number, digits = 0): string {
@@ -76,11 +76,6 @@ export const ROLE_LABEL: Record<Role, string> = {
   captain: "Capitania",
   member: "Membro"
 };
-
-/** O presidente é o jogador: decide e coordena, mas não entra nas tarefas operacionais. */
-export function canWork(member: Member): boolean {
-  return member.role !== "president";
-}
 
 /** Faixa de motivação em palavras (design §5.1: Baixa → Alta). */
 export function motivationLabel(value: number): string {

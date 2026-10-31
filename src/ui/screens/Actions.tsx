@@ -4,6 +4,7 @@ import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import {
   ACTIONS,
+  canWork,
   clockToDate,
   DISCIPLINES,
   estimateRemainingDays,
@@ -20,7 +21,7 @@ import {
 } from "../../sim";
 import { ActionCard, CostLegend, CostTag } from "../components/CostTag";
 import { Meter } from "../components/Controls";
-import { canWork, crewText, DISCIPLINE_LABEL, formatDays, formatNumber } from "../format";
+import { crewText, DISCIPLINE_LABEL, formatDays, formatNumber } from "../format";
 
 // Tela Ações (design §4.2 e §8): iniciar uma ação cria uma tarefa. O tempo não pula: a tarefa
 // espera o prazo ⌛ e avança com as horas de quem está alocado, até o limite de pessoas da ação.
