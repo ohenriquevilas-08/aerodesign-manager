@@ -5,6 +5,7 @@
 
 import { findAction, type ActionDef } from "./content/actions";
 import { BALANCE } from "./content/balance";
+import { findDedication, type Dedication } from "./content/dedication";
 import { crewRates } from "./crew";
 import { expectedApplicants, findSelectionFormat } from "./selection";
 import { nextRandom } from "./rng";
@@ -143,7 +144,8 @@ export function estimateOutcome(
   state: GameState,
   actionId: string,
   memberIds: readonly string[],
-  targetId: string | null = null
+  targetId: string | null = null,
+  dedication: Dedication = "normal"
 ): OutcomeEstimate | null {
   const action = findAction(actionId);
   if (!action?.effect) return null;
@@ -152,7 +154,7 @@ export function estimateOutcome(
   crewRates(team, action.crew, clockToDate(state.clock.hours)).forEach((rate, id) => (weights[id] = rate));
   if (Object.keys(weights).length === 0) return null;
 
-  const quality = crewQuality(state, action, targetId, weights);
+  const quality = clamp(crewQuality(state, action, targetId, weights) + findDedication(dedication).qualityBonus);
   const band = outcomeBand(quality);
   const scale = (base: number) => ({ min: base * band.min, expected: base * band.expected, max: base * band.max });
   const effect = action.effect;

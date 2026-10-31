@@ -21,6 +21,7 @@ export {
   type StockItem
 } from "./content/actions";
 export { BALANCE } from "./content/balance";
+export { DEDICATIONS, findDedication, type Dedication, type DedicationDef } from "./content/dedication";
 export { applicantBand, crewQuality, estimateOutcome, outcomeBand, sponsorChance, type OutcomeBand, type OutcomeEstimate } from "./outcome";
 export { crewRates, estimateRemainingDays, estimateTaskDays, leadDaysRange } from "./crew";
 export { expectedApplicants, missingCast } from "./selection";

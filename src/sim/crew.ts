@@ -3,6 +3,7 @@
 
 import { findAction, type Crew } from "./content/actions";
 import { BALANCE } from "./content/balance";
+import { findDedication, type Dedication } from "./content/dedication";
 import { memberHoursPerDay } from "./team";
 import { clockToDate } from "./time";
 import type { GameState, Member } from "./types";
@@ -46,11 +47,17 @@ function workDays(state: GameState, crew: Crew, memberIds: readonly string[], ho
  * Estimativa em dias (prazo ⌛ + trabalho) para iniciar a ação agora com esses integrantes.
  * null: a equipe escolhida não faz a tarefa andar (vazia, abaixo do mínimo ou sem horas).
  */
-export function estimateTaskDays(state: GameState, actionId: string, memberIds: readonly string[]): number | null {
+export function estimateTaskDays(
+  state: GameState,
+  actionId: string,
+  memberIds: readonly string[],
+  dedication: Dedication = "normal"
+): number | null {
   const action = findAction(actionId);
   if (!action) return null;
   const lead = action.cost.leadDays;
-  const work = workDays(state, action.crew, memberIds, action.cost.hours, state.clock.hours + lead * 24);
+  const hours = action.cost.hours * findDedication(dedication).hoursFactor;
+  const work = workDays(state, action.crew, memberIds, hours, state.clock.hours + lead * 24);
   return work === null ? null : lead + work;
 }
 

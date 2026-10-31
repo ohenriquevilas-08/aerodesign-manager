@@ -3,6 +3,7 @@
 
 import { findAction, type ActionDef, type StockItem } from "./content/actions";
 import { BALANCE } from "./content/balance";
+import { findDedication, type Dedication } from "./content/dedication";
 import { crewQuality, documentGain, fabricatedQuality, rollApplicants, rollMultiplier, sponsorChance } from "./outcome";
 import { nextRandom } from "./rng";
 import { drawCandidates, expectedApplicants, findSelectionFormat } from "./selection";
@@ -74,7 +75,12 @@ function targetProblem(state: GameState, action: ActionDef, targetId: string | n
   }
 }
 
-export function startAction(state: GameState, actionId: string, targetId: string | null): GameState {
+export function startAction(
+  state: GameState,
+  actionId: string,
+  targetId: string | null,
+  dedication: Dedication = "normal"
+): GameState {
   const action = findAction(actionId);
   if (!action) return warn(state, "Ação desconhecida.");
 
@@ -109,7 +115,8 @@ export function startAction(state: GameState, actionId: string, targetId: string
     id: `task-${state.nextId}`,
     actionId: action.id,
     label: taskLabel(state, action, targetId),
-    hoursTotal: action.cost.hours,
+    // Dedicação só faz sentido com horas; compras ficam sempre "normal".
+    hoursTotal: action.cost.hours * findDedication(action.cost.hours > 0 ? dedication : "normal").hoursFactor,
     hoursDone: 0,
     readyAt,
     expectedReadyAt: waits ? now + action.cost.leadDays * 24 : null,
@@ -117,6 +124,7 @@ export function startAction(state: GameState, actionId: string, targetId: string
     assignees: [],
     contributions: {},
     targetId: action.target ? targetId : null,
+    dedication: action.cost.hours > 0 ? dedication : "normal",
     doneAt: null
   };
   const next: GameState = {
@@ -194,7 +202,7 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
   let body = "Tarefa concluída.";
 
   // Rendimento: qualidade de quem trabalhou (antes de aprender com a tarefa) e um sorteio.
-  const quality = crewQuality(state, action, task.targetId, task.contributions);
+  const quality = clamp(crewQuality(state, action, task.targetId, task.contributions) + findDedication(task.dedication).qualityBonus);
   const rolled = rollMultiplier(next.rngState, quality);
   const multiplier = rolled.multiplier;
   if (action.effect && VARIABLE_EFFECTS.has(action.effect.kind)) next = { ...next, rngState: rolled.rngState };

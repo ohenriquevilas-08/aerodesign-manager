@@ -4,7 +4,7 @@
 import { tick } from "./loop";
 import { hireCandidate } from "./selection";
 import { assignMember, cancelTask, startAction, unassignMember, warn } from "./tasks";
-import type { ClockSpeed, GameState } from "./types";
+import type { ClockSpeed, GameState, TaskDedication } from "./types";
 
 export type Command =
   | { type: "tick"; realSeconds: number }
@@ -14,7 +14,8 @@ export type Command =
    * targetId: disciplina (document), formato da seletiva (recruitment), id de peça (repair-part)
    * ou id de tarefa esperando (express-shipping).
    */
-  | { type: "start-action"; actionId: string; targetId?: string }
+  /** dedication: "rush" | "normal" | "careful" (padrão "normal"); ver DEDICATIONS. */
+  | { type: "start-action"; actionId: string; targetId?: string; dedication?: TaskDedication }
   | { type: "assign-member"; memberId: string; taskId: string }
   | { type: "unassign-member"; memberId: string }
   | { type: "cancel-task"; taskId: string }
@@ -38,7 +39,7 @@ export function applyCommand(state: GameState, command: Command): GameState {
         inbox: state.inbox.map((message) => (message.id === command.id ? { ...message, read: true } : message))
       };
     case "start-action":
-      return startAction(state, command.actionId, command.targetId ?? null);
+      return startAction(state, command.actionId, command.targetId ?? null, command.dedication ?? "normal");
     case "assign-member":
       return assignMember(state, command.memberId, command.taskId);
     case "unassign-member":

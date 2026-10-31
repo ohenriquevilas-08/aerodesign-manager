@@ -98,6 +98,9 @@ export interface Part {
 }
 
 /** waiting: esperando prazo ⌛ (readyAt); active: consome horas; done: concluída (fica como histórico). */
+/** Dedicação escolhida ao iniciar (content/dedication.ts). */
+export type TaskDedication = "rush" | "normal" | "careful";
+
 export type TaskStatus = "waiting" | "active" | "done";
 
 export interface Task {
@@ -121,6 +124,8 @@ export interface Task {
   targetId: string | null;
   /** Momento (horas de jogo) da conclusão; null enquanto não termina. */
   doneAt: number | null;
+  /** Rápido, normal ou caprichado: já aplicado em hoursTotal; vira bônus de qualidade na conclusão. */
+  dedication: TaskDedication;
 }
 
 export interface InboxMessage {

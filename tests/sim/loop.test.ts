@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyCommand,
   BALANCE,
+  DEDICATIONS,
   createGame,
   dateToHours,
   estimateOutcome,
@@ -517,5 +518,47 @@ describe("divulgação", () => {
     const reach = game.outreach;
     game = play(game, 10);
     expect(game.outreach).toBeCloseTo(reach * Math.pow(1 - BALANCE.outreach.decayPerDay, 10), 1);
+  });
+});
+
+describe("dedicação", () => {
+  it("rápido gasta menos horas e caprichado mais; a tarefa guarda a escolha", () => {
+    let game = run(newGame(), { type: "start-action", actionId: "raffle", dedication: "rush" });
+    expect(lastTask(game)).toMatchObject({ dedication: "rush", hoursTotal: 16 * 0.6 });
+    game = run(game, { type: "start-action", actionId: "raffle" });
+    expect(lastTask(game)).toMatchObject({ dedication: "normal", hoursTotal: 16 });
+    game = run(game, { type: "start-action", actionId: "raffle", dedication: "careful" });
+    expect(lastTask(game).hoursTotal).toBeCloseTo(16 * 1.6);
+  });
+
+  it("compras ignoram a dedicação", () => {
+    const game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-motor", dedication: "careful" });
+    expect(lastTask(game)).toMatchObject({ dedication: "normal", hoursTotal: 0 });
+  });
+
+  it("estimativas comparam as opções: caprichado demora mais e rende melhor", () => {
+    const game = newGame();
+    const team = ["captain-aero", "captain-struct"];
+    const days = DEDICATIONS.map((item) => estimateTaskDays(game, "build-wing", team, item.id)!);
+    expect(days[0]!).toBeLessThan(days[1]!);
+    expect(days[1]!).toBeLessThan(days[2]!);
+    const quality = DEDICATIONS.map((item) => estimateOutcome(game, "build-wing", team, null, item.id)!.quality);
+    const normal = estimateOutcome(game, "build-wing", team)!.quality;
+    expect(quality).toEqual([normal - 15, normal, normal + 15].map((value) => expect.closeTo(value)));
+  });
+
+  it("a qualidade da conclusão usa a dedicação da tarefa", () => {
+    const finish = (dedication: "rush" | "careful") => {
+      let game = run(newGame(), { type: "start-action", actionId: "raffle", dedication });
+      const taskId = lastTask(game).id;
+      const estimate = estimateOutcome(game, "raffle", ["captain-aero"], null, dedication)!;
+      game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+      return { credits: playUntilDone(game, taskId).credits, estimate };
+    };
+    for (const dedication of ["rush", "careful"] as const) {
+      const { credits, estimate } = finish(dedication);
+      expect(credits).toBeGreaterThanOrEqual(Math.floor(estimate.min));
+      expect(credits).toBeLessThanOrEqual(Math.ceil(estimate.max));
+    }
   });
 });
