@@ -32,9 +32,8 @@ export const BALANCE = {
   },
 
   parts: {
-    /** Qualidade = base + peso × fabricação média (ponderada pelas horas). */
-    fabricatedQualityBase: 30,
-    fabricatedQualityPerSkill: 0.7,
+    /** Qualidade da peça fabricada = base × multiplicador de rendimento + bônus de equipamento. */
+    fabricatedQualityBase: 60,
     /** Bônus de qualidade de fabricação por equipamento possuído. */
     equipmentQualityBonus: { scale: 5 } as Record<string, number>,
     purchasedQuality: 85
@@ -46,9 +45,19 @@ export const BALANCE = {
   },
 
   sponsor: {
-    /** Chance de o patrocinador dizer sim; o sorteio usa rngState. */
-    successChance: 0.6,
+    /** Chance de o patrocinador dizer sim com qualidade 0 e 100; o sorteio usa rngState. */
+    chanceAtZero: 0.3,
+    chanceAtFull: 0.9,
+    /** Valor base, multiplicado pelo rendimento. */
     amount: 800
+  },
+
+  outcome: {
+    /** Multiplicador esperado do resultado com qualidade 0 e 100 (linear entre os dois). */
+    curveAtZero: 0.5,
+    curveAtFull: 1.5,
+    /** Variação sorteada (±) com qualidade 0; cai linearmente até 0 com qualidade 100. */
+    maxSpread: 0.4
   },
 
   calendar: {

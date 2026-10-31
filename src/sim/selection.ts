@@ -2,6 +2,7 @@
 
 import {
   CANDIDATE_AGILITY,
+  CANDIDATE_COMMUNICATION,
   CANDIDATE_GRADUATIONS,
   CANDIDATE_HOURS_PER_DAY,
   CANDIDATE_NAMES,
@@ -62,6 +63,7 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat): Gam
       knowledge,
       fabrication,
       agility: between(CANDIDATE_AGILITY),
+      communication: between(CANDIDATE_COMMUNICATION),
       motivation: between(format.motivation),
       hoursPerDay: between(CANDIDATE_HOURS_PER_DAY),
       graduation: pick(CANDIDATE_GRADUATIONS),
@@ -84,6 +86,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     fabrication: candidate.fabrication,
     piloting: 0,
     agility: candidate.agility,
+    communication: candidate.communication,
     motivation: candidate.motivation,
     hoursPerDay: candidate.hoursPerDay,
     graduation: candidate.graduation,

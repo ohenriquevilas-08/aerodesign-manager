@@ -15,11 +15,13 @@ export {
   type ActionCategory,
   type ActionEffect,
   type ActionTarget,
+  type ActionSkill,
   type Crew,
   type EquipmentItem,
   type StockItem
 } from "./content/actions";
 export { BALANCE } from "./content/balance";
+export { crewQuality, estimateOutcome, outcomeBand, sponsorChance, type OutcomeBand, type OutcomeEstimate } from "./outcome";
 export { crewRates, estimateRemainingDays, estimateTaskDays } from "./crew";
 export { missingCast } from "./selection";
 export { SELECTION_FORMATS, type SelectionFormat, type SelectionFormatDef } from "./content/selection";
