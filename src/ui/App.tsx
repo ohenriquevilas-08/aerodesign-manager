@@ -4,6 +4,7 @@ import { store } from "../app/store";
 import { SPEEDS } from "../sim";
 import { Actions } from "./screens/Actions";
 import { Central } from "./screens/Central";
+import { Competition } from "./screens/Competition";
 import { Drafting } from "./screens/Drafting";
 import { Rules } from "./screens/Rules";
 import { Team } from "./screens/Team";
@@ -21,7 +22,7 @@ const SCREENS: readonly { id: string; label: string; key: string; view?: Functio
   { id: "report", label: "Relatório", key: "R" },
   { id: "finance", label: "Finanças", key: "F" },
   { id: "rules", label: "Regulamento", key: "G", view: Rules },
-  { id: "competition", label: "Competição", key: "M" }
+  { id: "competition", label: "Competição", key: "M", view: Competition }
 ];
 
 const NON_TYPING_INPUTS = new Set(["range", "checkbox", "radio", "button"]);

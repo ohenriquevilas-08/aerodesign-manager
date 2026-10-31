@@ -51,6 +51,39 @@ teclado/mouse ──► ui/ ou scenes/ ──dispatch(Command)──► store �
 - **O relógio é um comando** (`tick`), disparado por `startClock` a cada quadro. Velocidade 0 = pausado.
 - **Cenas espelham o relógio:** `HangarScene` pausa e acelera tweens e timers junto com `clock.speed`.
 
+## Cenas
+
+As cenas Phaser só animam; nunca decidem regra nem mudam o estado. O que elas mostram chega pronto.
+
+### Voo da competição: `FlightPlayback`
+
+Definido em `src/scenes/flight/playback.ts`. Descreve uma bateria **já resolvida** pela simulação; a `FlightScene` só toca o replay. A simulação produz este objeto (serializável, sem Phaser):
+
+| Campo | Significado |
+|---|---|
+| `battery`, `teamName` | Número da bateria e nome da equipe (cabeçalho) |
+| `payloadKg` | Carga embarcada |
+| `densityAltitudeM` | Altitude densidade do momento (Apêndice 4) |
+| `headwindMs` | Vento: + de proa, − de cauda (biruta e nuvens) |
+| `rotationDistanceM` | Onde a roda sai do chão; `null` se não decolou |
+| `obstacleClearanceM` | Folga sobre o topo do obstáculo de 0,9 m aos 55 m; negativa = rompeu a fita; `null` se não chegou voando |
+| `outcome` | `valid` · `no-takeoff` · `tape-break` · `landing-out` · `damage` · `crash` |
+| `stopDistanceM` | Distância de parada desde o toque; `null` sem pouso |
+| `unloadTimeS` | Tempo da retirada rápida de carga; `null` se não houve |
+| `crashPhase?` | Onde cai (`climb`, `circuit`, `approach`); só para `crash` |
+| `damagedParts?` | Rótulos das peças afetadas, para o cartão final |
+
+Coerência esperada da simulação: `no-takeoff` → rotação, folga, parada e retirada `null`; `tape-break` → folga < 0; `crash` → sem parada nem retirada.
+
+- `script.ts` (puro, testado em `tests/scenes/`) converte o playback em poses e eventos. A cena posiciona a cabeceira para o desfecho ficar legível (parada dentro ou fora); não interpreta distâncias.
+- Entrega à cena: `flightReplay.play(playback)` (`src/scenes/flight/replayChannel.ts`). Quando as baterias estiverem no `GameState`, a cena pode passar a ler do store.
+- O replay tem velocidade própria (`flightReplay.setSpeed`), independente de `clock.speed`.
+- Em dev, a tela Competição tem um painel que toca cada desfecho com `MOCK_PLAYBACKS`, e `window.__flightScene.seek(t)` pula o replay.
+
+### Hangar: `BenchView`
+
+Definido em `src/scenes/hangar/benchView.ts`. Cada bancada (asa, fuselagem, eletrônica, relatório) mostra uma tarefa com barra de progresso e as peças com estado (design §7.2). A cena lê `benchViewsFromState(state)`; hoje ela devolve dados simulados a partir do relógio. Quando a simulação tiver tarefas e peças por bancada, basta trocar o corpo dessa função. O avião no cavalete, no centro, segue o mesmo modelo: `aircraftViewFromState(state)` dá o estado de cada `PartType` (ou `null` se a peça não existe), e a cena pinta a peça (danificada em amarelo, quebrada em vermelho).
+
 ## Convenções
 
 - Identificadores, arquivos e commits em inglês; textos do jogo e comentários em PT-BR.
