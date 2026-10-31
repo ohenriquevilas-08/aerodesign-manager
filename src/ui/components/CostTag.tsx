@@ -1,5 +1,5 @@
 import type { ActionDef, Cost } from "../../sim";
-import { costParts, DISCIPLINE_SHORT } from "../format";
+import { costParts, crewText, DISCIPLINE_SHORT } from "../format";
 
 /** Custo de uma ação na ordem fixa ⏱ ◆ ⌛ ⚠, omitindo o que for zero (design §8). */
 export function CostTag({ cost }: { cost: Cost }) {
@@ -35,15 +35,30 @@ export function CostLegend() {
   );
 }
 
-/** Cartão de ação do catálogo. Ainda sem botão: os comandos de tarefa chegam com a simulação. */
-export function ActionCard({ action }: { action: ActionDef }) {
-  return (
-    <article class="action-card">
-      <div class="action-head">
+/** Cartão de ação do catálogo: custo, disciplina e quantas pessoas cabem. Clicável quando há onSelect. */
+export function ActionCard({
+  action,
+  selected,
+  onSelect
+}: {
+  action: ActionDef;
+  selected?: boolean;
+  onSelect?: () => void;
+}) {
+  const body = (
+    <>
+      <span class="action-head">
         <span class="action-label">{action.label}</span>
         {action.discipline ? <span class="chip">{DISCIPLINE_SHORT[action.discipline]}</span> : null}
-      </div>
+      </span>
       <CostTag cost={action.cost} />
-    </article>
+      {action.crew.max > 0 ? <span class="crew-rule">{crewText(action.crew)}</span> : null}
+    </>
+  );
+  if (!onSelect) return <article class="action-card">{body}</article>;
+  return (
+    <button type="button" class="action-card is-button" aria-pressed={selected} onClick={onSelect}>
+      {body}
+    </button>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "../../src/sim";
-import { costParts, formatNumber, motivationLabel } from "../../src/ui/format";
+import { costParts, crewText, formatDays, formatNumber, motivationLabel } from "../../src/ui/format";
 
 describe("costParts (design §8)", () => {
   it("mantém a ordem horas, créditos, prazo, risco", () => {
@@ -32,5 +32,21 @@ describe("formatação pt-BR", () => {
     expect(motivationLabel(80)).toBe("Alta");
     expect(motivationLabel(60)).toBe("Média");
     expect(motivationLabel(10)).toBe("Muito baixa");
+  });
+});
+
+describe("tarefas", () => {
+  it("formata a duração estimada", () => {
+    expect(formatDays(null)).toBe("parada");
+    expect(formatDays(0.4)).toBe("< 1 d");
+    expect(formatDays(3.46)).toBe("~3,5 d");
+    expect(formatDays(12.6)).toBe("~13 d");
+  });
+
+  it("descreve quantas pessoas cabem", () => {
+    expect(crewText({ min: 0, ideal: 0, max: 0 })).toBe("sem equipe");
+    expect(crewText({ min: 1, ideal: 1, max: 1 })).toBe("1 pessoa");
+    expect(crewText({ min: 1, ideal: 2, max: 3 })).toBe("1–3 pessoas · ideal 2");
+    expect(crewText({ min: 1, ideal: 2, max: 2 })).toBe("1–2 pessoas");
   });
 });

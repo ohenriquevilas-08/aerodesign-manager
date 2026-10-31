@@ -1,6 +1,6 @@
 // Formatação e rótulos da interface. Puro (sem Preact) para poder ser testado em tests/ui/.
 
-import type { Cost, Discipline, RiskLevel, Role } from "../sim";
+import type { Cost, Crew, Discipline, RiskLevel, Role } from "../sim";
 
 /** Número no padrão pt-BR com casas fixas: 1234.5 → "1.234,50". */
 export function formatNumber(value: number, digits = 0): string {
@@ -83,4 +83,19 @@ export function motivationLabel(value: number): string {
   if (value >= 50) return "Média";
   if (value >= 25) return "Baixa";
   return "Muito baixa";
+}
+
+/** Duração estimada: "< 1 d", "~3,5 d", "~12 d"; null = "parada". */
+export function formatDays(days: number | null): string {
+  if (days === null) return "parada";
+  if (days < 1) return "< 1 d";
+  return days < 10 ? `~${formatNumber(days, 1)} d` : `~${formatNumber(Math.round(days))} d`;
+}
+
+/** Quantas pessoas a tarefa aceita (crew da ação): "1 pessoa", "1–3 pessoas · ideal 2". */
+export function crewText(crew: Crew): string {
+  if (crew.max === 0) return "sem equipe";
+  if (crew.min === crew.max) return crew.max === 1 ? "1 pessoa" : `${crew.max} pessoas`;
+  const ideal = crew.ideal < crew.max ? ` · ideal ${crew.ideal}` : "";
+  return `${crew.min}–${crew.max} pessoas${ideal}`;
 }

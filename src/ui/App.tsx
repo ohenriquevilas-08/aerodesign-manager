@@ -8,6 +8,7 @@ import { Drafting } from "./screens/Drafting";
 import { Rules } from "./screens/Rules";
 import { Team } from "./screens/Team";
 import { TopBar } from "./TopBar";
+import { WarningToast } from "./WarningToast";
 
 // Telas do design §11. As que ainda não existem mostram um aviso.
 // Atalho: uma letra por tela (espaço e 1/2/3 ficam com o relógio).
@@ -89,6 +90,7 @@ export function App() {
           </div>
         )}
       </main>
+      <WarningToast />
     </div>
   );
 }

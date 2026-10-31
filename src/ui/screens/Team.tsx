@@ -1,5 +1,5 @@
 import { useGame } from "../../app/useGame";
-import { academicFactor, clockToDate, DISCIPLINES, type Discipline, type Member } from "../../sim";
+import { academicFactor, clockToDate, DISCIPLINES, isOverloaded, memberHoursPerDay, type Discipline, type Member } from "../../sim";
 import { Meter } from "../components/Controls";
 import { DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
 
@@ -26,8 +26,10 @@ export function Team() {
   const members = useGame((state) => state.members);
   const documented = useGame((state) => state.documented);
   const day = useGame((state) => Math.floor(state.clock.hours / 24));
-  const academic = academicFactor(clockToDate(day * 24));
-  const baseHours = members.reduce((sum, member) => sum + member.hoursPerDay, 0);
+  const tasks = useGame((state) => state.tasks);
+  const date = clockToDate(day * 24);
+  const academic = academicFactor(date);
+  const teamHours = members.reduce((sum, member) => sum + memberHoursPerDay(member, date), 0);
 
   return (
     <div class="screen">
@@ -39,8 +41,8 @@ export function Team() {
             <strong>{members.length}</strong>
           </span>
           <span class="stat">
-            <span class="stat-label">Horas/dia (base)</span>
-            <strong class="text-hours">⏱ {formatNumber(baseHours)} h</strong>
+            <span class="stat-label">Horas/dia hoje</span>
+            <strong class="text-hours">⏱ {formatNumber(teamHours, 1)} h</strong>
           </span>
           <span class="stat">
             <span class="stat-label">Período</span>
@@ -68,10 +70,19 @@ export function Team() {
                       {member.graduation}
                     </div>
                   </div>
-                  <span class="member-hours text-hours" title="Horas disponíveis por dia em período de aulas">
-                    ⏱ {formatNumber(member.hoursPerDay)} h/dia
+                  <span
+                    class="member-hours text-hours"
+                    title={`Base ${formatNumber(member.hoursPerDay)} h/dia × período acadêmico × motivação`}
+                  >
+                    ⏱ {formatNumber(memberHoursPerDay(member, date), 1)} h/dia
                   </span>
                 </header>
+                <div class={`member-task${isOverloaded(member) ? " is-overloaded" : ""}`}>
+                  {member.taskId
+                    ? `Trabalhando em: ${tasks.find((task) => task.id === member.taskId)?.label ?? "tarefa"}`
+                    : "Sem tarefa: motivação cai a cada dia parado"}
+                  {isOverloaded(member) ? " · sobrecarregado" : ""}
+                </div>
                 <div class="member-body">
                   <div class="knowledge">
                     {DISCIPLINES.map((discipline) => (
