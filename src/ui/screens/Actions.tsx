@@ -20,7 +20,7 @@ import {
 } from "../../sim";
 import { ActionCard, CostLegend, CostTag } from "../components/CostTag";
 import { Meter } from "../components/Controls";
-import { crewText, DISCIPLINE_LABEL, formatDays, formatNumber } from "../format";
+import { canWork, crewText, DISCIPLINE_LABEL, formatDays, formatNumber } from "../format";
 
 // Tela Ações (design §4.2 e §8): iniciar uma ação cria uma tarefa. O tempo não pula: a tarefa
 // espera o prazo ⌛ e avança com as horas de quem está alocado, até o limite de pessoas da ação.
@@ -82,7 +82,7 @@ export function Actions() {
 
 function Composer({ action, onClose }: { action: ActionDef; onClose: () => void }) {
   const hour = useGame((state) => Math.floor(state.clock.hours));
-  const members = useGame((state) => state.members);
+  const members = useGame((state) => state.members).filter(canWork);
   const credits = useGame((state) => state.credits);
   const stock = useGame((state) => state.stock);
   const parts = useGame((state) => state.parts);
@@ -309,7 +309,7 @@ function TaskRow({ task }: { task: Task }) {
   const remaining = estimateRemainingDays(store.getState(), task.id);
   const waiting = task.status === "waiting" && task.readyAt !== null && task.readyAt > hour;
   const stalled = !waiting && task.hoursTotal > 0 && task.assignees.length < Math.max(1, crew.min);
-  const candidates = members.filter((member) => !task.assignees.includes(member.id));
+  const candidates = members.filter((member) => canWork(member) && !task.assignees.includes(member.id));
   const progress = task.hoursTotal > 0 ? (task.hoursDone / task.hoursTotal) * 100 : 0;
 
   return (

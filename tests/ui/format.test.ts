@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ACTIONS } from "../../src/sim";
-import { costParts, crewText, formatDays, formatNumber, motivationLabel } from "../../src/ui/format";
+import { ACTIONS, createGame } from "../../src/sim";
+import { canWork, costParts, crewText, formatDays, formatNumber, motivationLabel } from "../../src/ui/format";
 
 describe("costParts (design §8)", () => {
   it("mantém a ordem horas, créditos, prazo, risco", () => {
@@ -48,5 +48,14 @@ describe("tarefas", () => {
     expect(crewText({ min: 1, ideal: 1, max: 1 })).toBe("1 pessoa");
     expect(crewText({ min: 1, ideal: 2, max: 3 })).toBe("1–3 pessoas · ideal 2");
     expect(crewText({ min: 1, ideal: 2, max: 2 })).toBe("1–2 pessoas");
+  });
+});
+
+describe("presidente", () => {
+  it("não entra nas tarefas operacionais", () => {
+    const game = createGame({ seed: 1, teamName: "Teste" });
+    const roles = game.members.filter(canWork).map((member) => member.role);
+    expect(roles).not.toContain("president");
+    expect(roles.length).toBe(game.members.length - 1);
   });
 });

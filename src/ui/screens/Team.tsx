@@ -1,7 +1,15 @@
 import { useGame } from "../../app/useGame";
-import { academicFactor, clockToDate, DISCIPLINES, isOverloaded, memberHoursPerDay, type Discipline, type Member } from "../../sim";
+import {
+  academicFactor,
+  clockToDate,
+  DISCIPLINES,
+  isOverloaded,
+  memberHoursPerDay,
+  type Discipline,
+  type Member
+} from "../../sim";
 import { Meter } from "../components/Controls";
-import { DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
+import { canWork, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
 
 // Tela Equipe (design §5), só leitura: elenco, conhecimento tácito por disciplina e o acervo
 // documentado da equipe. Alocação e seletiva chegam com os comandos da simulação.
@@ -29,7 +37,8 @@ export function Team() {
   const tasks = useGame((state) => state.tasks);
   const date = clockToDate(day * 24);
   const academic = academicFactor(date);
-  const teamHours = members.reduce((sum, member) => sum + memberHoursPerDay(member, date), 0);
+  const workers = members.filter(canWork);
+  const teamHours = workers.reduce((sum, member) => sum + memberHoursPerDay(member, date), 0);
 
   return (
     <div class="screen">
@@ -38,7 +47,7 @@ export function Team() {
         <div class="stat-row">
           <span class="stat">
             <span class="stat-label">Integrantes</span>
-            <strong>{members.length}</strong>
+            <strong>{workers.length}</strong>
           </span>
           <span class="stat">
             <span class="stat-label">Horas/dia hoje</span>
@@ -70,17 +79,21 @@ export function Team() {
                       {member.graduation}
                     </div>
                   </div>
-                  <span
-                    class="member-hours text-hours"
-                    title={`Base ${formatNumber(member.hoursPerDay)} h/dia × período acadêmico × motivação`}
-                  >
-                    ⏱ {formatNumber(memberHoursPerDay(member, date), 1)} h/dia
-                  </span>
+                  {canWork(member) ? (
+                    <span
+                      class="member-hours text-hours"
+                      title={`Base ${formatNumber(member.hoursPerDay)} h/dia × período acadêmico × motivação`}
+                    >
+                      ⏱ {formatNumber(memberHoursPerDay(member, date), 1)} h/dia
+                    </span>
+                  ) : null}
                 </header>
                 <div class={`member-task${isOverloaded(member) ? " is-overloaded" : ""}`}>
-                  {member.taskId
-                    ? `Trabalhando em: ${tasks.find((task) => task.id === member.taskId)?.label ?? "tarefa"}`
-                    : "Sem tarefa: motivação cai a cada dia parado"}
+                  {!canWork(member)
+                    ? "Você decide e coordena; o trabalho operacional fica com a equipe."
+                    : member.taskId
+                      ? `Trabalhando em: ${tasks.find((task) => task.id === member.taskId)?.label ?? "tarefa"}`
+                      : "Sem tarefa: motivação cai a cada dia parado"}
                   {isOverloaded(member) ? " · sobrecarregado" : ""}
                 </div>
                 <div class="member-body">
@@ -98,7 +111,12 @@ export function Team() {
                     ))}
                   </div>
                   <div class="traits">
-                    <Trait label="Motivação" value={member.motivation} text={motivationLabel(member.motivation)} tone={motivationTone(member.motivation)} />
+                    <Trait
+                      label="Motivação"
+                      value={member.motivation}
+                      text={motivationLabel(member.motivation)}
+                      tone={motivationTone(member.motivation)}
+                    />
                     <Trait label="Fabricação" value={member.fabrication} />
                     <Trait label="Pilotagem" value={member.piloting} />
                     <Trait label="Agilidade" value={member.agility} />
@@ -144,7 +162,7 @@ function Trait({
   label,
   value,
   text,
-  tone
+  tone,
 }: {
   label: string;
   value: number;
