@@ -16,7 +16,7 @@ export const DISCIPLINES: readonly Discipline[] = [
 
 export const FIELD_SIZE = 30;
 
-const zeroKnowledge = (): Record<Discipline, number> =>
+export const zeroKnowledge = (): Record<Discipline, number> =>
   Object.fromEntries(DISCIPLINES.map((discipline) => [discipline, 0])) as Record<Discipline, number>;
 
 function founder(id: string, name: string, role: Member["role"], focus: Discipline | null): Member {
@@ -30,10 +30,13 @@ function founder(id: string, name: string, role: Member["role"], focus: Discipli
     fabrication: 20,
     piloting: 0,
     agility: 40,
+    communication: role === "president" ? 50 : 30,
     motivation: 80,
-    hoursPerDay: role === "president" ? 2 : 3,
+    // O presidente é o jogador e não entra na capacidade da equipe.
+    hoursPerDay: role === "president" ? 0 : 3,
     graduation: "2027.2",
-    taskId: null
+    taskId: null,
+    workStreakHours: 0
   };
 }
 
@@ -65,7 +68,7 @@ export function drawField(seed: number): { rivals: RivalTeam[]; rngState: number
 export function createGame(options: { seed: number; teamName: string }): GameState {
   const { rivals, rngState } = drawField(options.seed);
   return {
-    version: 1,
+    version: 2,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },
@@ -78,6 +81,8 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
     ],
     documented: zeroKnowledge(),
     parts: [],
+    stock: {},
+    equipment: [],
     tasks: [],
     inbox: [
       {
@@ -89,6 +94,11 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
         read: false
       }
     ],
-    rivals
+    rivals,
+    outreach: 0,
+    candidates: [],
+    pause: { reason: "start", at: 0, messageId: null },
+    warning: null,
+    nextId: 1
   };
 }
