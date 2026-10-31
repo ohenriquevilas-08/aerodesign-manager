@@ -4,6 +4,7 @@
 import { findAction, type ActionDef, type StockItem } from "./content/actions";
 import { BALANCE } from "./content/balance";
 import { nextRandom } from "./rng";
+import { drawCandidates, findSelectionFormat } from "./selection";
 import { DISCIPLINES } from "./state";
 import { clamp, DISCIPLINE_LABELS, learn, motivationFactor } from "./team";
 import type { Discipline, GameState, InboxMessage, Member, Part, Task } from "./types";
@@ -34,6 +35,10 @@ const replaceTask = (state: GameState, task: Task): GameState => ({
 
 function taskLabel(state: GameState, action: ActionDef, targetId: string | null): string {
   if (action.target === "discipline" && isDiscipline(targetId)) return `${action.label} (${DISCIPLINE_LABELS[targetId]})`;
+  if (action.target === "selection-format") {
+    const format = findSelectionFormat(targetId);
+    if (format) return `${action.label} (${format.label})`;
+  }
   if (action.target === "part") {
     const part = state.parts.find((item) => item.id === targetId);
     if (part) return `${action.label}: ${part.label}`;
@@ -52,6 +57,8 @@ function targetProblem(state: GameState, action: ActionDef, targetId: string | n
       return null;
     case "discipline":
       return isDiscipline(targetId) ? null : "Escolha a disciplina a documentar.";
+    case "selection-format":
+      return findSelectionFormat(targetId) ? null : "Escolha o formato da seletiva.";
     case "part":
       return state.parts.some((part) => part.id === targetId) ? null : "Escolha a peça a reparar.";
     case "waiting-task": {
@@ -283,6 +290,15 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
     case "agility":
       body = "A equipe ficou mais rápida na retirada de carga.";
       break;
+    case "selection": {
+      const format = findSelectionFormat(task.targetId);
+      if (format) {
+        const before = next.candidates.length;
+        next = drawCandidates(next, format.id);
+        body = `${next.candidates.length - before} candidatos aguardam convite. Veja os pareceres dos capitães.`;
+      }
+      break;
+    }
   }
 
   // Concluir motiva quem está na tarefa no fim; todos ficam livres.

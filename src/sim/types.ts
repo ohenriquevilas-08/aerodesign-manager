@@ -61,6 +61,24 @@ export interface Member {
   workStreakHours: number;
 }
 
+/** Candidato da seletiva (design §5.2): vira Member com role "member" ao ser convidado. */
+export interface Candidate {
+  id: string;
+  name: string;
+  /** Formato da seletiva que trouxe o candidato (content/selection.ts). */
+  format: string;
+  /** Disciplina em que o candidato chega sabendo algo. */
+  focus: Discipline;
+  knowledge: Record<Discipline, number>;
+  fabrication: number;
+  agility: number;
+  motivation: number;
+  hoursPerDay: number;
+  graduation: string;
+  /** Parecer de um capitão, em PT-BR. */
+  opinion: string;
+}
+
 export type PartType = "wing" | "fuselage" | "tail" | "landingGear" | "powertrain" | "electronics";
 
 /** Estados visíveis (design §7.2). Derivados de `condition`. */
@@ -156,6 +174,8 @@ export interface GameState {
   tasks: Task[];
   inbox: InboxMessage[];
   rivals: RivalTeam[];
+  /** Candidatos da última seletiva ainda sem resposta. Convite é gratuito. */
+  candidates: Candidate[];
   /** Não nulo enquanto o relógio está pausado (speed 0): diz por quê. */
   pause: PauseInfo | null;
   /** Último comando recusado; a UI mostra quando `id` muda. */

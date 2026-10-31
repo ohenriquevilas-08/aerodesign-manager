@@ -20,6 +20,7 @@ export type EquipmentItem = "scale";
  * - repair: recupera condição da peça alvo.
  * - expedite: encurta a espera da tarefa alvo (fração da espera restante que sobra).
  * - agility: treino que aumenta agilidade de quem participou.
+ * - selection: sorteia candidatos da seletiva no formato escolhido ao iniciar (design §5.2).
  */
 export type ActionEffect =
   | { kind: "credits"; amount: number }
@@ -31,10 +32,11 @@ export type ActionEffect =
   | { kind: "document" }
   | { kind: "repair"; amount: number }
   | { kind: "expedite"; remainingFactor: number }
-  | { kind: "agility" };
+  | { kind: "agility" }
+  | { kind: "selection" };
 
 /** Alvo exigido no comando start-action. */
-export type ActionTarget = "part" | "waiting-task" | "discipline";
+export type ActionTarget = "part" | "waiting-task" | "discipline" | "selection-format";
 
 export interface ActionDef {
   id: string;
@@ -64,7 +66,13 @@ export function categoryOf(value: Cost): ActionCategory {
 
 const defs: Omit<ActionDef, "category">[] = [
   // Só horas
-  { id: "recruitment", label: "Processo seletivo", cost: cost(20, 0) },
+  {
+    id: "recruitment",
+    label: "Processo seletivo",
+    cost: cost(20, 0),
+    effect: { kind: "selection" },
+    target: "selection-format"
+  },
   { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), discipline: "aerodynamics" },
   { id: "report-chapter", label: "Escrever capítulo do relatório", cost: cost(30, 0) },
   { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), effect: { kind: "document" }, target: "discipline" },

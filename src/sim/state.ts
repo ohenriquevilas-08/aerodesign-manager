@@ -93,6 +93,7 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
       }
     ],
     rivals,
+    candidates: [],
     pause: { reason: "start", at: 0, messageId: null },
     warning: null,
     nextId: 1

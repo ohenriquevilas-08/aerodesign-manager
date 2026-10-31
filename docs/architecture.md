@@ -71,6 +71,46 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 | Cenas | `src/scenes/` | Hangar completo, ensaios, competição (voo e fila) |
 | QA | só leitura | Roda testes, joga o Ano 1 no navegador, reporta bugs |
 
+## Simulação: loop de preparação (contrato para a UI)
+
+`GameState.version` = **2**. Arquivos: `sim/loop.ts` (tick), `sim/tasks.ts` (tarefas e efeitos), `sim/team.ts` (horas, motivação, conhecimento), `sim/parts.ts`, `sim/selection.ts`. Números de balanceamento em `sim/content/balance.ts` (`BALANCE`) e `sim/content/selection.ts`.
+
+### Comandos
+
+| Comando | Efeito | Recusa (gera `warning`) |
+|---|---|---|
+| `{ type: "tick", realSeconds }` | Avança o relógio em passos de até 1 h de jogo: esperas ⌛, horas da equipe, motivação, conclusões, calendário. Para no passo de um evento que pausa. | — |
+| `{ type: "set-speed", speed }` | Muda a velocidade. `0` grava `pause = { reason: "manual" }`; qualquer outra limpa `pause`. | — |
+| `{ type: "read-message", id }` | Marca mensagem como lida. | — |
+| `{ type: "start-action", actionId, targetId? }` | Debita ◆ e consome estoque na hora; cria `Task`. Com `leadDays > 0` nasce `waiting` até `readyAt`; senão `active`. Sem horas e sem prazo conclui na hora (sem pausar). | Ação desconhecida, alvo inválido, falta estoque, caixa insuficiente |
+| `{ type: "assign-member", memberId, taskId }` | Aloca (tira da tarefa anterior). Pode alocar em tarefa `waiting`: a pessoa espera sem trabalhar. | Tarefa concluída/inexistente, tarefa sem horas (compra) |
+| `{ type: "unassign-member", memberId }` | Libera o integrante. | — |
+| `{ type: "cancel-task", taskId }` | Remove a tarefa e libera quem estava nela. ◆ e material **não** voltam. | Tarefa concluída/inexistente |
+| `{ type: "hire-candidate", candidateId }` | Convite gratuito: candidato vira `Member` (`role: "member"`). | Candidato inexistente |
+| `{ type: "dismiss-candidates" }` | Descarta os candidatos restantes. | — |
+
+`targetId` por ação (`ActionDef.target`): `document` → disciplina (`"aerodynamics"` etc.); `recruitment` → formato da seletiva (`SELECTION_FORMATS`: `broad`, `technical`, `referral`, `challenge`); `repair-part` → id da peça; `express-shipping` → id de tarefa `waiting` que ainda não chegou.
+
+### Campos novos
+
+- `GameState.pause: PauseInfo | null`: não nulo enquanto pausado. `reason`: `"start" | "manual" | "task-done" | "deadline-soon" | "deadline-passed"`; `messageId` aponta para a mensagem da inbox que causou a pausa automática.
+- `GameState.warning: { id, at, text } | null`: último comando recusado. Mostrar quando `id` mudar (o estado não tem "dispensar aviso").
+- `GameState.stock: Record<string, number>` (consumíveis, ex.: `balsa`) e `GameState.equipment: string[]` (ex.: `"scale"`).
+- `GameState.candidates: Candidate[]`: candidatos da seletiva, com `focus`, atributos e `opinion` (parecer de capitão, PT-BR).
+- `GameState.nextId`: contador interno para ids (`task-N`, `part-N`, `msg-N`, `cand-N`, `member-N`).
+- `Member.workStreakHours`: horas seguidas em tarefa ativa (sobrecarga acima de `BALANCE.motivation.overloadAfterHours`).
+- `Task.contributions` (horas por integrante), `Task.targetId`, `Task.doneAt`. Tarefas concluídas ficam em `tasks` com `status: "done"` e `assignees: []` (histórico).
+- `ActionDef.effect`, `ActionDef.requires` (estoque consumido ao iniciar; `build-wing` exige 1 balsa), `ActionDef.target`.
+
+### Regras
+
+- Horas/dia de um integrante = `hoursPerDay × academicFactor × motivationFactor(motivation)` (`memberHoursPerDay`). `motivationFactor` vai de 0,5 (motivação 0) a 1 (100).
+- Motivação cai `idleDecayPerDay` por dia sem tarefa e `overloadDecayPerDay` quando sobrecarregado; sobe `completionBoost` para quem está na tarefa ao concluir. Quem está alocado em tarefa `waiting` não perde motivação e descansa a sequência.
+- Conhecimento: ações com `discipline` ensinam quem trabalhou, proporcional às horas, com retorno decrescente. `effectiveKnowledge(member, documented, d)` = máximo entre tácito e documentado.
+- Peças: `partState(condition)` → `new` (80–100), `worn` (50–79), `damaged` (20–49), `broken` (0–19); rótulos em `PART_STATE_LABELS`.
+- Inbox: mensagens novas vão para o **fim** do array (ordem cronológica). Eventos que pausam: tarefa concluída pelo relógio, marco `deadline`/`event` a 7 dias, e qualquer marco do `OFFICIAL_CALENDAR` no dia.
+- O store não precisou mudar: `togglePause` retoma na última velocidade escolhida também depois de pausa automática.
+
 ## Comandos
 
 ```bash

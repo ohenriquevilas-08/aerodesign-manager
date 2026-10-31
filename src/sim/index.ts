@@ -19,6 +19,8 @@ export {
   type StockItem
 } from "./content/actions";
 export { BALANCE } from "./content/balance";
+export { missingCast } from "./selection";
+export { SELECTION_FORMATS, type SelectionFormat, type SelectionFormatDef } from "./content/selection";
 export { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";
 export { OFFICIAL_CALENDAR, SEASON_START, type Deadline } from "./content/calendar2026";
 export { TEAM_POOL, type TeamSeed } from "./content/teams";

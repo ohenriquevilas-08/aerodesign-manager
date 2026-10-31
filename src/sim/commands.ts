@@ -2,18 +2,24 @@
 // applyCommand é puro (estado novo, sem mutar o anterior).
 
 import { tick } from "./loop";
-import { assignMember, cancelTask, startAction, unassignMember } from "./tasks";
+import { hireCandidate } from "./selection";
+import { assignMember, cancelTask, startAction, unassignMember, warn } from "./tasks";
 import type { ClockSpeed, GameState } from "./types";
 
 export type Command =
   | { type: "tick"; realSeconds: number }
   | { type: "set-speed"; speed: ClockSpeed }
   | { type: "read-message"; id: string }
-  /** targetId: disciplina (document), id de peça (repair-part) ou id de tarefa esperando (express-shipping). */
+  /**
+   * targetId: disciplina (document), formato da seletiva (recruitment), id de peça (repair-part)
+   * ou id de tarefa esperando (express-shipping).
+   */
   | { type: "start-action"; actionId: string; targetId?: string }
   | { type: "assign-member"; memberId: string; taskId: string }
   | { type: "unassign-member"; memberId: string }
-  | { type: "cancel-task"; taskId: string };
+  | { type: "cancel-task"; taskId: string }
+  | { type: "hire-candidate"; candidateId: string }
+  | { type: "dismiss-candidates" };
 
 export function applyCommand(state: GameState, command: Command): GameState {
   switch (command.type) {
@@ -39,5 +45,9 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return unassignMember(state, command.memberId);
     case "cancel-task":
       return cancelTask(state, command.taskId);
+    case "hire-candidate":
+      return hireCandidate(state, command.candidateId) ?? warn(state, "Esse candidato não está mais disponível.");
+    case "dismiss-candidates":
+      return state.candidates.length === 0 ? state : { ...state, candidates: [] };
   }
 }
