@@ -20,6 +20,7 @@ export type EquipmentItem = "scale";
  * - repair: recupera condição da peça alvo.
  * - expedite: encurta a espera da tarefa alvo (fração da espera restante que sobra).
  * - agility: treino que aumenta agilidade de quem participou.
+ * - outreach: soma alcance de divulgação (GameState.outreach), que a seletiva consome.
  * - selection: sorteia candidatos da seletiva no formato escolhido ao iniciar (design §5.2).
  */
 export type ActionEffect =
@@ -33,7 +34,8 @@ export type ActionEffect =
   | { kind: "repair"; amount: number }
   | { kind: "expedite"; remainingFactor: number }
   | { kind: "agility" }
-  | { kind: "selection" };
+  | { kind: "selection" }
+  | { kind: "outreach"; amount: number };
 
 /** Alvo exigido no comando start-action. */
 export type ActionTarget = "part" | "waiting-task" | "discipline" | "selection-format";
@@ -95,6 +97,11 @@ const defs: Omit<ActionDef, "category">[] = [
     effect: { kind: "selection" },
     target: "selection-format"
   },
+  // Divulgação: ações pequenas que somam alcance para a próxima seletiva.
+  { id: "outreach-posters", label: "Cartazes no campus", cost: cost(2, 0), crew: crew(1, 1, 1), skill: "communication", effect: { kind: "outreach", amount: 4 } },
+  { id: "outreach-social", label: "Post nas redes", cost: cost(1, 0), crew: crew(1, 1, 1), skill: "communication", effect: { kind: "outreach", amount: 2 } },
+  { id: "outreach-classroom", label: "Passar em sala de aula", cost: cost(3, 0), crew: crew(1, 2, 2), skill: "communication", effect: { kind: "outreach", amount: 6 } },
+  { id: "outreach-freshers", label: "Stand na recepção de calouros", cost: cost(6, 0), crew: crew(2, 2, 3), skill: "communication", effect: { kind: "outreach", amount: 12 } },
   { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), crew: crew(1, 2, 3), skill: "knowledge", discipline: "aerodynamics" },
   { id: "report-chapter", label: "Escrever capítulo do relatório", cost: cost(30, 0), crew: crew(1, 1, 1) },
   { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), crew: crew(1, 1, 1), skill: "knowledge", effect: { kind: "document" }, target: "discipline" },

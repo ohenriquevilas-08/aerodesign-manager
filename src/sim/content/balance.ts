@@ -60,6 +60,19 @@ export const BALANCE = {
     maxSpread: 0.4
   },
 
+  outreach: {
+    /** Fração do alcance de divulgação que se perde por dia de jogo. */
+    decayPerDay: 0.03,
+    /** Incerteza (±) do número de inscritos, além da qualidade de quem conduz a seletiva. */
+    applicantSpread: 0.3
+  },
+
+  lead: {
+    /** Prazo real = prazo prometido × fator sorteado nesta faixa (entregas atrasam mais do que adiantam). */
+    minFactor: 0.8,
+    maxFactor: 1.4
+  },
+
   calendar: {
     /** Aviso de prazo próximo, em dias (design §4.1). */
     warnDays: 7

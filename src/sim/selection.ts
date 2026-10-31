@@ -31,8 +31,8 @@ function opinionFor(state: GameState, focus: Discipline, knowledge: number, fabr
   return `${captain}: "${level} em ${DISCIPLINE_LABELS[focus]}.${shop}"`;
 }
 
-/** Sorteia os candidatos do formato com rngState; nomes não repetem integrantes nem candidatos. */
-export function drawCandidates(state: GameState, formatId: SelectionFormat): GameState {
+/** Sorteia `count` candidatos do formato com rngState; nomes não repetem integrantes nem candidatos. */
+export function drawCandidates(state: GameState, formatId: SelectionFormat, count: number): GameState {
   const format = findSelectionFormat(formatId)!;
   let rng = state.rngState;
   const roll = () => {
@@ -46,7 +46,7 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat): Gam
   const taken = new Set([...state.members.map((member) => member.name), ...state.candidates.map((item) => item.name)]);
   let nextId = state.nextId;
   const drawn: Candidate[] = [];
-  for (let i = 0; i < format.candidates; i += 1) {
+  for (let i = 0; i < count; i += 1) {
     const free = CANDIDATE_NAMES.filter((name) => !taken.has(name));
     if (free.length === 0) break;
     const name = pick(free);
@@ -111,4 +111,9 @@ export function missingCast(state: GameState): ("aerodynamics" | "structures" | 
   if (!state.members.some((member) => member.knowledge.structures > 0)) missing.push("structures");
   if (!state.members.some((member) => member.role === "member")) missing.push("third");
   return missing;
+}
+
+/** Inscritos esperados antes da qualidade da equipe: base do formato + alcance de divulgação. */
+export function expectedApplicants(format: SelectionFormatDef, outreach: number): number {
+  return format.baseApplicants + format.applicantsPerReach * outreach;
 }

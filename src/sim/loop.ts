@@ -70,6 +70,9 @@ export function step(state: GameState, dt: number): GameState {
     })
   };
 
+  // 2b. Alcance de divulgação esfria com o tempo.
+  if (next.outreach > 0) next = { ...next, outreach: next.outreach * Math.pow(1 - BALANCE.outreach.decayPerDay, dt / 24) };
+
   // 3. Motivação: cai para quem está parado e para quem está sobrecarregado (design §4.2).
   const statusById = new Map(next.tasks.map((task) => [task.id, task.status]));
   const days = dt / 24;
