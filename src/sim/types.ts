@@ -54,6 +54,11 @@ export interface Member {
   /** Semestre previsto de saída, ex.: "2027.2". */
   graduation: string;
   taskId: string | null;
+  /**
+   * Horas de jogo seguidas em tarefa ativa; acima de BALANCE.motivation.overloadAfterHours
+   * a pessoa está sobrecarregada. Recupera quando fica parada.
+   */
+  workStreakHours: number;
 }
 
 export type PartType = "wing" | "fuselage" | "tail" | "landingGear" | "powertrain" | "electronics";
@@ -71,6 +76,7 @@ export interface Part {
   condition: number;
 }
 
+/** waiting: esperando prazo ⌛ (readyAt); active: consome horas; done: concluída (fica como histórico). */
 export type TaskStatus = "waiting" | "active" | "done";
 
 export interface Task {
@@ -84,7 +90,14 @@ export interface Task {
   /** Momento (horas de jogo) em que a espera de prazo termina; null se não há espera. */
   readyAt: number | null;
   status: TaskStatus;
+  /** Quem está alocado agora (espelha Member.taskId). Vazio depois de concluída. */
   assignees: string[];
+  /** Horas trabalhadas por integrante; base de conhecimento e qualidade na conclusão. */
+  contributions: Record<string, number>;
+  /** Alvo escolhido no start-action (peça, tarefa ou disciplina), se a ação exige. */
+  targetId: string | null;
+  /** Momento (horas de jogo) da conclusão; null enquanto não termina. */
+  doneAt: number | null;
 }
 
 export interface InboxMessage {
@@ -94,6 +107,24 @@ export interface InboxMessage {
   title: string;
   body: string;
   read: boolean;
+}
+
+/** Motivo da pausa atual. "start": jogo recém-criado; "manual": jogador pausou. */
+export type PauseReason = "start" | "manual" | "task-done" | "deadline-soon" | "deadline-passed";
+
+export interface PauseInfo {
+  reason: PauseReason;
+  /** Horas de jogo em que pausou. */
+  at: number;
+  /** Mensagem da inbox que explica a pausa automática, se houver. */
+  messageId: string | null;
+}
+
+/** Aviso curto de um comando recusado (ex.: sem caixa). `id` muda a cada aviso novo. */
+export interface Warning {
+  id: number;
+  at: number;
+  text: string;
 }
 
 export interface RivalTeam {
@@ -108,7 +139,7 @@ export interface RivalTeam {
 }
 
 export interface GameState {
-  version: 1;
+  version: 2;
   seed: number;
   rngState: number;
   clock: Clock;
@@ -118,7 +149,17 @@ export interface GameState {
   /** Conhecimento documentado da equipe por disciplina (piso para todos). */
   documented: Record<Discipline, number>;
   parts: Part[];
+  /** Consumíveis em estoque (ex.: balsa), por id de item. */
+  stock: Record<string, number>;
+  /** Equipamentos permanentes possuídos (ex.: "scale"). */
+  equipment: string[];
   tasks: Task[];
   inbox: InboxMessage[];
   rivals: RivalTeam[];
+  /** Não nulo enquanto o relógio está pausado (speed 0): diz por quê. */
+  pause: PauseInfo | null;
+  /** Último comando recusado; a UI mostra quando `id` muda. */
+  warning: Warning | null;
+  /** Contador para ids determinísticos de tarefas, peças, mensagens e avisos. */
+  nextId: number;
 }

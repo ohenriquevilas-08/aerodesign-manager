@@ -1,0 +1,53 @@
+// Números de balanceamento do loop de preparação. Todos provisórios (design §8.3):
+// ficam centralizados aqui para o protótipo ajustar sem tocar nas regras.
+
+export const BALANCE = {
+  /** Passo máximo da simulação dentro de um tick, em horas de jogo. */
+  stepHours: 1,
+
+  motivation: {
+    /** Fator de horas com motivação 0; com 100 o fator é 1 (design §4.2). */
+    hoursFactorAtZero: 0.5,
+    /** Queda por dia de jogo de quem está sem tarefa. */
+    idleDecayPerDay: 1,
+    /** Horas seguidas em tarefa a partir das quais a pessoa fica sobrecarregada. */
+    overloadAfterHours: 14 * 24,
+    /** Queda por dia de jogo de quem está sobrecarregado. */
+    overloadDecayPerDay: 1.5,
+    /** Quanto a sequência de trabalho se recupera por hora parada (em horas). */
+    restRecoveryPerHour: 2,
+    /** Ganho ao concluir uma tarefa, para cada pessoa alocada no fim. */
+    completionBoost: 6
+  },
+
+  knowledge: {
+    /** Conhecimento tácito ganho por hora trabalhada na disciplina, com retorno decrescente. */
+    perHour: 0.5,
+    /** Fração da distância entre o melhor tácito e o documentado que "Documentar" converte. */
+    documentTransfer: 0.5,
+    /** Fabricação ganha por hora em tarefa que fabrica peça. */
+    fabricationPerHour: 0.3,
+    /** Agilidade ganha por hora em treino de retirada de carga. */
+    agilityPerHour: 1
+  },
+
+  parts: {
+    /** Qualidade = base + peso × fabricação média (ponderada pelas horas). */
+    fabricatedQualityBase: 30,
+    fabricatedQualityPerSkill: 0.7,
+    /** Bônus de qualidade de fabricação por equipamento possuído. */
+    equipmentQualityBonus: { scale: 5 } as Record<string, number>,
+    purchasedQuality: 85
+  },
+
+  sponsor: {
+    /** Chance de o patrocinador dizer sim; o sorteio usa rngState. */
+    successChance: 0.6,
+    amount: 800
+  },
+
+  calendar: {
+    /** Aviso de prazo próximo, em dias (design §4.1). */
+    warnDays: 7
+  }
+} as const;
