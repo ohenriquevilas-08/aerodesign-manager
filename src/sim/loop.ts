@@ -4,10 +4,12 @@
 
 import { BALANCE } from "./content/balance";
 import { OFFICIAL_CALENDAR } from "./content/calendar2026";
+import { findAction } from "./content/actions";
+import { crewRates } from "./crew";
 import { addMessage, completeTask } from "./tasks";
-import { clamp, isOverloaded, memberHoursPerDay } from "./team";
+import { clamp, isOverloaded } from "./team";
 import { clockToDate, dateToHours, gameHoursForRealSeconds } from "./time";
-import type { GameState, PauseInfo, PauseReason, Task } from "./types";
+import type { GameState, Member, PauseInfo, PauseReason } from "./types";
 
 const EPSILON = 1e-9;
 
@@ -47,20 +49,26 @@ export function step(state: GameState, dt: number): GameState {
     })
   };
 
-  // 2. Trabalho: cada integrante alocado em tarefa ativa gera horas-pessoa.
-  const byId = new Map(next.tasks.map((task) => [task.id, task]));
-  const worked = new Map<string, Task>();
-  for (const member of next.members) {
-    const task = member.taskId ? (worked.get(member.taskId) ?? byId.get(member.taskId)) : undefined;
-    if (!task || task.status !== "active") continue;
-    const hours = (memberHoursPerDay(member, date) * dt) / 24;
-    worked.set(task.id, {
-      ...task,
-      hoursDone: task.hoursDone + hours,
-      contributions: { ...task.contributions, [member.id]: (task.contributions[member.id] ?? 0) + hours }
-    });
-  }
-  if (worked.size > 0) next = { ...next, tasks: next.tasks.map((task) => worked.get(task.id) ?? task) };
+  // 2. Trabalho: a equipe alocada em tarefa ativa gera horas-pessoa conforme o crew da ação.
+  const membersById = new Map(next.members.map((member) => [member.id, member]));
+  next = {
+    ...next,
+    tasks: next.tasks.map((task) => {
+      if (task.status !== "active" || task.assignees.length === 0) return task;
+      const crew = findAction(task.actionId)!.crew;
+      const team = task.assignees.map((id) => membersById.get(id)).filter((member): member is Member => !!member);
+      const rates = crewRates(team, crew, date);
+      if (rates.size === 0) return task;
+      const contributions = { ...task.contributions };
+      let hoursDone = task.hoursDone;
+      rates.forEach((rate, memberId) => {
+        const hours = (rate * dt) / 24;
+        contributions[memberId] = (contributions[memberId] ?? 0) + hours;
+        hoursDone += hours;
+      });
+      return { ...task, hoursDone, contributions };
+    })
+  };
 
   // 3. Motivação: cai para quem está parado e para quem está sobrecarregado (design §4.2).
   const statusById = new Map(next.tasks.map((task) => [task.id, task.status]));

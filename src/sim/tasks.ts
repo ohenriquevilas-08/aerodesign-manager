@@ -138,6 +138,10 @@ export function assignMember(state: GameState, memberId: string, taskId: string)
   if (!task || task.status === "done") return warn(state, "Essa tarefa não está mais aberta.");
   if (task.hoursTotal === 0) return warn(state, "Essa tarefa não usa horas da equipe: é só esperar.");
   if (member.taskId === taskId) return state;
+  const { max } = findAction(task.actionId)!.crew;
+  if (task.assignees.length >= max) {
+    return warn(state, max === 1 ? "Essa tarefa é de uma pessoa só." : `Essa tarefa comporta no máximo ${max} pessoas.`);
+  }
 
   const detached = detach(state, memberId);
   return {

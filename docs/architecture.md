@@ -83,7 +83,7 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 | `{ type: "set-speed", speed }` | Muda a velocidade. `0` grava `pause = { reason: "manual" }`; qualquer outra limpa `pause`. | — |
 | `{ type: "read-message", id }` | Marca mensagem como lida. | — |
 | `{ type: "start-action", actionId, targetId? }` | Debita ◆ e consome estoque na hora; cria `Task`. Com `leadDays > 0` nasce `waiting` até `readyAt`; senão `active`. Sem horas e sem prazo conclui na hora (sem pausar). | Ação desconhecida, alvo inválido, falta estoque, caixa insuficiente |
-| `{ type: "assign-member", memberId, taskId }` | Aloca (tira da tarefa anterior). Pode alocar em tarefa `waiting`: a pessoa espera sem trabalhar. | Tarefa concluída/inexistente, tarefa sem horas (compra) |
+| `{ type: "assign-member", memberId, taskId }` | Aloca (tira da tarefa anterior). Pode alocar em tarefa `waiting`: a pessoa espera sem trabalhar. | Tarefa concluída/inexistente, tarefa sem horas (compra), equipe já no `crew.max` |
 | `{ type: "unassign-member", memberId }` | Libera o integrante. | — |
 | `{ type: "cancel-task", taskId }` | Remove a tarefa e libera quem estava nela. ◆ e material **não** voltam. | Tarefa concluída/inexistente |
 | `{ type: "hire-candidate", candidateId }` | Convite gratuito: candidato vira `Member` (`role: "member"`). | Candidato inexistente |
@@ -100,11 +100,13 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 - `GameState.nextId`: contador interno para ids (`task-N`, `part-N`, `msg-N`, `cand-N`, `member-N`).
 - `Member.workStreakHours`: horas seguidas em tarefa ativa (sobrecarga acima de `BALANCE.motivation.overloadAfterHours`).
 - `Task.contributions` (horas por integrante), `Task.targetId`, `Task.doneAt`. Tarefas concluídas ficam em `tasks` com `status: "done"` e `assignees: []` (histórico).
+- `ActionDef.crew: { min, ideal, max }`: pessoas por tarefa. Abaixo de `min` não avança; acima de `ideal` cada pessoa extra (as de menor rendimento) rende `BALANCE.crew.extraEfficiency` (0,5); `max` é o teto do `assign-member`. Compras: `{ 0, 0, 0 }`.
 - `ActionDef.effect`, `ActionDef.requires` (estoque consumido ao iniciar; `build-wing` exige 1 balsa), `ActionDef.target`.
 
 ### Regras
 
 - Horas/dia de um integrante = `hoursPerDay × academicFactor × motivationFactor(motivation)` (`memberHoursPerDay`). `motivationFactor` vai de 0,5 (motivação 0) a 1 (100).
+- Estimativas para a UI (assumem motivação constante e seguem o calendário acadêmico): `estimateTaskDays(state, actionId, memberIds)` = dias de prazo ⌛ + trabalho se iniciar agora com essas pessoas; `estimateRemainingDays(state, taskId)` = o que falta com quem está alocado. Ambas devolvem `null` quando a tarefa não anda (ninguém, ou abaixo do `crew.min`). `crewRates(members, crew, date)` dá o rendimento por pessoa.
 - Motivação cai `idleDecayPerDay` por dia sem tarefa e `overloadDecayPerDay` quando sobrecarregado; sobe `completionBoost` para quem está na tarefa ao concluir. Quem está alocado em tarefa `waiting` não perde motivação e descansa a sequência.
 - Conhecimento: ações com `discipline` ensinam quem trabalhou, proporcional às horas, com retorno decrescente. `effectiveKnowledge(member, documented, d)` = máximo entre tácito e documentado.
 - Peças: `partState(condition)` → `new` (80–100), `worn` (50–79), `damaged` (20–49), `broken` (0–19); rótulos em `PART_STATE_LABELS`.

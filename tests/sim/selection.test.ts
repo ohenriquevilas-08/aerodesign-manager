@@ -3,13 +3,12 @@ import { applyCommand, createGame, missingCast, SELECTION_FORMATS, type Command,
 
 const run = (state: GameState, ...commands: Command[]): GameState => commands.reduce(applyCommand, state);
 
-/** Faz uma seletiva completa no formato dado, com os três fundadores alocados. */
+/** Faz uma seletiva completa no formato dado, com os dois capitães alocados (crew máximo 2). */
 function runSelection(seed: number, format: string): GameState {
   let game = run(createGame({ seed, teamName: "T" }), { type: "start-action", actionId: "recruitment", targetId: format });
   const taskId = game.tasks[0]!.id;
   game = run(
     game,
-    { type: "assign-member", memberId: "president", taskId },
     { type: "assign-member", memberId: "captain-aero", taskId },
     { type: "assign-member", memberId: "captain-struct", taskId }
   );

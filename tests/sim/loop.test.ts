@@ -4,6 +4,8 @@ import {
   BALANCE,
   createGame,
   dateToHours,
+  estimateRemainingDays,
+  estimateTaskDays,
   memberHoursPerDay,
   motivationFactor,
   partState,
@@ -340,5 +342,61 @@ describe("motivação", () => {
     game = playUntilDone(game, taskId);
     expect(member(game, "captain-aero").motivation).toBe(80 + BALANCE.motivation.completionBoost);
     expect(member(game, "captain-aero").agility).toBeGreaterThan(40);
+  });
+});
+
+describe("equipe por tarefa (crew)", () => {
+  it("recusa alocar acima do máximo da ação", () => {
+    let game = run(newGame(), { type: "start-action", actionId: "report-chapter" });
+    const taskId = lastTask(game).id;
+    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "president", taskId });
+    expect(game.tasks[0]!.assignees).toEqual(["captain-aero"]);
+    expect(member(game, "president").taskId).toBeNull();
+    expect(game.warning?.text).toContain("uma pessoa");
+  });
+
+  it("abaixo do mínimo a tarefa não avança", () => {
+    let game = run(newGame({ credits: 100 }), { type: "start-action", actionId: "test-flight" });
+    const taskId = lastTask(game).id;
+    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+    game = play(game, 2);
+    expect(game.tasks[0]!.hoursDone).toBe(0);
+    expect(estimateRemainingDays(game, taskId)).toBeNull();
+  });
+
+  it("acima do ideal cada pessoa extra rende menos (a de menor rendimento)", () => {
+    let game = run(newGame(), { type: "start-action", actionId: "study-aero" });
+    const taskId = lastTask(game).id;
+    game = run(
+      game,
+      { type: "assign-member", memberId: "president", taskId },
+      { type: "assign-member", memberId: "captain-aero", taskId },
+      { type: "assign-member", memberId: "captain-struct", taskId }
+    );
+    game = play(game, 1);
+    const extra = 2 * 0.9 * BALANCE.crew.extraEfficiency;
+    expect(game.tasks[0]!.hoursDone).toBeCloseTo(2.7 + 2.7 + extra);
+    expect(game.tasks[0]!.contributions["president"]).toBeCloseTo(extra);
+  });
+
+  it("estima a duração antes de iniciar e bate com a simulação", () => {
+    const game = newGame();
+    const estimate = estimateTaskDays(game, "raffle", ["captain-aero"])!;
+    expect(estimateTaskDays(game, "raffle", ["captain-aero", "captain-struct"])!).toBeLessThan(estimate);
+    expect(estimateTaskDays(game, "raffle", [])).toBeNull();
+    expect(estimateTaskDays(game, "test-flight", ["captain-aero"])).toBeNull();
+    expect(estimateTaskDays(game, "buy-motor", [])).toBe(10);
+
+    let started = run(game, { type: "start-action", actionId: "raffle" });
+    const taskId = lastTask(started).id;
+    started = run(started, { type: "assign-member", memberId: "captain-aero", taskId });
+    expect(estimateRemainingDays(started, taskId)).toBeCloseTo(estimate);
+    const done = playUntilDone(started, taskId);
+    expect(done.tasks[0]!.doneAt! / 24).toBeCloseTo(estimate, 1);
+  });
+
+  it("estima o restante de uma compra pelo prazo", () => {
+    const game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-motor" });
+    expect(estimateRemainingDays(play(game, 4), lastTask(game).id)).toBeCloseTo(6);
   });
 });

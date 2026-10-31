@@ -38,11 +38,23 @@ export type ActionEffect =
 /** Alvo exigido no comando start-action. */
 export type ActionTarget = "part" | "waiting-task" | "discipline" | "selection-format";
 
+/**
+ * Quantas pessoas trabalham juntas. Abaixo de `min` a tarefa não avança; acima de `ideal`
+ * cada pessoa extra rende BALANCE.crew.extraEfficiency; `max` é o teto do assign-member.
+ * Ações sem horas (compras) têm tudo 0.
+ */
+export interface Crew {
+  min: number;
+  ideal: number;
+  max: number;
+}
+
 export interface ActionDef {
   id: string;
   label: string;
   category: ActionCategory;
   cost: Cost;
+  crew: Crew;
   /** Disciplina que ganha conhecimento tácito com a ação, se houver. */
   discipline?: Discipline;
   effect?: ActionEffect;
@@ -64,40 +76,43 @@ export function categoryOf(value: Cost): ActionCategory {
   return value.credits > 0 ? "credits" : "hours";
 }
 
+const crew = (min: number, ideal: number, max: number): Crew => ({ min, ideal, max });
+const NO_CREW = crew(0, 0, 0);
+
 const defs: Omit<ActionDef, "category">[] = [
   // Só horas
   {
     id: "recruitment",
     label: "Processo seletivo",
-    cost: cost(20, 0),
+    cost: cost(20, 0), crew: crew(1, 2, 2),
     effect: { kind: "selection" },
     target: "selection-format"
   },
-  { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), discipline: "aerodynamics" },
-  { id: "report-chapter", label: "Escrever capítulo do relatório", cost: cost(30, 0) },
-  { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), effect: { kind: "document" }, target: "discipline" },
-  { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), effect: { kind: "credits", amount: 420 } },
-  { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), effect: { kind: "sponsor" } },
-  { id: "unload-drill", label: "Treino de retirada de carga", cost: cost(4, 0), effect: { kind: "agility" } },
+  { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), crew: crew(1, 2, 3), discipline: "aerodynamics" },
+  { id: "report-chapter", label: "Escrever capítulo do relatório", cost: cost(30, 0), crew: crew(1, 1, 1) },
+  { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), crew: crew(1, 1, 1), effect: { kind: "document" }, target: "discipline" },
+  { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), crew: crew(1, 3, 4), effect: { kind: "credits", amount: 420 } },
+  { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), crew: crew(1, 1, 2), effect: { kind: "sponsor" } },
+  { id: "unload-drill", label: "Treino de retirada de carga", cost: cost(4, 0), crew: crew(1, 2, 2), effect: { kind: "agility" } },
   // Só créditos (quase sempre com prazo)
   {
     id: "buy-motor",
     label: "Comprar motor 600 W",
-    cost: cost(0, 420, 10),
+    cost: cost(0, 420, 10), crew: NO_CREW,
     effect: { kind: "purchase-part", part: "powertrain", label: "Motor 600 W" }
   },
   {
     id: "buy-servos",
     label: "Comprar servos comerciais",
-    cost: cost(0, 260, 7),
+    cost: cost(0, 260, 7), crew: NO_CREW,
     effect: { kind: "purchase-part", part: "electronics", label: "Servos comerciais" }
   },
-  { id: "buy-scale", label: "Comprar balança de precisão", cost: cost(0, 180, 5), effect: { kind: "equipment", item: "scale" } },
-  { id: "buy-balsa", label: "Comprar balsa", cost: cost(0, 150, 6), effect: { kind: "stock", item: "balsa", amount: 1 } },
+  { id: "buy-scale", label: "Comprar balança de precisão", cost: cost(0, 180, 5), crew: NO_CREW, effect: { kind: "equipment", item: "scale" } },
+  { id: "buy-balsa", label: "Comprar balsa", cost: cost(0, 150, 6), crew: NO_CREW, effect: { kind: "stock", item: "balsa", amount: 1 } },
   {
     id: "express-shipping",
     label: "Frete expresso",
-    cost: cost(0, 90),
+    cost: cost(0, 90), crew: NO_CREW,
     effect: { kind: "expedite", remainingFactor: 0.3 },
     target: "waiting-task"
   },
@@ -105,14 +120,14 @@ const defs: Omit<ActionDef, "category">[] = [
   {
     id: "build-wing",
     label: "Fabricar asa (balsa)",
-    cost: cost(60, 180),
+    cost: cost(60, 180), crew: crew(1, 2, 3),
     discipline: "structures",
     effect: { kind: "fabricate", part: "wing", label: "Asa (balsa)" },
     requires: { balsa: 1 }
   },
-  { id: "repair-part", label: "Reparar peça", cost: cost(10, 60), effect: { kind: "repair", amount: 30 }, target: "part" },
-  { id: "test-flight", label: "Voo com carga incremental", cost: cost(12, 30, 0, "medium"), discipline: "performance" },
-  { id: "flight-video", label: "Voo filmado (vídeo oficial)", cost: cost(12, 30, 0, "medium") }
+  { id: "repair-part", label: "Reparar peça", cost: cost(10, 60), crew: crew(1, 1, 2), effect: { kind: "repair", amount: 30 }, target: "part" },
+  { id: "test-flight", label: "Voo com carga incremental", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), discipline: "performance" },
+  { id: "flight-video", label: "Voo filmado (vídeo oficial)", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4) }
 ];
 
 export const ACTIONS: readonly ActionDef[] = defs.map((def) => ({ ...def, category: categoryOf(def.cost) }));

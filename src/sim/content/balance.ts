@@ -40,6 +40,11 @@ export const BALANCE = {
     purchasedQuality: 85
   },
 
+  crew: {
+    /** Rendimento de cada pessoa além do número ideal da ação. */
+    extraEfficiency: 0.5
+  },
+
   sponsor: {
     /** Chance de o patrocinador dizer sim; o sorteio usa rngState. */
     successChance: 0.6,
