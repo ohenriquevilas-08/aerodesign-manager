@@ -1,6 +1,6 @@
 // Formatação e rótulos da interface. Puro (sem Preact) para poder ser testado em tests/ui/.
 
-import type { Cost, Crew, Discipline, RiskLevel, Role } from "../sim";
+import type { ActionSkill, Cost, Crew, Discipline, RiskLevel, Role } from "../sim";
 
 /** Número no padrão pt-BR com casas fixas: 1234.5 → "1.234,50". */
 export function formatNumber(value: number, digits = 0): string {
@@ -69,6 +69,15 @@ export const DISCIPLINE_SHORT: Record<Discipline, string> = {
   loads: "Cargas",
   structures: "Estruturas",
   electrical: "Elétrica"
+};
+
+/** Habilidade que decide o rendimento de uma ação. */
+export const SKILL_LABEL: Record<ActionSkill, string> = {
+  fabrication: "fabricação",
+  agility: "agilidade",
+  piloting: "pilotagem",
+  communication: "comunicação",
+  knowledge: "conhecimento"
 };
 
 export const ROLE_LABEL: Record<Role, string> = {

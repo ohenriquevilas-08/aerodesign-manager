@@ -119,6 +119,7 @@ export function Team() {
                       tone={motivationTone(member.motivation)}
                     />
                     <Trait label="Fabricação" value={member.fabrication} />
+                    <Trait label="Comunicação" value={member.communication} />
                     <Trait label="Pilotagem" value={member.piloting} />
                     <Trait label="Agilidade" value={member.agility} />
                   </div>

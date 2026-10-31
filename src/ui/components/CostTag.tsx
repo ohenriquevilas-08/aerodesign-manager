@@ -1,5 +1,5 @@
 import type { ActionDef, Cost } from "../../sim";
-import { costParts, crewText, DISCIPLINE_SHORT } from "../format";
+import { costParts, crewText, DISCIPLINE_SHORT, SKILL_LABEL } from "../format";
 
 /** Custo de uma ação na ordem fixa ⏱ ◆ ⌛ ⚠, omitindo o que for zero (design §8). */
 export function CostTag({ cost }: { cost: Cost }) {
@@ -52,7 +52,12 @@ export function ActionCard({
         {action.discipline ? <span class="chip">{DISCIPLINE_SHORT[action.discipline]}</span> : null}
       </span>
       <CostTag cost={action.cost} />
-      {action.crew.max > 0 ? <span class="crew-rule">{crewText(action.crew)}</span> : null}
+      {action.crew.max > 0 ? (
+        <span class="crew-rule">
+          {crewText(action.crew)}
+          {action.skill ? ` · rende com ${SKILL_LABEL[action.skill]}` : ""}
+        </span>
+      ) : null}
     </>
   );
   if (!onSelect) return <article class="action-card">{body}</article>;

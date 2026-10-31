@@ -7,6 +7,8 @@ import {
   canWork,
   clockToDate,
   DISCIPLINES,
+  effectiveKnowledge,
+  estimateOutcome,
   estimateRemainingDays,
   estimateTaskDays,
   findAction,
@@ -17,11 +19,13 @@ import {
   SELECTION_FORMATS,
   type ActionCategory,
   type ActionDef,
+  type Discipline,
+  type Member,
   type Task
 } from "../../sim";
 import { ActionCard, CostLegend, CostTag } from "../components/CostTag";
 import { Meter } from "../components/Controls";
-import { crewText, DISCIPLINE_LABEL, formatDays, formatNumber } from "../format";
+import { crewText, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatDays, formatNumber, SKILL_LABEL } from "../format";
 
 // Tela Ações (design §4.2 e §8): iniciar uma ação cria uma tarefa. O tempo não pula: a tarefa
 // espera o prazo ⌛ e avança com as horas de quem está alocado, até o limite de pessoas da ação.
@@ -88,6 +92,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
   const stock = useGame((state) => state.stock);
   const parts = useGame((state) => state.parts);
   const tasks = useGame((state) => state.tasks);
+  const documented = useGame((state) => state.documented);
   const date = clockToDate(hour);
 
   // Começa com quem está livre, até o número ideal de pessoas.
@@ -101,6 +106,22 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
 
   const usesCrew = action.crew.max > 0;
   const estimate = estimateTaskDays(store.getState(), action.id, usesCrew ? picked : []);
+  const outcome = usesCrew ? estimateOutcome(store.getState(), action.id, picked, target || null) : null;
+  // Disciplina que conta para ações de conhecimento: a da ação ou a escolhida como alvo.
+  const skillDiscipline = action.discipline ?? (action.target === "discipline" && target ? (target as Discipline) : null);
+  const skillOf = (member: Member): number | null => {
+    if (!action.skill) return null;
+    if (action.skill === "knowledge") {
+      return skillDiscipline ? effectiveKnowledge(member, documented, skillDiscipline) : null;
+    }
+    return member[action.skill];
+  };
+  const skillName =
+    action.skill === "knowledge" && skillDiscipline
+      ? DISCIPLINE_SHORT[skillDiscipline].toLowerCase()
+      : action.skill
+        ? SKILL_LABEL[action.skill]
+        : null;
   const missingStock = Object.entries(action.requires ?? {}).filter(([item, amount]) => (stock[item] ?? 0) < (amount ?? 0));
   const waitingTasks = tasks.filter((task) => task.status === "waiting" && task.readyAt !== null && task.readyAt > hour);
 
@@ -192,6 +213,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
               <span class="slider-label">Quem trabalha</span>
               <span class="crew-rule">{crewText(action.crew)}</span>
             </div>
+            {skillName ? <p class="muted small">Rende conforme {skillName} e motivação de quem trabalha.</p> : null}
             <div class="crew-list">
               {members.map((member) => {
                 const checked = picked.includes(member.id);
@@ -203,6 +225,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
                     <span class="crew-name">{member.name}</span>
                     <span class="crew-meta">
                       {busy ? `sai de: ${busy.label}` : "livre"} · ⏱ {formatNumber(memberHoursPerDay(member, date), 1)} h/dia
+                      {skillOf(member) !== null ? ` · ${skillName} ${Math.round(skillOf(member) ?? 0)}` : ""}
                     </span>
                   </label>
                 );
@@ -220,6 +243,18 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
           <span class="slider-label">Fica pronto em</span>
           <strong class={estimate === null ? "text-danger" : "text-accent"}>{formatDays(estimate)}</strong>
         </div>
+        {outcome ? (
+          <div class="outcome">
+            <div class="estimate">
+              <span class="slider-label">Resultado esperado</span>
+              <strong class="text-highlight">{outcome.text}</strong>
+            </div>
+            <div class="task-progress">
+              <Meter value={outcome.quality} tone="highlight" label="Qualidade da equipe" />
+              <span class="knowledge-value">qualidade {Math.round(outcome.quality)}</span>
+            </div>
+          </div>
+        ) : null}
         {estimate === null ? (
           <p class="muted small">
             {picked.length === 0
