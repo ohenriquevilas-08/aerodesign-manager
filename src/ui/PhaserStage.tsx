@@ -20,7 +20,9 @@ export function PhaserStage({ scene, sceneKey }: Props) {
       parent: host.current,
       backgroundColor: palette.bg,
       scale: { mode: Phaser.Scale.RESIZE, width: host.current.clientWidth, height: host.current.clientHeight },
-      banner: false
+      banner: false,
+      // Sem som no Ano 1 (design §12); o áudio do Phaser gerava erro de AudioContext fechado ao trocar de tela.
+      audio: { noAudio: true }
     });
     game.scene.add(sceneKey, scene, true, { store });
     return () => game.destroy(true);
