@@ -3,15 +3,15 @@
 
 import { findAction, type ActionDef, type StockItem } from "./content/actions";
 import { BALANCE } from "./content/balance";
-import { crewQuality, documentGain, fabricatedQuality, rollMultiplier, sponsorChance } from "./outcome";
+import { crewQuality, documentGain, fabricatedQuality, rollApplicants, rollMultiplier, sponsorChance } from "./outcome";
 import { nextRandom } from "./rng";
-import { drawCandidates, findSelectionFormat } from "./selection";
+import { drawCandidates, expectedApplicants, findSelectionFormat } from "./selection";
 import { DISCIPLINES } from "./state";
 import { canWork, clamp, DISCIPLINE_LABELS, learn } from "./team";
 import type { Discipline, GameState, InboxMessage, Part, Task } from "./types";
 
 /** Efeitos cujo resultado depende da qualidade da equipe (sim/outcome.ts). */
-const VARIABLE_EFFECTS = new Set(["credits", "sponsor", "fabricate", "document", "repair"]);
+const VARIABLE_EFFECTS = new Set(["credits", "sponsor", "fabricate", "document", "repair", "outreach", "selection"]);
 
 const STOCK_LABELS: Record<StockItem, string> = { balsa: "balsa" };
 
@@ -96,13 +96,23 @@ export function startAction(state: GameState, actionId: string, targetId: string
 
   const now = state.clock.hours;
   const waits = action.cost.leadDays > 0;
+  // Prazo real sorteado em torno do prometido: nenhuma entrega é garantida (BALANCE.lead).
+  let rngState = state.rngState;
+  let readyAt: number | null = null;
+  if (waits) {
+    const roll = nextRandom(rngState);
+    rngState = roll.state;
+    const factor = BALANCE.lead.minFactor + (BALANCE.lead.maxFactor - BALANCE.lead.minFactor) * roll.value;
+    readyAt = now + action.cost.leadDays * 24 * factor;
+  }
   const task: Task = {
     id: `task-${state.nextId}`,
     actionId: action.id,
     label: taskLabel(state, action, targetId),
     hoursTotal: action.cost.hours,
     hoursDone: 0,
-    readyAt: waits ? now + action.cost.leadDays * 24 : null,
+    readyAt,
+    expectedReadyAt: waits ? now + action.cost.leadDays * 24 : null,
     status: waits ? "waiting" : "active",
     assignees: [],
     contributions: {},
@@ -112,6 +122,7 @@ export function startAction(state: GameState, actionId: string, targetId: string
   const next: GameState = {
     ...state,
     credits: state.credits - action.cost.credits,
+    rngState,
     stock,
     tasks: [...state.tasks, task],
     nextId: state.nextId + 1
@@ -284,8 +295,12 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       const target = next.tasks.find((item) => item.id === task.targetId);
       if (target && target.status === "waiting" && target.readyAt !== null) {
         const now = next.clock.hours;
-        const readyAt = now + Math.max(0, target.readyAt - now) * effect.remainingFactor;
-        next = replaceTask(next, { ...target, readyAt });
+        const shorten = (at: number) => now + Math.max(0, at - now) * effect.remainingFactor;
+        next = replaceTask(next, {
+          ...target,
+          readyAt: shorten(target.readyAt),
+          expectedReadyAt: target.expectedReadyAt === null ? null : shorten(target.expectedReadyAt)
+        });
         body = `${target.label} vai chegar antes.`;
       }
       break;
@@ -293,12 +308,25 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
     case "agility":
       body = "A equipe ficou mais rápida na retirada de carga.";
       break;
+    case "outreach": {
+      const reach = effect.amount * multiplier;
+      next = { ...next, outreach: next.outreach + reach };
+      body = `Alcance da divulgação +${Math.round(reach)} (total ${Math.round(next.outreach)}).`;
+      break;
+    }
     case "selection": {
       const format = findSelectionFormat(task.targetId);
       if (format) {
+        // Inscritos dependem do alcance acumulado, de quem conduziu e de sorte; a seletiva gasta o alcance.
+        const applicants = rollApplicants(next.rngState, expectedApplicants(format, next.outreach), multiplier);
+        next = { ...next, rngState: applicants.rngState, outreach: 0 };
         const before = next.candidates.length;
-        next = drawCandidates(next, format.id);
-        body = `${next.candidates.length - before} candidatos aguardam convite. Veja os pareceres dos capitães.`;
+        next = drawCandidates(next, format.id, applicants.count);
+        const drawn = next.candidates.length - before;
+        body =
+          drawn === 0
+            ? "Ninguém se inscreveu. Divulgue antes da próxima seletiva (cartazes, redes, sala de aula, stand)."
+            : `${drawn} ${drawn === 1 ? "inscrito aguarda" : "inscritos aguardam"} convite. Veja os pareceres dos capitães.`;
       }
       break;
     }

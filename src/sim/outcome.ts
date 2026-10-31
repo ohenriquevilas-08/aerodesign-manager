@@ -6,6 +6,7 @@
 import { findAction, type ActionDef } from "./content/actions";
 import { BALANCE } from "./content/balance";
 import { crewRates } from "./crew";
+import { expectedApplicants, findSelectionFormat } from "./selection";
 import { nextRandom } from "./rng";
 import { DISCIPLINES } from "./state";
 import { clamp, DISCIPLINE_LABELS, effectiveKnowledge, motivationFactor } from "./team";
@@ -101,6 +102,24 @@ export const fabricatedQuality = (multiplier: number, equipment: readonly string
     )
   );
 
+/** Faixa de inscritos: alcance × qualidade de quem conduz × incerteza própria (BALANCE.outreach). */
+export function applicantBand(expected: number, quality: number): { min: number; expected: number; max: number } {
+  const band = outcomeBand(quality);
+  const spread = BALANCE.outreach.applicantSpread;
+  return {
+    min: Math.max(0, Math.floor(expected * band.min * (1 - spread))),
+    expected: expected * band.expected,
+    max: Math.ceil(expected * band.max * (1 + spread))
+  };
+}
+
+/** Sorteia o número de inscritos com o multiplicador já sorteado e mais um sorteio de incerteza. */
+export function rollApplicants(rngState: number, expected: number, multiplier: number): { count: number; rngState: number } {
+  const spread = BALANCE.outreach.applicantSpread;
+  const roll = nextRandom(rngState);
+  return { count: Math.max(0, Math.round(expected * multiplier * (1 - spread + 2 * spread * roll.value))), rngState: roll.state };
+}
+
 export interface OutcomeEstimate {
   /** Qualidade 0–100 da equipe escolhida. */
   quality: number;
@@ -152,6 +171,16 @@ export function estimateOutcome(
       const min = fabricatedQuality(band.min, state.equipment);
       const max = fabricatedQuality(band.max, state.equipment);
       return { quality, min, expected: fabricatedQuality(band.expected, state.equipment), max, text: `Qualidade ${range(min, max)}` };
+    }
+    case "outreach": {
+      const values = scale(effect.amount);
+      return { quality, ...values, text: `Alcance +${range(values.min, values.max)}` };
+    }
+    case "selection": {
+      const format = findSelectionFormat(targetId);
+      if (!format) return null;
+      const values = applicantBand(expectedApplicants(format, state.outreach), quality);
+      return { quality, ...values, text: `Inscritos estimados ${range(values.min, values.max)}` };
     }
     case "repair": {
       const values = scale(effect.amount);

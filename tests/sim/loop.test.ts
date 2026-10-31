@@ -7,6 +7,7 @@ import {
   estimateOutcome,
   estimateRemainingDays,
   estimateTaskDays,
+  leadDaysRange,
   memberHoursPerDay,
   motivationFactor,
   partState,
@@ -107,10 +108,14 @@ describe("tarefas do catálogo", () => {
     expect(game.credits).toBe(80);
     const task = lastTask(game);
     expect(task.status).toBe("waiting");
-    expect(task.readyAt).toBe(10 * 24);
-    game = play(game, 9);
+    // Prometido 10 dias; o real é sorteado na faixa de BALANCE.lead e fica escondido.
+    expect(task.expectedReadyAt).toBe(10 * 24);
+    expect(task.readyAt!).toBeGreaterThanOrEqual(10 * 24 * BALANCE.lead.minFactor);
+    expect(task.readyAt!).toBeLessThanOrEqual(10 * 24 * BALANCE.lead.maxFactor);
+    expect(leadDaysRange("buy-motor")).toEqual({ min: 10 * BALANCE.lead.minFactor, promised: 10, max: 10 * BALANCE.lead.maxFactor });
+    game = play(game, task.readyAt! / 24 - 0.1);
     expect(game.tasks[0]!.status).toBe("waiting");
-    game = play(game, 1.1);
+    game = play(game, 0.2);
     expect(game.tasks[0]!.status).toBe("done");
     expect(game.parts).toHaveLength(1);
     expect(game.parts[0]).toMatchObject({ type: "powertrain", quality: BALANCE.parts.purchasedQuality, condition: 100 });
@@ -120,10 +125,11 @@ describe("tarefas do catálogo", () => {
     let game = run(newGame(), { type: "start-action", actionId: "sponsor-pitch" });
     const taskId = lastTask(game).id;
     game = run(game, { type: "assign-member", memberId: "rookie", taskId });
-    game = play(game, 13);
+    const readyDays = lastTask(game).readyAt! / 24;
+    game = play(game, readyDays - 0.5);
     expect(game.tasks[0]!.hoursDone).toBe(0);
     expect(game.tasks[0]!.status).toBe("waiting");
-    game = play(game, 2);
+    game = play(game, 1);
     expect(game.tasks[0]!.status).toBe("active");
     expect(game.tasks[0]!.hoursDone).toBeGreaterThan(0);
   });
@@ -134,7 +140,9 @@ describe("tarefas do catálogo", () => {
     game = run(game, { type: "start-action", actionId: "express-shipping", targetId: motor.id });
     expect(game.credits).toBe(600 - 420 - 90);
     expect(lastTask(game).status).toBe("done");
-    expect(game.tasks.find((task) => task.id === motor.id)!.readyAt).toBeCloseTo(10 * 24 * 0.3);
+    const expedited = game.tasks.find((task) => task.id === motor.id)!;
+    expect(expedited.readyAt).toBeCloseTo(motor.readyAt! * 0.3);
+    expect(expedited.expectedReadyAt).toBeCloseTo(10 * 24 * 0.3);
     expect(game.clock.speed).toBe(0);
   });
 
@@ -299,10 +307,11 @@ describe("estados visíveis das peças", () => {
 describe("eventos e pausa automática", () => {
   it("pausa quando uma tarefa termina, com o motivo e a mensagem", () => {
     let game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-scale" }, { type: "set-speed", speed: 4 });
+    const readyAt = lastTask(game).readyAt!;
     game = run(game, { type: "tick", realSeconds: 60 });
     expect(game.clock.speed).toBe(0);
-    expect(game.clock.hours).toBeGreaterThanOrEqual(5 * 24);
-    expect(game.clock.hours).toBeLessThan(5 * 24 + BALANCE.stepHours + 1e-9);
+    expect(game.clock.hours).toBeGreaterThanOrEqual(readyAt);
+    expect(game.clock.hours).toBeLessThan(readyAt + BALANCE.stepHours + 1e-9);
     expect(game.pause?.reason).toBe("task-done");
     const message = game.inbox.find((item) => item.id === game.pause?.messageId);
     expect(message?.title).toBe("Concluído: Comprar balança de precisão");
@@ -492,5 +501,21 @@ describe("rendimento pela qualidade da equipe", () => {
     };
     expect(raffle(11)).toBe(raffle(11));
     expect(new Set([11, 12, 13, 14, 15].map(raffle)).size).toBeGreaterThan(1);
+  });
+});
+
+describe("divulgação", () => {
+  it("soma alcance pela comunicação de quem divulga, e o alcance esfria com os dias", () => {
+    let game = run(newGame(), { type: "start-action", actionId: "outreach-posters" });
+    const taskId = lastTask(game).id;
+    const estimate = estimateOutcome(game, "outreach-posters", ["captain-aero"])!;
+    expect(estimate.text).toMatch(/^Alcance \+/);
+    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+    game = playUntilDone(game, taskId);
+    expect(game.outreach).toBeGreaterThanOrEqual(estimate.min - 0.1);
+    expect(game.outreach).toBeLessThanOrEqual(estimate.max);
+    const reach = game.outreach;
+    game = play(game, 10);
+    expect(game.outreach).toBeCloseTo(reach * Math.pow(1 - BALANCE.outreach.decayPerDay, 10), 1);
   });
 });

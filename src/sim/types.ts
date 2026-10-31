@@ -108,8 +108,10 @@ export interface Task {
   /** Horas-pessoa totais e já feitas. */
   hoursTotal: number;
   hoursDone: number;
-  /** Momento (horas de jogo) em que a espera de prazo termina; null se não há espera. */
+  /** Momento real (horas de jogo) em que a espera termina, sorteado ao iniciar; null se não há espera. Não mostrar. */
   readyAt: number | null;
+  /** Momento prometido (prazo nominal do catálogo); é o que a UI mostra. null se não há espera. */
+  expectedReadyAt: number | null;
   status: TaskStatus;
   /** Quem está alocado agora (espelha Member.taskId). Vazio depois de concluída. */
   assignees: string[];
@@ -177,6 +179,8 @@ export interface GameState {
   tasks: Task[];
   inbox: InboxMessage[];
   rivals: RivalTeam[];
+  /** Alcance de divulgação acumulado (cartazes, redes, sala, stand); decai por dia e a seletiva consome. */
+  outreach: number;
   /** Candidatos da última seletiva ainda sem resposta. Convite é gratuito. */
   candidates: Candidate[];
   /** Não nulo enquanto o relógio está pausado (speed 0): diz por quê. */

@@ -9,7 +9,10 @@ export interface SelectionFormatDef {
   id: SelectionFormat;
   label: string;
   description: string;
-  candidates: number;
+  /** Inscritos esperados sem divulgação nenhuma. */
+  baseApplicants: number;
+  /** Inscritos esperados a mais por ponto de alcance (GameState.outreach). */
+  applicantsPerReach: number;
   /** Conhecimento tácito na disciplina de foco do candidato. */
   focusKnowledge: Range;
   fabrication: Range;
@@ -21,7 +24,8 @@ export const SELECTION_FORMATS: readonly SelectionFormatDef[] = [
     id: "broad",
     label: "Ampla",
     description: "Divulgação no campus inteiro: muita gente, pouca experiência.",
-    candidates: 6,
+    baseApplicants: 1,
+    applicantsPerReach: 0.5,
     focusKnowledge: [5, 20],
     fabrication: [5, 35],
     motivation: [50, 80]
@@ -30,7 +34,8 @@ export const SELECTION_FORMATS: readonly SelectionFormatDef[] = [
     id: "technical",
     label: "Técnica",
     description: "Prova de conceitos: poucos candidatos, mais preparados.",
-    candidates: 3,
+    baseApplicants: 0.5,
+    applicantsPerReach: 0.2,
     focusKnowledge: [20, 40],
     fabrication: [10, 30],
     motivation: [55, 80]
@@ -39,7 +44,8 @@ export const SELECTION_FORMATS: readonly SelectionFormatDef[] = [
     id: "referral",
     label: "Por indicação",
     description: "Colegas indicados pelos fundadores: poucos, muito motivados.",
-    candidates: 2,
+    baseApplicants: 2,
+    applicantsPerReach: 0,
     focusKnowledge: [10, 25],
     fabrication: [10, 30],
     motivation: [75, 95]
@@ -48,7 +54,8 @@ export const SELECTION_FORMATS: readonly SelectionFormatDef[] = [
     id: "challenge",
     label: "Desafio prático",
     description: "Montar uma peça na oficina: revela quem tem mão boa.",
-    candidates: 4,
+    baseApplicants: 0.5,
+    applicantsPerReach: 0.3,
     focusKnowledge: [5, 20],
     fabrication: [25, 50],
     motivation: [60, 85]
@@ -81,5 +88,17 @@ export const CANDIDATE_NAMES = [
   "Sofia Barreto",
   "Thiago Nunes",
   "Vitória Assis",
-  "Yuri Fontana"
+  "Yuri Fontana",
+  "Alice Paranhos",
+  "Bernardo Quintela",
+  "Camila Sardinha",
+  "Daniel Vasconcelos",
+  "Eduarda Mattos",
+  "Fábio Lacerda",
+  "Giovana Peixoto",
+  "Henrique Salles",
+  "Iara Mendonça",
+  "Lucas Bittencourt",
+  "Manuela Freitas",
+  "Nicolas Amaral"
 ] as const;

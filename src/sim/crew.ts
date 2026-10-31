@@ -60,7 +60,17 @@ export function estimateRemainingDays(state: GameState, taskId: string): number 
   const action = task ? findAction(task.actionId) : undefined;
   if (!task || !action || task.status === "done") return task?.status === "done" ? 0 : null;
   const now = state.clock.hours;
-  const waitHours = task.status === "waiting" && task.readyAt !== null ? Math.max(0, task.readyAt - now) : 0;
+  // A UI só conhece o prazo prometido; o real (readyAt) fica escondido.
+  const promised = task.expectedReadyAt ?? task.readyAt;
+  const waitHours = task.status === "waiting" && promised !== null ? Math.max(0, promised - now) : 0;
   const work = workDays(state, action.crew, task.assignees, task.hoursTotal - task.hoursDone, now + waitHours);
   return work === null ? null : waitHours / 24 + work;
+}
+
+/** Faixa do prazo ⌛ real de uma ação (prometido × BALANCE.lead), em dias; null se não há espera. */
+export function leadDaysRange(actionId: string): { min: number; promised: number; max: number } | null {
+  const action = findAction(actionId);
+  if (!action || action.cost.leadDays <= 0) return null;
+  const days = action.cost.leadDays;
+  return { min: days * BALANCE.lead.minFactor, promised: days, max: days * BALANCE.lead.maxFactor };
 }
