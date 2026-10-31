@@ -181,7 +181,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
             <TargetSelect label="Formato da seletiva" value={target} onChange={setTarget}>
               {SELECTION_FORMATS.map((format) => (
                 <option key={format.id} value={format.id}>
-                  {format.label} · {format.candidates} candidatos
+                  {format.label}
                 </option>
               ))}
             </TargetSelect>
