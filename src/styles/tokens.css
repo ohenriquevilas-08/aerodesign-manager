@@ -1,0 +1,50 @@
+/* Tokens de design. Direção visual: telas geradas no Gemini (painel escuro, ciano e laranja).
+   Componentes usam só estas variáveis; nunca cores soltas. Cenas Phaser leem src/scenes/palette.ts,
+   que espelha estes valores. */
+:root {
+  /* Superfícies */
+  --bg: #08121c;
+  --bg-grid: #0d1c2a;
+  --panel: #102233;
+  --panel-raised: #15304a;
+  --border: #1f4762;
+  --border-strong: #2b6585;
+
+  /* Texto */
+  --text: #e4f0f7;
+  --text-muted: #8ba7bb;
+  --text-dim: #5b7489;
+
+  /* Acentos */
+  --accent: #22c7e6; /* ciano: seleção, ações principais */
+  --accent-soft: rgb(34 199 230 / 0.14);
+  --highlight: #ff9f2e; /* laranja: foco, atenção, item ativo */
+  --highlight-soft: rgb(255 159 46 / 0.14);
+
+  /* Estados (peças, risco) */
+  --ok: #3fd18b;
+  --warn: #ffc23d;
+  --danger: #ff5a5f;
+
+  /* Moedas (design §8) */
+  --cost-hours: #22c7e6;
+  --cost-credits: #ffc23d;
+  --cost-lead: #b58cff;
+  --cost-risk: #ff5a5f;
+
+  /* Tipografia */
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Espaçamento e forma */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --glow: 0 0 0 1px var(--border), 0 0 18px rgb(34 199 230 / 0.08);
+}
