@@ -6,7 +6,7 @@ import { BALANCE } from "./content/balance";
 import { nextRandom } from "./rng";
 import { drawCandidates, findSelectionFormat } from "./selection";
 import { DISCIPLINES } from "./state";
-import { clamp, DISCIPLINE_LABELS, learn, motivationFactor } from "./team";
+import { canWork, clamp, DISCIPLINE_LABELS, learn, motivationFactor } from "./team";
 import type { Discipline, GameState, InboxMessage, Member, Part, Task } from "./types";
 
 const STOCK_LABELS: Record<StockItem, string> = { balsa: "balsa" };
@@ -134,6 +134,7 @@ function detach(state: GameState, memberId: string): GameState {
 export function assignMember(state: GameState, memberId: string, taskId: string): GameState {
   const member = state.members.find((item) => item.id === memberId);
   if (!member) return warn(state, "Integrante não encontrado.");
+  if (!canWork(member)) return warn(state, "O presidente coordena; escolha alguém da equipe.");
   const task = state.tasks.find((item) => item.id === taskId);
   if (!task || task.status === "done") return warn(state, "Essa tarefa não está mais aberta.");
   if (task.hoursTotal === 0) return warn(state, "Essa tarefa não usa horas da equipe: é só esperar.");

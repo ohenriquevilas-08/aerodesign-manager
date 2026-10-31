@@ -83,7 +83,7 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 | `{ type: "set-speed", speed }` | Muda a velocidade. `0` grava `pause = { reason: "manual" }`; qualquer outra limpa `pause`. | — |
 | `{ type: "read-message", id }` | Marca mensagem como lida. | — |
 | `{ type: "start-action", actionId, targetId? }` | Debita ◆ e consome estoque na hora; cria `Task`. Com `leadDays > 0` nasce `waiting` até `readyAt`; senão `active`. Sem horas e sem prazo conclui na hora (sem pausar). | Ação desconhecida, alvo inválido, falta estoque, caixa insuficiente |
-| `{ type: "assign-member", memberId, taskId }` | Aloca (tira da tarefa anterior). Pode alocar em tarefa `waiting`: a pessoa espera sem trabalhar. | Tarefa concluída/inexistente, tarefa sem horas (compra), equipe já no `crew.max` |
+| `{ type: "assign-member", memberId, taskId }` | Aloca (tira da tarefa anterior). Pode alocar em tarefa `waiting`: a pessoa espera sem trabalhar. | Presidente (`canWork` falso), tarefa concluída/inexistente, tarefa sem horas (compra), equipe já no `crew.max` |
 | `{ type: "unassign-member", memberId }` | Libera o integrante. | — |
 | `{ type: "cancel-task", taskId }` | Remove a tarefa e libera quem estava nela. ◆ e material **não** voltam. | Tarefa concluída/inexistente |
 | `{ type: "hire-candidate", candidateId }` | Convite gratuito: candidato vira `Member` (`role: "member"`). | Candidato inexistente |
@@ -105,6 +105,7 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 
 ### Regras
 
+- O presidente é o jogador e não faz trabalho operacional: `canWork(member)` = `role !== "president"`. Ele continua em `members` (a tela Equipe mostra o card), mas `memberHoursPerDay` dá 0, `hoursPerDay` inicial é 0, `assign-member` recusa e a motivação e `workStreakHours` dele não mudam com o relógio.
 - Horas/dia de um integrante = `hoursPerDay × academicFactor × motivationFactor(motivation)` (`memberHoursPerDay`). `motivationFactor` vai de 0,5 (motivação 0) a 1 (100).
 - Estimativas para a UI (assumem motivação constante e seguem o calendário acadêmico): `estimateTaskDays(state, actionId, memberIds)` = dias de prazo ⌛ + trabalho se iniciar agora com essas pessoas; `estimateRemainingDays(state, taskId)` = o que falta com quem está alocado. Ambas devolvem `null` quando a tarefa não anda (ninguém, ou abaixo do `crew.min`). `crewRates(members, crew, date)` dá o rendimento por pessoa.
 - Motivação cai `idleDecayPerDay` por dia sem tarefa e `overloadDecayPerDay` quando sobrecarregado; sobe `completionBoost` para quem está na tarefa ao concluir. Quem está alocado em tarefa `waiting` não perde motivação e descansa a sequência.
