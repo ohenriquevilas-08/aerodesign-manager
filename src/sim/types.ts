@@ -47,6 +47,8 @@ export interface Member {
   fabrication: number;
   piloting: number;
   agility: number;
+  /** 0–100; captação (rifa, patrocínio) e seletiva. */
+  communication: number;
   /** 0–100; multiplica horas e qualidade. */
   motivation: number;
   /** Horas disponíveis por dia em período normal de aulas. */
@@ -72,6 +74,7 @@ export interface Candidate {
   knowledge: Record<Discipline, number>;
   fabrication: number;
   agility: number;
+  communication: number;
   motivation: number;
   hoursPerDay: number;
   graduation: string;

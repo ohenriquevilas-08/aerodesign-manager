@@ -73,7 +73,7 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 
 ## Simulação: loop de preparação (contrato para a UI)
 
-`GameState.version` = **2**. Arquivos: `sim/loop.ts` (tick), `sim/tasks.ts` (tarefas e efeitos), `sim/team.ts` (horas, motivação, conhecimento), `sim/parts.ts`, `sim/selection.ts`. Números de balanceamento em `sim/content/balance.ts` (`BALANCE`) e `sim/content/selection.ts`.
+`GameState.version` = **2**. Arquivos: `sim/loop.ts` (tick), `sim/tasks.ts` (tarefas e efeitos), `sim/team.ts` (horas, motivação, conhecimento), `sim/parts.ts`, `sim/selection.ts`, `sim/crew.ts` (equipe por tarefa e duração), `sim/outcome.ts` (rendimento). Números de balanceamento em `sim/content/balance.ts` (`BALANCE`) e `sim/content/selection.ts`.
 
 ### Comandos
 
@@ -98,9 +98,11 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 - `GameState.stock: Record<string, number>` (consumíveis, ex.: `balsa`) e `GameState.equipment: string[]` (ex.: `"scale"`).
 - `GameState.candidates: Candidate[]`: candidatos da seletiva, com `focus`, atributos e `opinion` (parecer de capitão, PT-BR).
 - `GameState.nextId`: contador interno para ids (`task-N`, `part-N`, `msg-N`, `cand-N`, `member-N`).
+- `Member.communication` (0–100, também em `Candidate`): habilidade de captação (rifa, patrocínio) e seletiva.
 - `Member.workStreakHours`: horas seguidas em tarefa ativa (sobrecarga acima de `BALANCE.motivation.overloadAfterHours`).
 - `Task.contributions` (horas por integrante), `Task.targetId`, `Task.doneAt`. Tarefas concluídas ficam em `tasks` com `status: "done"` e `assignees: []` (histórico).
 - `ActionDef.crew: { min, ideal, max }`: pessoas por tarefa. Abaixo de `min` não avança; acima de `ideal` cada pessoa extra (as de menor rendimento) rende `BALANCE.crew.extraEfficiency` (0,5); `max` é o teto do `assign-member`. Compras: `{ 0, 0, 0 }`.
+- `ActionDef.skill`: `"fabrication" | "agility" | "piloting" | "communication" | "knowledge"`. `knowledge` usa a disciplina da ação, ou a escolhida no alvo (`document`).
 - `ActionDef.effect`, `ActionDef.requires` (estoque consumido ao iniciar; `build-wing` exige 1 balsa), `ActionDef.target`.
 
 ### Regras
@@ -108,6 +110,9 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 - O presidente é o jogador e não faz trabalho operacional: `canWork(member)` = `role !== "president"`. Ele continua em `members` (a tela Equipe mostra o card), mas `memberHoursPerDay` dá 0, `hoursPerDay` inicial é 0, `assign-member` recusa e a motivação e `workStreakHours` dele não mudam com o relógio.
 - Horas/dia de um integrante = `hoursPerDay × academicFactor × motivationFactor(motivation)` (`memberHoursPerDay`). `motivationFactor` vai de 0,5 (motivação 0) a 1 (100).
 - Estimativas para a UI (assumem motivação constante e seguem o calendário acadêmico): `estimateTaskDays(state, actionId, memberIds)` = dias de prazo ⌛ + trabalho se iniciar agora com essas pessoas; `estimateRemainingDays(state, taskId)` = o que falta com quem está alocado. Ambas devolvem `null` quando a tarefa não anda (ninguém, ou abaixo do `crew.min`). `crewRates(members, crew, date)` dá o rendimento por pessoa.
+- **Rendimento** (`sim/outcome.ts`): qualidade da equipe = habilidade da ação × `motivationFactor`, média ponderada pelas horas de cada um (`Task.contributions`; na estimativa, o rendimento de hoje). Multiplicador = curva linear de 0,5 (qualidade 0) a 1,5 (100), com variação ± que vai de 40% (qualidade 0) a 0% (100), sorteada com `rngState` na conclusão. Afeta: rifa (◆ base 500), patrocínio (chance de 30% a 90% pela qualidade, e valor base 800 × multiplicador), peça fabricada (qualidade = 60 × multiplicador + equipamento), reparo (condição base 30) e documentar (fração convertida). Números em `BALANCE.outcome`.
+- `estimateOutcome(state, actionId, memberIds, targetId?)` → `{ quality, min, expected, max, chance?, text } | null`. `text` vem pronto para o cartão (ex.: `"◆ 310–520"`, `"Qualidade 38–51"`, `"62% de chance de ◆ 600–900"`, `"Acervo de Aerodinâmica +8–12"`). `null` quando a ação não tem resultado variável, a equipe não faz a tarefa andar ou falta o `targetId` (em `document`).
+- Ainda sem rendimento variável: estudo e treino (o ganho é por pessoa, pelas horas), capítulo do relatório (não há relatório ainda), seletiva, voos.
 - Motivação cai `idleDecayPerDay` por dia sem tarefa e `overloadDecayPerDay` quando sobrecarregado; sobe `completionBoost` para quem está na tarefa ao concluir. Quem está alocado em tarefa `waiting` não perde motivação e descansa a sequência.
 - Conhecimento: ações com `discipline` ensinam quem trabalhou, proporcional às horas, com retorno decrescente. `effectiveKnowledge(member, documented, d)` = máximo entre tácito e documentado.
 - Peças: `partState(condition)` → `new` (80–100), `worn` (50–79), `damaged` (20–49), `broken` (0–19); rótulos em `PART_STATE_LABELS`.

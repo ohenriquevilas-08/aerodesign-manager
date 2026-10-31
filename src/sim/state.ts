@@ -30,6 +30,7 @@ function founder(id: string, name: string, role: Member["role"], focus: Discipli
     fabrication: 20,
     piloting: 0,
     agility: 40,
+    communication: role === "president" ? 50 : 30,
     motivation: 80,
     // O presidente é o jogador e não entra na capacidade da equipe.
     hoursPerDay: role === "president" ? 0 : 3,

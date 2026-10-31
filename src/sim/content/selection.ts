@@ -57,6 +57,7 @@ export const SELECTION_FORMATS: readonly SelectionFormatDef[] = [
 
 export const CANDIDATE_HOURS_PER_DAY: Range = [2, 4];
 export const CANDIDATE_AGILITY: Range = [20, 70];
+export const CANDIDATE_COMMUNICATION: Range = [10, 60];
 export const CANDIDATE_GRADUATIONS = ["2027.2", "2028.1", "2028.2", "2029.1", "2029.2", "2030.1"] as const;
 
 /** Nomes fictícios para candidatos. */

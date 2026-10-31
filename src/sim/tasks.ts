@@ -3,11 +3,15 @@
 
 import { findAction, type ActionDef, type StockItem } from "./content/actions";
 import { BALANCE } from "./content/balance";
+import { crewQuality, documentGain, fabricatedQuality, rollMultiplier, sponsorChance } from "./outcome";
 import { nextRandom } from "./rng";
 import { drawCandidates, findSelectionFormat } from "./selection";
 import { DISCIPLINES } from "./state";
-import { canWork, clamp, DISCIPLINE_LABELS, learn, motivationFactor } from "./team";
-import type { Discipline, GameState, InboxMessage, Member, Part, Task } from "./types";
+import { canWork, clamp, DISCIPLINE_LABELS, learn } from "./team";
+import type { Discipline, GameState, InboxMessage, Part, Task } from "./types";
+
+/** Efeitos cujo resultado depende da qualidade da equipe (sim/outcome.ts). */
+const VARIABLE_EFFECTS = new Set(["credits", "sponsor", "fabricate", "document", "repair"]);
 
 const STOCK_LABELS: Record<StockItem, string> = { balsa: "balsa" };
 
@@ -167,18 +171,6 @@ export function cancelTask(state: GameState, taskId: string): GameState {
   };
 }
 
-/** Média das habilidades de quem trabalhou, ponderada pelas horas de cada um. */
-function weightedAverage(members: Member[], contributions: Record<string, number>, pick: (member: Member) => number): number {
-  let total = 0;
-  let weight = 0;
-  for (const member of members) {
-    const hours = contributions[member.id] ?? 0;
-    total += pick(member) * hours;
-    weight += hours;
-  }
-  return weight > 0 ? total / weight : 0;
-}
-
 /**
  * Conclui a tarefa: aplica o efeito da ação, ensina quem trabalhou, motiva quem está nela,
  * libera os integrantes e escreve na inbox. Devolve o id da mensagem para a pausa automática.
@@ -189,6 +181,12 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
   const contributors = state.members.filter((member) => (task.contributions[member.id] ?? 0) > 0);
   let next: GameState = state;
   let body = "Tarefa concluída.";
+
+  // Rendimento: qualidade de quem trabalhou (antes de aprender com a tarefa) e um sorteio.
+  const quality = crewQuality(state, action, task.targetId, task.contributions);
+  const rolled = rollMultiplier(next.rngState, quality);
+  const multiplier = rolled.multiplier;
+  if (action.effect && VARIABLE_EFFECTS.has(action.effect.kind)) next = { ...next, rngState: rolled.rngState };
 
   // Conhecimento tácito e habilidades de quem trabalhou (design §5.3).
   const fabricates = action.effect?.kind === "fabricate";
@@ -219,31 +217,29 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
   switch (effect?.kind) {
     case undefined:
       break;
-    case "credits":
-      next = { ...next, credits: next.credits + effect.amount };
-      body = `Entraram ◆ ${effect.amount} no caixa.`;
+    case "credits": {
+      const amount = Math.round(effect.amount * multiplier);
+      next = { ...next, credits: next.credits + amount };
+      body = `Entraram ◆ ${amount} no caixa.`;
       break;
+    }
     case "sponsor": {
       const roll = nextRandom(next.rngState);
       next = { ...next, rngState: roll.state };
-      if (roll.value < BALANCE.sponsor.successChance) {
-        next = { ...next, credits: next.credits + BALANCE.sponsor.amount };
-        body = `O patrocinador topou: ◆ ${BALANCE.sponsor.amount} no caixa.`;
+      if (roll.value < sponsorChance(quality)) {
+        const amount = Math.round(BALANCE.sponsor.amount * multiplier);
+        next = { ...next, credits: next.credits + amount };
+        body = `O patrocinador topou: ◆ ${amount} no caixa.`;
       } else {
         body = "O patrocinador agradeceu, mas não vai apoiar nesta temporada.";
       }
       break;
     }
     case "fabricate": {
-      // Qualidade a partir da fabricação de quem trabalhou, motivação e equipamento (design §7.1).
-      const skill = weightedAverage(contributors, task.contributions, (member) => member.fabrication);
-      const mood = weightedAverage(contributors, task.contributions, (member) => motivationFactor(member.motivation));
-      const bonus = next.equipment.reduce((sum, item) => sum + (BALANCE.parts.equipmentQualityBonus[item] ?? 0), 0);
-      const quality = Math.round(
-        clamp((BALANCE.parts.fabricatedQualityBase + BALANCE.parts.fabricatedQualityPerSkill * skill) * mood + bonus)
-      );
-      next = addPart(next, { type: effect.part, label: effect.label, quality, condition: 100 });
-      body = `${effect.label} pronta, qualidade ${quality}.`;
+      // Qualidade da peça: fabricação de quem trabalhou, motivação, sorteio e equipamento (design §7.1).
+      const partQuality = fabricatedQuality(multiplier, next.equipment);
+      next = addPart(next, { type: effect.part, label: effect.label, quality: partQuality, condition: 100 });
+      body = `${effect.label} pronta, qualidade ${partQuality}.`;
       break;
     }
     case "purchase-part":
@@ -263,7 +259,7 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
         const discipline = task.targetId;
         const best = Math.max(0, ...contributors.map((member) => member.knowledge[discipline]));
         const current = next.documented[discipline];
-        const gained = Math.max(0, (best - current) * BALANCE.knowledge.documentTransfer);
+        const gained = documentGain(best, current, multiplier);
         next = { ...next, documented: { ...next.documented, [discipline]: current + gained } };
         body = `Acervo de ${DISCIPLINE_LABELS[discipline]} subiu ${gained.toFixed(1)} pontos.`;
       }
@@ -274,9 +270,11 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       if (part) {
         next = {
           ...next,
-          parts: next.parts.map((item) => (item.id === part.id ? { ...item, condition: clamp(item.condition + effect.amount) } : item))
+          parts: next.parts.map((item) =>
+            item.id === part.id ? { ...item, condition: clamp(item.condition + Math.round(effect.amount * multiplier)) } : item
+          )
         };
-        body = `${part.label} reparada.`;
+        body = `${part.label} reparada (+${Math.round(effect.amount * multiplier)} de condição).`;
       } else {
         body = "A peça não existe mais; o reparo não teve efeito.";
       }

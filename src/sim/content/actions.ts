@@ -49,12 +49,19 @@ export interface Crew {
   max: number;
 }
 
+/**
+ * Habilidade que define a qualidade da equipe na tarefa (sim/outcome.ts).
+ * "knowledge" usa a disciplina da ação, ou a escolhida como alvo (document).
+ */
+export type ActionSkill = "fabrication" | "agility" | "piloting" | "communication" | "knowledge";
+
 export interface ActionDef {
   id: string;
   label: string;
   category: ActionCategory;
   cost: Cost;
   crew: Crew;
+  skill?: ActionSkill;
   /** Disciplina que ganha conhecimento tácito com a ação, se houver. */
   discipline?: Discipline;
   effect?: ActionEffect;
@@ -84,16 +91,16 @@ const defs: Omit<ActionDef, "category">[] = [
   {
     id: "recruitment",
     label: "Processo seletivo",
-    cost: cost(20, 0), crew: crew(1, 2, 2),
+    cost: cost(20, 0), crew: crew(1, 2, 2), skill: "communication",
     effect: { kind: "selection" },
     target: "selection-format"
   },
-  { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), crew: crew(1, 2, 3), discipline: "aerodynamics" },
+  { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), crew: crew(1, 2, 3), skill: "knowledge", discipline: "aerodynamics" },
   { id: "report-chapter", label: "Escrever capítulo do relatório", cost: cost(30, 0), crew: crew(1, 1, 1) },
-  { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), crew: crew(1, 1, 1), effect: { kind: "document" }, target: "discipline" },
-  { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), crew: crew(1, 3, 4), effect: { kind: "credits", amount: 420 } },
-  { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), crew: crew(1, 1, 2), effect: { kind: "sponsor" } },
-  { id: "unload-drill", label: "Treino de retirada de carga", cost: cost(4, 0), crew: crew(1, 2, 2), effect: { kind: "agility" } },
+  { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), crew: crew(1, 1, 1), skill: "knowledge", effect: { kind: "document" }, target: "discipline" },
+  { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), crew: crew(1, 3, 4), skill: "communication", effect: { kind: "credits", amount: 500 } },
+  { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), crew: crew(1, 1, 2), skill: "communication", effect: { kind: "sponsor" } },
+  { id: "unload-drill", label: "Treino de retirada de carga", cost: cost(4, 0), crew: crew(1, 2, 2), skill: "agility", effect: { kind: "agility" } },
   // Só créditos (quase sempre com prazo)
   {
     id: "buy-motor",
@@ -120,14 +127,14 @@ const defs: Omit<ActionDef, "category">[] = [
   {
     id: "build-wing",
     label: "Fabricar asa (balsa)",
-    cost: cost(60, 180), crew: crew(1, 2, 3),
+    cost: cost(60, 180), crew: crew(1, 2, 3), skill: "fabrication",
     discipline: "structures",
     effect: { kind: "fabricate", part: "wing", label: "Asa (balsa)" },
     requires: { balsa: 1 }
   },
-  { id: "repair-part", label: "Reparar peça", cost: cost(10, 60), crew: crew(1, 1, 2), effect: { kind: "repair", amount: 30 }, target: "part" },
-  { id: "test-flight", label: "Voo com carga incremental", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), discipline: "performance" },
-  { id: "flight-video", label: "Voo filmado (vídeo oficial)", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4) }
+  { id: "repair-part", label: "Reparar peça", cost: cost(10, 60), crew: crew(1, 1, 2), skill: "fabrication", effect: { kind: "repair", amount: 30 }, target: "part" },
+  { id: "test-flight", label: "Voo com carga incremental", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting", discipline: "performance" },
+  { id: "flight-video", label: "Voo filmado (vídeo oficial)", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting" }
 ];
 
 export const ACTIONS: readonly ActionDef[] = defs.map((def) => ({ ...def, category: categoryOf(def.cost) }));
