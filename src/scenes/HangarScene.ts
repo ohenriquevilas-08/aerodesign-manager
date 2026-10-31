@@ -81,10 +81,14 @@ export class HangarScene extends Phaser.Scene {
       this.applySpeed(state.clock.speed);
       this.refresh(state);
     });
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    // game.destroy() (ao trocar de tela) emite DESTROY, não SHUTDOWN: limpar nos dois.
+    const cleanup = () => {
       this.unsubscribe?.();
+      this.unsubscribe = null;
       this.scale.off("resize", this.layout, this);
-    });
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
+    this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
   }
 
   private layout() {

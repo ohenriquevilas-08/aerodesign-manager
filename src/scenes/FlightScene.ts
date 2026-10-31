@@ -138,10 +138,14 @@ export class FlightScene extends Phaser.Scene {
       (request) => this.start(request),
       () => this.updateSpeedLabel()
     );
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    // game.destroy() (ao trocar de tela) emite DESTROY, não SHUTDOWN: limpar nos dois.
+    const cleanup = () => {
       this.unsubscribe?.();
+      this.unsubscribe = null;
       this.scale.off("resize", this.layout, this);
-    });
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
+    this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
     if (flightReplay.current) this.start(flightReplay.current);
     else this.showIdle();
     // Atalho de depuração: window.__flightScene.seek(t) no console.
