@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { store } from "../app/store";
 import { SPEEDS } from "../sim";
 import { Central } from "./screens/Central";
+import { Competition } from "./screens/Competition";
 import { TopBar } from "./TopBar";
 
 // Telas do design §11. As que ainda não existem mostram um aviso.
@@ -56,6 +57,8 @@ export function App() {
       <main class="main">
         {screen === "central" ? (
           <Central />
+        ) : screen === "competition" ? (
+          <Competition />
         ) : (
           <div class="placeholder">
             <div>
