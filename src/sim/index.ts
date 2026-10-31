@@ -5,7 +5,7 @@ export * from "./scoring";
 export * from "./time";
 export { applyCommand, type Command } from "./commands";
 export { createGame, drawField, DISCIPLINES, FIELD_SIZE } from "./state";
-export { DISCIPLINE_LABELS, effectiveKnowledge, isOverloaded, memberHoursPerDay, motivationFactor } from "./team";
+export { canWork, DISCIPLINE_LABELS, effectiveKnowledge, isOverloaded, memberHoursPerDay, motivationFactor } from "./team";
 export { partState, PART_STATE_LABELS } from "./parts";
 export {
   ACTIONS,

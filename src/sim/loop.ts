@@ -7,7 +7,7 @@ import { OFFICIAL_CALENDAR } from "./content/calendar2026";
 import { findAction } from "./content/actions";
 import { crewRates } from "./crew";
 import { addMessage, completeTask } from "./tasks";
-import { clamp, isOverloaded } from "./team";
+import { canWork, clamp, isOverloaded } from "./team";
 import { clockToDate, dateToHours, gameHoursForRealSeconds } from "./time";
 import type { GameState, Member, PauseInfo, PauseReason } from "./types";
 
@@ -77,6 +77,7 @@ export function step(state: GameState, dt: number): GameState {
   next = {
     ...next,
     members: next.members.map((member) => {
+      if (!canWork(member)) return member;
       const working = member.taskId !== null && statusById.get(member.taskId) === "active";
       if (working) {
         const streak = member.workStreakHours + dt;

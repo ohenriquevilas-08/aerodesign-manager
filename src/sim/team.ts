@@ -22,8 +22,14 @@ export function motivationFactor(motivation: number): number {
   return floor + (1 - floor) * (clamp(motivation) / 100);
 }
 
-/** Horas por dia = disponibilidade × calendário acadêmico × motivação (design §8.1). */
+/** O presidente é o jogador: coordena e não faz trabalho operacional simulado. */
+export function canWork(member: Member): boolean {
+  return member.role !== "president";
+}
+
+/** Horas por dia = disponibilidade × calendário acadêmico × motivação (design §8.1). Presidente: 0. */
 export function memberHoursPerDay(member: Member, date: number): number {
+  if (!canWork(member)) return 0;
   return member.hoursPerDay * academicFactor(date).factor * motivationFactor(member.motivation);
 }
 

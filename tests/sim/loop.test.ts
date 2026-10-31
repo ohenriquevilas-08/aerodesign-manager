@@ -15,7 +15,24 @@ import {
   type Member
 } from "../../src/sim";
 
-const newGame = (overrides: Partial<GameState> = {}): GameState => ({ ...createGame({ seed: 42, teamName: "Teste" }), ...overrides });
+/** Integrante contratado para os testes: o presidente não trabalha (é o jogador). */
+function withRookie(game: GameState): GameState {
+  const founder = game.members.find((item) => item.id === "captain-aero")!;
+  const rookie: Member = {
+    ...founder,
+    id: "rookie",
+    name: "Novato",
+    role: "member",
+    knowledge: { ...founder.knowledge, aerodynamics: 0 },
+    hoursPerDay: 2
+  };
+  return { ...game, members: [...game.members, rookie] };
+}
+
+const newGame = (overrides: Partial<GameState> = {}): GameState => ({
+  ...withRookie(createGame({ seed: 42, teamName: "Teste" })),
+  ...overrides
+});
 
 const run = (state: GameState, ...commands: Command[]): GameState => commands.reduce(applyCommand, state);
 
@@ -101,7 +118,7 @@ describe("tarefas do catálogo", () => {
   it("tarefa com prazo não consome horas antes de readyAt", () => {
     let game = run(newGame(), { type: "start-action", actionId: "sponsor-pitch" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "president", taskId });
+    game = run(game, { type: "assign-member", memberId: "rookie", taskId });
     game = play(game, 13);
     expect(game.tasks[0]!.hoursDone).toBe(0);
     expect(game.tasks[0]!.status).toBe("waiting");
@@ -129,14 +146,14 @@ describe("tarefas do catálogo", () => {
   it("realoca, desaloca e cancela tarefas mantendo integrantes e tarefas em sincronia", () => {
     let game = run(newGame(), { type: "start-action", actionId: "raffle" }, { type: "start-action", actionId: "study-aero" });
     const [raffle, study] = game.tasks;
-    game = run(game, { type: "assign-member", memberId: "president", taskId: raffle!.id });
-    game = run(game, { type: "assign-member", memberId: "president", taskId: study!.id });
+    game = run(game, { type: "assign-member", memberId: "rookie", taskId: raffle!.id });
+    game = run(game, { type: "assign-member", memberId: "rookie", taskId: study!.id });
     expect(game.tasks[0]!.assignees).toEqual([]);
-    expect(game.tasks[1]!.assignees).toEqual(["president"]);
-    expect(member(game, "president").taskId).toBe(study!.id);
+    expect(game.tasks[1]!.assignees).toEqual(["rookie"]);
+    expect(member(game, "rookie").taskId).toBe(study!.id);
 
-    game = run(game, { type: "unassign-member", memberId: "president" });
-    expect(member(game, "president").taskId).toBeNull();
+    game = run(game, { type: "unassign-member", memberId: "rookie" });
+    expect(member(game, "rookie").taskId).toBeNull();
     expect(game.tasks[1]!.assignees).toEqual([]);
 
     game = run(game, { type: "assign-member", memberId: "captain-aero", taskId: study!.id }, { type: "cancel-task", taskId: study!.id });
@@ -146,15 +163,15 @@ describe("tarefas do catálogo", () => {
 
   it("não aloca gente em compra (tarefa sem horas)", () => {
     let game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-motor" });
-    game = run(game, { type: "assign-member", memberId: "president", taskId: lastTask(game).id });
-    expect(member(game, "president").taskId).toBeNull();
+    game = run(game, { type: "assign-member", memberId: "rookie", taskId: lastTask(game).id });
+    expect(member(game, "rookie").taskId).toBeNull();
     expect(game.warning).not.toBeNull();
   });
 
   it("applyCommand não muta o estado anterior", () => {
     const before = run(newGame({ credits: 1000 }), { type: "start-action", actionId: "raffle" });
     const snapshot = structuredClone(before);
-    let after = run(before, { type: "assign-member", memberId: "president", taskId: before.tasks[0]!.id });
+    let after = run(before, { type: "assign-member", memberId: "rookie", taskId: before.tasks[0]!.id });
     after = play(after, 30);
     expect(before).toEqual(snapshot);
     expect(after).not.toEqual(before);
@@ -165,7 +182,7 @@ describe("efeitos de conclusão", () => {
   it("rifa credita no caixa e avisa na inbox", () => {
     let game = run(newGame(), { type: "start-action", actionId: "raffle" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "president", taskId });
+    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "rookie", taskId });
     game = playUntilDone(game, taskId);
     expect(game.credits).toBe(420);
     expect(game.inbox.some((message) => message.title === "Concluído: Organizar rifa")).toBe(true);
@@ -174,9 +191,9 @@ describe("efeitos de conclusão", () => {
 
   it("patrocínio é sorteado com rngState e reproduzível pelo seed", () => {
     const outcome = (seed: number) => {
-      let game = run(createGame({ seed, teamName: "T" }), { type: "start-action", actionId: "sponsor-pitch" });
+      let game = run(withRookie(createGame({ seed, teamName: "T" })), { type: "start-action", actionId: "sponsor-pitch" });
       const taskId = lastTask(game).id;
-      game = run(game, { type: "assign-member", memberId: "president", taskId });
+      game = run(game, { type: "assign-member", memberId: "rookie", taskId });
       return playUntilDone(game, taskId).credits;
     };
     expect(outcome(42)).toBe(outcome(42));
@@ -187,17 +204,17 @@ describe("efeitos de conclusão", () => {
   it("estudo aumenta o conhecimento tácito de quem trabalhou, com retorno decrescente", () => {
     let game = run(newGame(), { type: "start-action", actionId: "study-aero" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "president", taskId });
+    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "rookie", taskId });
     game = playUntilDone(game, taskId);
     const captain = member(game, "captain-aero");
-    const president = member(game, "president");
+    const rookie = member(game, "rookie");
     expect(captain.knowledge.aerodynamics).toBeGreaterThan(25);
-    expect(president.knowledge.aerodynamics).toBeGreaterThan(0);
+    expect(rookie.knowledge.aerodynamics).toBeGreaterThan(0);
     expect(member(game, "captain-struct").knowledge.aerodynamics).toBe(0);
-    // Presidente parte de 0 e aprende mais por hora que o capitão (25).
+    // O novato parte de 0 e aprende mais por hora que o capitão (25).
     const perHour = (from: number, to: number, id: string) =>
       (to - from) / game.tasks[0]!.contributions[id]!;
-    expect(perHour(0, president.knowledge.aerodynamics, "president")).toBeGreaterThan(
+    expect(perHour(0, rookie.knowledge.aerodynamics, "rookie")).toBeGreaterThan(
       perHour(25, captain.knowledge.aerodynamics, "captain-aero")
     );
   });
@@ -313,7 +330,7 @@ describe("eventos e pausa automática", () => {
 describe("motivação", () => {
   it("cai devagar para quem fica sem tarefa", () => {
     const game = play(newGame(), 10);
-    expect(member(game, "president").motivation).toBeCloseTo(80 - 10 * BALANCE.motivation.idleDecayPerDay);
+    expect(member(game, "rookie").motivation).toBeCloseTo(80 - 10 * BALANCE.motivation.idleDecayPerDay);
   });
 
   it("não cai para quem trabalha dentro do limite e cai para quem está sobrecarregado", () => {
@@ -349,9 +366,9 @@ describe("equipe por tarefa (crew)", () => {
   it("recusa alocar acima do máximo da ação", () => {
     let game = run(newGame(), { type: "start-action", actionId: "report-chapter" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "president", taskId });
+    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "rookie", taskId });
     expect(game.tasks[0]!.assignees).toEqual(["captain-aero"]);
-    expect(member(game, "president").taskId).toBeNull();
+    expect(member(game, "rookie").taskId).toBeNull();
     expect(game.warning?.text).toContain("uma pessoa");
   });
 
@@ -369,14 +386,14 @@ describe("equipe por tarefa (crew)", () => {
     const taskId = lastTask(game).id;
     game = run(
       game,
-      { type: "assign-member", memberId: "president", taskId },
+      { type: "assign-member", memberId: "rookie", taskId },
       { type: "assign-member", memberId: "captain-aero", taskId },
       { type: "assign-member", memberId: "captain-struct", taskId }
     );
     game = play(game, 1);
     const extra = 2 * 0.9 * BALANCE.crew.extraEfficiency;
     expect(game.tasks[0]!.hoursDone).toBeCloseTo(2.7 + 2.7 + extra);
-    expect(game.tasks[0]!.contributions["president"]).toBeCloseTo(extra);
+    expect(game.tasks[0]!.contributions["rookie"]).toBeCloseTo(extra);
   });
 
   it("estima a duração antes de iniciar e bate com a simulação", () => {
@@ -398,5 +415,23 @@ describe("equipe por tarefa (crew)", () => {
   it("estima o restante de uma compra pelo prazo", () => {
     const game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-motor" });
     expect(estimateRemainingDays(play(game, 4), lastTask(game).id)).toBeCloseTo(6);
+  });
+});
+
+describe("presidente", () => {
+  it("coordena e não é alocado em tarefas", () => {
+    let game = run(newGame(), { type: "start-action", actionId: "raffle" });
+    game = run(game, { type: "assign-member", memberId: "president", taskId: lastTask(game).id });
+    expect(member(game, "president").taskId).toBeNull();
+    expect(game.tasks[0]!.assignees).toEqual([]);
+    expect(game.warning?.text).toBe("O presidente coordena; escolha alguém da equipe.");
+  });
+
+  it("não gera horas, não desmotiva parado e não acumula sequência", () => {
+    const game = newGame();
+    expect(memberHoursPerDay(member(game, "president"), SEASON_START)).toBe(0);
+    const later = play(game, 10);
+    expect(member(later, "president").motivation).toBe(80);
+    expect(member(later, "president").workStreakHours).toBe(0);
   });
 });
