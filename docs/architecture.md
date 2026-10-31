@@ -82,7 +82,7 @@ Coerência esperada da simulação: `no-takeoff` → rotação, folga, parada e 
 
 ### Hangar: `BenchView`
 
-Definido em `src/scenes/hangar/benchView.ts`. Cada bancada (asa, fuselagem, eletrônica, relatório) mostra uma tarefa com barra de progresso e as peças com estado (design §7.2). A cena lê `benchViewsFromState(state)`; hoje ela devolve dados simulados a partir do relógio. Quando a simulação tiver tarefas e peças por bancada, basta trocar o corpo dessa função.
+Definido em `src/scenes/hangar/benchView.ts`. Cada bancada (asa, fuselagem, eletrônica, relatório) mostra uma tarefa com barra de progresso e as peças com estado (design §7.2). A cena lê `benchViewsFromState(state)`; hoje ela devolve dados simulados a partir do relógio. Quando a simulação tiver tarefas e peças por bancada, basta trocar o corpo dessa função. O avião no cavalete, no centro, segue o mesmo modelo: `aircraftViewFromState(state)` dá o estado de cada `PartType` (ou `null` se a peça não existe), e a cena pinta a peça (danificada em amarelo, quebrada em vermelho).
 
 ## Convenções
 

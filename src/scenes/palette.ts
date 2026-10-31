@@ -32,6 +32,15 @@ export function css(color: number): string {
   return `#${color.toString(16).padStart(6, "0")}`;
 }
 
+/** Escurece uma cor da paleta (0 = igual, 1 = preto), para as faces laterais de volumes isométricos. */
+export function shade(color: number, amount: number): number {
+  const k = 1 - amount;
+  const r = Math.round(((color >> 16) & 0xff) * k);
+  const g = Math.round(((color >> 8) & 0xff) * k);
+  const b = Math.round((color & 0xff) * k);
+  return (r << 16) | (g << 8) | b;
+}
+
 // Espelho de --font-display, --font-body e --font-mono.
 export const fonts = {
   display: "Barlow Condensed",

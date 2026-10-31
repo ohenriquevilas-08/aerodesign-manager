@@ -1,22 +1,21 @@
-// Hangar isométrico (design §11): piso, bancadas e os fundadores circulando enquanto o relógio corre.
+// Hangar isométrico (design §11), no espírito de Habbo: paredes, portão, bancadas com o trabalho
+// de cada disciplina, o avião no cavalete e os integrantes trabalhando nos seus postos.
 // Cada bancada tem um cartão com a tarefa em andamento e as peças (ver hangar/benchView.ts).
 // Profundidade: quem está mais à frente (maior y na tela) desenha por cima.
-// Lê o store; nunca muda o estado.
+// Lê o store; nunca muda o estado. O tempo da cena segue clock.speed.
 
 import Phaser from "phaser";
 import type { GameStore } from "../app/store";
 import type { GameState, PartState } from "../sim";
-import { benchViewsFromState, type BenchId, type BenchView } from "./hangar/benchView";
+import { aircraftViewFromState, benchViewsFromState, type BenchId, type BenchView } from "./hangar/benchView";
+import { aircraftAnchor, BENCH_LEN, BENCH_TOP, benchHotspot, COLS, drawAircraft, drawBench, drawRoom, ROWS, WALL_H } from "./hangar/hangarArt";
+import { iso } from "./hangar/iso";
+import { Worker } from "./hangar/Worker";
 import { css, fonts, palette } from "./palette";
 
-const TILE_W = 64;
-const TILE_H = 32;
-const COLS = 10;
-const ROWS = 8;
-const BENCH_LIFT = 18;
 /** Cartões ficam acima de tudo que anda no piso. */
 const CARD_DEPTH = 1_000_000;
-const FLOOR_DEPTH = -1_000_000;
+const ROOM_DEPTH = -1_000_000;
 
 interface Bench {
   id: BenchId;
@@ -26,10 +25,10 @@ interface Bench {
 
 // Uma bancada em cada canto do piso, para os cartões não se cobrirem.
 const BENCHES: Bench[] = [
-  { id: "wing", col: 1, row: 1 },
-  { id: "fuselage", col: 7, row: 1 },
-  { id: "electronics", col: 1, row: 5 },
-  { id: "report", col: 7, row: 5 }
+  { id: "wing", col: 0.8, row: 1 },
+  { id: "fuselage", col: 7.4, row: 1 },
+  { id: "electronics", col: 0.8, row: 5.6 },
+  { id: "report", col: 7.4, row: 5.6 }
 ];
 
 const PART_COLOR: Record<PartState, number> = {
@@ -38,16 +37,6 @@ const PART_COLOR: Record<PartState, number> = {
   damaged: palette.warn,
   broken: palette.danger
 };
-
-/** Phaser 4 tipa polígonos como Vector2[]. */
-function vec(points: { x: number; y: number }[]): Phaser.Math.Vector2[] {
-  return points.map(({ x, y }) => new Phaser.Math.Vector2(x, y));
-}
-
-/** Coordenada isométrica do centro do tile, em pixels do mundo. */
-function iso(col: number, row: number): { x: number; y: number } {
-  return { x: (col - row) * (TILE_W / 2), y: (col + row) * (TILE_H / 2) };
-}
 
 interface BenchCard {
   container: Phaser.GameObjects.Container;
@@ -63,8 +52,10 @@ const CARD_W = 128;
 
 export class HangarScene extends Phaser.Scene {
   private store!: GameStore;
-  private people: Phaser.GameObjects.Container[] = [];
+  private people: Worker[] = [];
   private cards = new Map<BenchId, BenchCard>();
+  private aircraft!: Phaser.GameObjects.Graphics;
+  private aircraftKey = "";
   private unsubscribe: (() => void) | null = null;
 
   constructor() {
@@ -76,17 +67,19 @@ export class HangarScene extends Phaser.Scene {
   }
 
   create() {
-    this.drawFloor();
-    BENCHES.forEach((bench) => this.drawBench(bench));
+    drawRoom(this.add.graphics().setDepth(ROOM_DEPTH));
+    BENCHES.forEach((bench) => this.createBench(bench));
+    this.aircraft = this.add.graphics().setDepth(aircraftAnchor().y);
     this.store.getState().members.forEach((member, index) => this.spawnPerson(member.name, index));
-    this.refreshCards(this.store.getState());
+    this.refresh(this.store.getState());
+    this.startAmbient();
 
     this.layout();
     this.scale.on("resize", this.layout, this);
     this.applySpeed(this.store.getState().clock.speed);
     this.unsubscribe = this.store.subscribe((state) => {
       this.applySpeed(state.clock.speed);
-      this.refreshCards(state);
+      this.refresh(state);
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unsubscribe?.();
@@ -94,19 +87,16 @@ export class HangarScene extends Phaser.Scene {
     });
   }
 
-  update() {
-    // Ordem de desenho pela posição no piso: quem está mais embaixo na tela fica na frente.
-    this.people.forEach((person) => person.setDepth(person.y));
-  }
-
   private layout() {
     const { width, height } = this.scale;
-    const center = iso(COLS / 2, ROWS / 2);
-    // Piso + cartões ocupam ~620×400 px; aproxima até preencher o painel.
-    const zoom = Phaser.Math.Clamp(Math.min(width / 620, height / 400), 0.7, 1.7);
+    // Caixa do conteúdo: dos cantos do piso, do topo das paredes até a quina da frente.
+    const left = iso(-0.8, ROWS - 0.5).x;
+    const right = iso(COLS - 0.5, -0.8).x;
+    const top = iso(-0.8, -0.8, WALL_H).y;
+    const bottom = iso(COLS - 0.5, ROWS - 0.5).y;
+    const zoom = Phaser.Math.Clamp(Math.min(width / (right - left + 40), height / (bottom - top + 30)), 0.6, 1.8);
     this.cameras.main.setZoom(zoom);
-    // Sobe um pouco o centro para os cartões das bancadas de trás caberem.
-    this.cameras.main.centerOn(center.x, center.y - 30);
+    this.cameras.main.centerOn((left + right) / 2, (top + bottom) / 2);
   }
 
   /** O tempo da cena acompanha o relógio do jogo: pausa junto e acelera junto. */
@@ -122,49 +112,23 @@ export class HangarScene extends Phaser.Scene {
     this.tweens.resumeAll();
   }
 
-  private drawFloor() {
-    const g = this.add.graphics().setDepth(FLOOR_DEPTH);
-    for (let row = 0; row < ROWS; row += 1) {
-      for (let col = 0; col < COLS; col += 1) {
-        const { x, y } = iso(col, row);
-        const points = [
-          { x, y: y - TILE_H / 2 },
-          { x: x + TILE_W / 2, y },
-          { x, y: y + TILE_H / 2 },
-          { x: x - TILE_W / 2, y }
-        ];
-        g.fillStyle(palette.floor, 1);
-        g.fillPoints(vec(points), true);
-        g.lineStyle(1, palette.floorLine, 0.6);
-        g.strokePoints(vec(points), true);
-      }
-    }
+  private refresh(state: GameState) {
+    this.refreshCards(state);
+    const view = aircraftViewFromState(state);
+    const key = JSON.stringify(view);
+    if (key === this.aircraftKey) return;
+    this.aircraftKey = key;
+    this.aircraft.clear();
+    drawAircraft(this.aircraft, view);
   }
 
-  private drawBench(bench: Bench) {
-    const { x, y } = iso(bench.col + 0.5, bench.row + 0.5);
-    const w = TILE_W;
-    const h = TILE_H;
-    const lift = BENCH_LIFT;
+  private createBench(bench: Bench) {
     const g = this.add.graphics();
-    const top = [
-      { x, y: y - h / 2 - lift },
-      { x: x + w / 2, y: y - lift },
-      { x, y: y + h / 2 - lift },
-      { x: x - w / 2, y: y - lift }
-    ];
-    g.fillStyle(palette.bench, 1);
-    g.fillPoints(vec([{ x: x - w / 2, y: y - lift }, { x, y: y + h / 2 - lift }, { x, y: y + h / 2 }, { x: x - w / 2, y }]), true);
-    g.fillStyle(palette.bgGrid, 1);
-    g.fillPoints(vec([{ x: x + w / 2, y: y - lift }, { x, y: y + h / 2 - lift }, { x, y: y + h / 2 }, { x: x + w / 2, y }]), true);
-    g.fillStyle(palette.benchTop, 1);
-    g.fillPoints(vec(top), true);
-    g.lineStyle(1, palette.accent, 0.8);
-    g.strokePoints(vec(top), true);
-    // Profundidade pelo centro do tile: quem está atrás (y menor) fica escondido pela bancada.
-    g.setDepth(y);
-
-    this.cards.set(bench.id, this.createCard(x, y - h / 2 - lift - 8));
+    drawBench(g, bench.id, bench.col, bench.row);
+    // Profundidade pelo centro da bancada: quem está atrás (y menor) fica escondido por ela.
+    g.setDepth(iso(bench.col + BENCH_LEN / 2, bench.row + 0.55).y);
+    const anchor = iso(bench.col + BENCH_LEN / 2, bench.row + 0.55, BENCH_TOP + 30);
+    this.cards.set(bench.id, this.createCard(anchor.x, anchor.y));
   }
 
   /** Cartão da bancada: título, tarefa com barra de progresso e peças. Ancorado pela base. */
@@ -265,31 +229,42 @@ export class HangarScene extends Phaser.Scene {
     // Cada pessoa fica numa bancada fixa; quando houver tarefas, `member.taskId` decide qual.
     const bench = BENCHES[index % BENCHES.length]!;
     const slot = Math.floor(index / BENCHES.length);
-    const home = { col: bench.col + 0.5 + (slot % 2 === 0 ? -0.15 : 0.55), row: bench.row + 1.25 };
-    const start = iso(home.col, home.row);
-    const token = this.add.container(start.x, start.y);
-    const body = this.add.circle(0, -12, 10, index === 0 ? palette.highlight : palette.accent);
-    const shadow = this.add.ellipse(0, 0, 18, 8, palette.bg, 0.45);
-    const initials = this.add
-      .text(0, -12, name.slice(0, 1).toUpperCase(), { fontFamily: fonts.body, fontSize: "11px", fontStyle: "700", color: css(palette.bg) })
-      .setOrigin(0.5)
-      .setResolution(2);
-    token.add([shadow, body, initials]);
-    token.setDepth(start.y);
-    this.people.push(token);
-    this.time.delayedCall(Phaser.Math.Between(800, 3000), () => this.fidget(token, home));
+    const col = bench.col + (slot % 2 === 0 ? 0.45 : 1.15);
+    const spot = iso(col, bench.row + 1.3);
+    this.people.push(new Worker(this, name, index, spot.x, spot.y, slot % 2 === 0));
   }
 
-  /** Trabalhando: pequenos passos em volta do posto na frente da bancada, com pausas longas. */
-  private fidget(token: Phaser.GameObjects.Container, home: { col: number; row: number }) {
-    const target = iso(home.col + Phaser.Math.FloatBetween(-0.15, 0.15), home.row + Phaser.Math.FloatBetween(-0.08, 0.08));
-    this.tweens.add({
-      targets: token,
-      x: target.x,
-      y: target.y,
-      duration: 700,
-      ease: "Sine.easeInOut",
-      onComplete: () => this.time.delayedCall(Phaser.Math.Between(4000, 9000), () => this.fidget(token, home))
+  /** Vida na oficina: faíscas da solda na eletrônica e pó da lixa na asa, no ritmo do relógio. */
+  private startAmbient() {
+    BENCHES.forEach((bench) => {
+      if (bench.id !== "electronics" && bench.id !== "wing") return;
+      const spot = benchHotspot(bench.id, bench.col, bench.row);
+      const depth = iso(bench.col + BENCH_LEN / 2, bench.row + 0.55).y + 1;
+      const spark = bench.id === "electronics";
+      const loop = () => {
+        this.burst(spot.x, spot.y, depth, spark);
+        this.time.delayedCall(Phaser.Math.Between(spark ? 1200 : 1800, spark ? 3200 : 4200), loop);
+      };
+      this.time.delayedCall(Phaser.Math.Between(400, 1500), loop);
     });
+  }
+
+  private burst(x: number, y: number, depth: number, spark: boolean) {
+    for (let i = 0; i < (spark ? 6 : 4); i += 1) {
+      const color = spark ? (i % 2 ? palette.warn : palette.highlight) : palette.inkMuted;
+      const dot = this.add.circle(x, y, spark ? 1.2 : 2.2, color, spark ? 1 : 0.5).setDepth(depth);
+      const angle = spark ? Phaser.Math.FloatBetween(-Math.PI, 0) : Phaser.Math.FloatBetween(-2.4, -0.7);
+      const dist = spark ? Phaser.Math.Between(6, 14) : Phaser.Math.Between(4, 9);
+      this.tweens.add({
+        targets: dot,
+        x: x + Math.cos(angle) * dist,
+        y: y + Math.sin(angle) * dist - (spark ? 0 : 6),
+        alpha: 0,
+        scale: spark ? 0.5 : 2,
+        duration: spark ? 380 : 1100,
+        ease: "Quad.easeOut",
+        onComplete: () => dot.destroy()
+      });
+    }
   }
 }

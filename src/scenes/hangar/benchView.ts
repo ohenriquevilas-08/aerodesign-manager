@@ -2,7 +2,7 @@
 // progresso e as peças com seu estado visível. É o ponto de extensão da simulação no hangar:
 // a cena só desenha o que `benchViewsFromState` devolve.
 
-import type { GameState, PartState } from "../../sim";
+import type { GameState, PartState, PartType } from "../../sim";
 
 export type BenchId = "wing" | "fuselage" | "electronics" | "report";
 
@@ -71,4 +71,22 @@ export function benchViewsFromState(state: GameState): BenchView[] {
       parts: []
     }
   ];
+}
+
+/** Estado visível de cada peça do avião montado no centro do hangar; null = peça ainda não existe. */
+export type AircraftView = Record<PartType, PartState | null>;
+
+/**
+ * Hoje: dados simulados coerentes com os cartões das bancadas.
+ * Quando a simulação tiver o avião montado, derivar de `state.parts` (por `PartType`).
+ */
+export function aircraftViewFromState(_state: GameState): AircraftView {
+  return {
+    wing: "new",
+    fuselage: "worn",
+    tail: "new",
+    landingGear: "damaged",
+    powertrain: "broken",
+    electronics: "new"
+  };
 }
