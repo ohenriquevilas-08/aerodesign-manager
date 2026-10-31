@@ -13,6 +13,7 @@ import {
   estimateTaskDays,
   findAction,
   formatCountdown,
+  leadDaysRange,
   memberHoursPerDay,
   PART_STATE_LABELS,
   partState,
@@ -44,6 +45,7 @@ export function Actions() {
     <div class="screen">
       <header class="screen-head">
         <h1 class="screen-title">Ações</h1>
+        <Reach />
         <CostLegend />
       </header>
       <div class="actions-grid">
@@ -79,6 +81,17 @@ export function Actions() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Alcance acumulado da divulgação: alimenta a próxima seletiva e cai com os dias. */
+function Reach() {
+  const reach = useGame((state) => Math.round(state.outreach));
+  return (
+    <span class="stat" title="Soma das ações de divulgação. Cai 3% por dia e zera quando a seletiva termina.">
+      <span class="stat-label">Alcance atual</span>
+      <strong>{formatNumber(reach)}</strong>
+    </span>
   );
 }
 
@@ -123,7 +136,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
         ? SKILL_LABEL[action.skill]
         : null;
   const missingStock = Object.entries(action.requires ?? {}).filter(([item, amount]) => (stock[item] ?? 0) < (amount ?? 0));
-  const waitingTasks = tasks.filter((task) => task.status === "waiting" && task.readyAt !== null && task.readyAt > hour);
+  const waitingTasks = tasks.filter((task) => task.status === "waiting");
 
   const problems = [
     credits < action.cost.credits ? `Caixa insuficiente: faltam ◆ ${formatNumber(action.cost.credits - credits)}.` : null,
@@ -157,7 +170,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
         </button>
       </h2>
       <div class="panel-body stack-tight">
-        <CostTag cost={action.cost} />
+        <CostTag cost={action.cost} lead={leadDaysRange(action.id)} />
         {action.requires ? (
           <p class="muted small">
             Consome do estoque:{" "}
@@ -201,7 +214,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
           <TargetSelect label="Encomenda" value={target} onChange={setTarget} empty="Nada chegando no momento">
             {waitingTasks.map((task) => (
               <option key={task.id} value={task.id}>
-                {task.label} · chega em {formatCountdown(hour, clockToDate(task.readyAt ?? hour))}
+                {task.label} · {arrivalText(hour, task)}
               </option>
             ))}
           </TargetSelect>
@@ -336,6 +349,12 @@ function TaskList() {
   );
 }
 
+/** Prazo prometido (a data real fica escondida): contagem regressiva ou "atrasado". */
+function arrivalText(hour: number, task: Task): string {
+  const promised = task.expectedReadyAt ?? hour;
+  return promised > hour ? `previsto em ${formatCountdown(hour, clockToDate(promised))}` : "atrasado, aguardando";
+}
+
 function TaskRow({ task }: { task: Task }) {
   const members = useGame((state) => state.members);
   const hour = useGame((state) => Math.floor(state.clock.hours));
@@ -343,7 +362,7 @@ function TaskRow({ task }: { task: Task }) {
   const action = findAction(task.actionId);
   const crew = action?.crew ?? { min: 0, ideal: 0, max: 0 };
   const remaining = estimateRemainingDays(store.getState(), task.id);
-  const waiting = task.status === "waiting" && task.readyAt !== null && task.readyAt > hour;
+  const waiting = task.status === "waiting";
   const stalled = !waiting && task.hoursTotal > 0 && task.assignees.length < Math.max(1, crew.min);
   const candidates = members.filter((member) => canWork(member) && !task.assignees.includes(member.id));
   const progress = task.hoursTotal > 0 ? (task.hoursDone / task.hoursTotal) * 100 : 0;
@@ -354,7 +373,7 @@ function TaskRow({ task }: { task: Task }) {
         <span class="task-label">{task.label}</span>
         <span class={`task-status${stalled ? " text-danger" : ""}`}>
           {waiting
-            ? `⌛ ${formatCountdown(hour, clockToDate(task.readyAt ?? hour))}`
+            ? `⌛ ${arrivalText(hour, task)}`
             : stalled
               ? "parada"
               : formatDays(remaining)}

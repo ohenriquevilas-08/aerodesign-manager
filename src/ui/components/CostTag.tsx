@@ -1,9 +1,9 @@
-import type { ActionDef, Cost } from "../../sim";
-import { costParts, crewText, DISCIPLINE_SHORT, SKILL_LABEL } from "../format";
+import { leadDaysRange, type ActionDef, type Cost } from "../../sim";
+import { costParts, crewText, type LeadRange, DISCIPLINE_SHORT, SKILL_LABEL } from "../format";
 
-/** Custo de uma ação na ordem fixa ⏱ ◆ ⌛ ⚠, omitindo o que for zero (design §8). */
-export function CostTag({ cost }: { cost: Cost }) {
-  const parts = costParts(cost);
+/** Custo de uma ação na ordem fixa ⏱ ◆ ⌛ ⚠, omitindo o que for zero (design §8). Prazo em faixa se houver `lead`. */
+export function CostTag({ cost, lead }: { cost: Cost; lead?: LeadRange | null }) {
+  const parts = costParts(cost, lead);
   if (parts.length === 0) return <span class="cost cost-free">grátis</span>;
   return (
     <span class="cost">
@@ -51,7 +51,7 @@ export function ActionCard({
         <span class="action-label">{action.label}</span>
         {action.discipline ? <span class="chip">{DISCIPLINE_SHORT[action.discipline]}</span> : null}
       </span>
-      <CostTag cost={action.cost} />
+      <CostTag cost={action.cost} lead={leadDaysRange(action.id)} />
       {action.crew.max > 0 ? (
         <span class="crew-rule">
           {crewText(action.crew)}

@@ -16,6 +16,13 @@ export const RISK_LABEL: Record<RiskLevel, string> = {
 
 export type CostKind = "hours" | "credits" | "lead" | "risk";
 
+/** Faixa do prazo ⌛ (leadDaysRange da simulação): a entrega real varia em torno do prometido. */
+export interface LeadRange {
+  min: number;
+  promised: number;
+  max: number;
+}
+
 export interface CostPart {
   kind: CostKind;
   icon: string;
@@ -27,7 +34,7 @@ export interface CostPart {
  * Partes de um custo na ordem fixa do design §8: horas ⏱, créditos ◆, prazo ⌛, risco ⚠.
  * Omite o que for zero (ou risco "none"); custo todo zero devolve lista vazia.
  */
-export function costParts(cost: Cost): CostPart[] {
+export function costParts(cost: Cost, lead?: LeadRange | null): CostPart[] {
   const parts: CostPart[] = [];
   if (cost.hours > 0) {
     parts.push({ kind: "hours", icon: "⏱", text: `${formatNumber(cost.hours)} h`, title: "Horas-pessoa da equipe" });
@@ -39,8 +46,13 @@ export function costParts(cost: Cost): CostPart[] {
     parts.push({
       kind: "lead",
       icon: "⌛",
-      text: `${formatNumber(cost.leadDays)} d`,
-      title: "Espera no calendário, sem ocupar ninguém"
+      text:
+        lead && Math.round(lead.min) !== Math.round(lead.max)
+          ? `${formatNumber(Math.round(lead.min))}–${formatNumber(Math.round(lead.max))} d`
+          : `${formatNumber(cost.leadDays)} d`,
+      title: lead
+        ? `Espera no calendário, sem ocupar ninguém. Prometido: ${formatNumber(lead.promised)} d; pode variar.`
+        : "Espera no calendário, sem ocupar ninguém"
     });
   }
   if (cost.risk !== "none") {

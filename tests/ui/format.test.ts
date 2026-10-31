@@ -17,6 +17,12 @@ describe("costParts (design §8)", () => {
     expect(costParts({ hours: 0, credits: 0, leadDays: 0, risk: "none" })).toEqual([]);
   });
 
+  it("mostra o prazo ⌛ em faixa quando a entrega varia", () => {
+    const cost = { hours: 0, credits: 420, leadDays: 10, risk: "none" as const };
+    expect(costParts(cost, { min: 8, promised: 10, max: 14 })[1]?.text).toBe("8–14 d");
+    expect(costParts(cost, null)[1]?.text).toBe("10 d");
+  });
+
   it("toda ação do catálogo tem ao menos uma moeda", () => {
     for (const action of ACTIONS) expect(costParts(action.cost).length).toBeGreaterThan(0);
   });
