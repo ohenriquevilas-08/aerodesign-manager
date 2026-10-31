@@ -40,18 +40,19 @@ export const BENCH_TITLES: Record<BenchId, string> = {
  */
 export function benchViewsFromState(state: GameState): BenchView[] {
   const hours = state.clock.hours;
-  const cycle = (period: number, offset: number) => (((hours + offset) / period) % 1 + 1) % 1;
+  // Cada tarefa simulada avança uma vez, do início ao fim, e fica concluída (sem recomeçar).
+  const progressOver = (duration: number, start: number) => Math.min(1, Math.max(0, (hours - start) / duration));
   return [
     {
       id: "wing",
       title: BENCH_TITLES.wing,
-      task: { label: "Nervuras da asa", progress: cycle(60, 12), waiting: false },
+      task: { label: "Nervuras da asa", progress: progressOver(300, 0), waiting: false },
       parts: [{ label: "Asa P1", state: "new" }]
     },
     {
       id: "fuselage",
       title: BENCH_TITLES.fuselage,
-      task: { label: "Cura da treliça", progress: cycle(90, 40), waiting: true },
+      task: { label: "Cura da treliça", progress: progressOver(168, 24), waiting: true },
       parts: [
         { label: "Fuselagem P1", state: "worn" },
         { label: "Trem de pouso", state: "damaged" }
@@ -60,13 +61,13 @@ export function benchViewsFromState(state: GameState): BenchView[] {
     {
       id: "electronics",
       title: BENCH_TITLES.electronics,
-      task: { label: "Chicote e servos", progress: cycle(40, 5), waiting: false },
+      task: { label: "Chicote e servos", progress: progressOver(220, 0), waiting: false },
       parts: [{ label: "Hélice", state: "broken" }]
     },
     {
       id: "report",
       title: BENCH_TITLES.report,
-      task: { label: "Cap. Aerodinâmica", progress: cycle(120, 70), waiting: false },
+      task: { label: "Cap. Aerodinâmica", progress: progressOver(500, 48), waiting: false },
       parts: []
     }
   ];

@@ -262,7 +262,11 @@ export class HangarScene extends Phaser.Scene {
   }
 
   private spawnPerson(name: string, index: number) {
-    const start = iso(4 + index, 3 + (index % 2));
+    // Cada pessoa fica numa bancada fixa; quando houver tarefas, `member.taskId` decide qual.
+    const bench = BENCHES[index % BENCHES.length]!;
+    const slot = Math.floor(index / BENCHES.length);
+    const home = { col: bench.col + 0.5 + (slot % 2 === 0 ? -0.15 : 0.55), row: bench.row + 1.25 };
+    const start = iso(home.col, home.row);
     const token = this.add.container(start.x, start.y);
     const body = this.add.circle(0, -12, 10, index === 0 ? palette.highlight : palette.accent);
     const shadow = this.add.ellipse(0, 0, 18, 8, palette.bg, 0.45);
@@ -273,21 +277,19 @@ export class HangarScene extends Phaser.Scene {
     token.add([shadow, body, initials]);
     token.setDepth(start.y);
     this.people.push(token);
-    this.walk(token);
+    this.time.delayedCall(Phaser.Math.Between(800, 3000), () => this.fidget(token, home));
   }
 
-  /** Vai até a frente de uma bancada (abaixo dela na tela, longe do cartão), trabalha e segue. */
-  private walk(token: Phaser.GameObjects.Container) {
-    const bench = Phaser.Utils.Array.GetRandom(BENCHES);
-    const target = iso(bench.col + 0.5 + Phaser.Math.FloatBetween(-0.4, 0.6), bench.row + 1.25);
-    const distance = Phaser.Math.Distance.Between(token.x, token.y, target.x, target.y);
+  /** Trabalhando: pequenos passos em volta do posto na frente da bancada, com pausas longas. */
+  private fidget(token: Phaser.GameObjects.Container, home: { col: number; row: number }) {
+    const target = iso(home.col + Phaser.Math.FloatBetween(-0.15, 0.15), home.row + Phaser.Math.FloatBetween(-0.08, 0.08));
     this.tweens.add({
       targets: token,
       x: target.x,
       y: target.y,
-      duration: distance * 12,
+      duration: 700,
       ease: "Sine.easeInOut",
-      onComplete: () => this.time.delayedCall(Phaser.Math.Between(1200, 3000), () => this.walk(token))
+      onComplete: () => this.time.delayedCall(Phaser.Math.Between(4000, 9000), () => this.fidget(token, home))
     });
   }
 }
