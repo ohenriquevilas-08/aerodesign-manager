@@ -168,6 +168,17 @@ Começa com presidente + capitão de Aerodinâmica + capitão de Estruturas. A s
 - **Mentoria** (veterano + novato) transfere tácito direto entre pessoas: mais rápido que documentar, mas só para uma pessoa.
 - Na tela da equipe, quem vai sair mostra **"conhecimento em risco"**.
 
+### 5.4 Liderança e delegação **[DECIDIDO como princípio; mecânicas em PROPOSTA]**
+
+O presidente não fabrica nem calcula: coordena. Gerir a equipe é o mesmo problema de qualquer grupo trabalhando em paralelo: **fazer muita gente produzir ao mesmo tempo sem perder a coerência do avião.** Quatro princípios guiam as mecânicas:
+
+1. **Delegar com instrução, não só alocar.** Ao iniciar uma tarefa, o presidente escolhe quem lidera e a **dedicação** (rápido, normal, caprichado). Instrução vaga sai rápido e com mais variância; instrução caprichada custa horas e reduz o erro.
+2. **Dependências visíveis.** Algumas tarefas só começam quando outras terminam (fabricar a asa depende do projeto aerodinâmico; o relatório de Estruturas depende do ensaio estrutural). Adiantar o que tem dependência é possível, mas o que for feito sobre base não confirmada pode virar retrabalho.
+3. **Integração é um evento.** Montar o protótipo ou o avião oficial junta peças feitas por pessoas diferentes e pode revelar incompatibilidades (encaixe, peso acima do previsto, CG fora). A chance cai com o conhecimento documentado e com quem conhece o conjunto (capitão de projeto conceitual).
+4. **A atenção do presidente é um recurso.** Pedidos de decisão (aprovar compra, escolher candidato, autorizar ensaio arriscado) chegam pela caixa de entrada; enquanto não são respondidos, a tarefa espera. A pausa automática já cobre os pedidos urgentes.
+
+**Teste de validade:** toda mecânica que sai destes princípios precisa ser reconhecível por quem já foi de equipe de aerodesign. Se só fizer sentido como metáfora de gestão de projetos, fica de fora. O tema do jogo é aerodesign e pessoas, não gestão.
+
 ---
 
 ## 6. Projeto da aeronave **[PROPOSTA]**
