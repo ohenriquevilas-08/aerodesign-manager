@@ -1,7 +1,9 @@
 // Criação do estado inicial do Ano 1 (design §5.2 e §8.3).
 
 import { TEAM_POOL } from "./content/teams";
+import { createReport } from "./report";
 import { nextRandom } from "./rng";
+import { createShops } from "./shop";
 import type { Discipline, GameState, Member, RivalTeam } from "./types";
 
 export const DISCIPLINES: readonly Discipline[] = [
@@ -68,7 +70,7 @@ export function drawField(seed: number): { rivals: RivalTeam[]; rngState: number
 export function createGame(options: { seed: number; teamName: string }): GameState {
   const { rivals, rngState } = drawField(options.seed);
   return {
-    version: 2,
+    version: 3,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },
@@ -99,6 +101,11 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
     candidates: [],
     pause: { reason: "start", at: 0, messageId: null },
     warning: null,
-    nextId: 1
+    nextId: 1,
+    aircraft: null,
+    report: createReport(),
+    orders: [],
+    shops: createShops(),
+    competition: null
   };
 }

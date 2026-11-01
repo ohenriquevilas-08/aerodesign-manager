@@ -14,7 +14,13 @@ import type { Discipline, GameState, InboxMessage, Part, Task } from "./types";
 /** Efeitos cujo resultado depende da qualidade da equipe (sim/outcome.ts). */
 const VARIABLE_EFFECTS = new Set(["credits", "sponsor", "fabricate", "document", "repair", "outreach", "selection"]);
 
-const STOCK_LABELS: Record<StockItem, string> = { balsa: "balsa" };
+const STOCK_LABELS: Record<StockItem, string> = {
+  balsa: "balsa média",
+  "balsa-light": "balsa leve",
+  "balsa-hard": "balsa dura",
+  "carbon-fiber": "fibra de carbono",
+  resin: "resina"
+};
 
 const isDiscipline = (value: string | null | undefined): value is Discipline =>
   value != null && (DISCIPLINES as readonly string[]).includes(value);

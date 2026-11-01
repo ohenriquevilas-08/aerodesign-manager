@@ -6,8 +6,8 @@ import type { Cost, Discipline, PartType } from "../types";
 export type ActionCategory = "hours" | "credits" | "both";
 
 /** Itens de estoque (consumíveis) e equipamentos (permanentes). */
-export type StockItem = "balsa";
-export type EquipmentItem = "scale";
+export type StockItem = "balsa" | "balsa-light" | "balsa-hard" | "carbon-fiber" | "resin";
+export type EquipmentItem = "scale" | "thrust-stand";
 
 /**
  * O que acontece quando a tarefa termina. A simulação interpreta; o catálogo só descreve.

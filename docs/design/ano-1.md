@@ -327,6 +327,35 @@ Voo com carga incremental  ⏱ 12 h   ◆ 30    ⌛ —      ⚠ médio
 
 Valores numéricos ficam para o balanceamento (testados no protótipo).
 
+### 8.4 Compras pela internet do jogo **[PROPOSTA]**
+
+Comprar não é um botão "Comprar motor": é abrir o **navegador do jogo** e escolher onde comprar, como os sites dentro do celular do GTA V. Cada loja é uma paródia de onde as equipes reais compram, com identidade visual própria (logo, cores, tom do texto) e o mesmo produto custando, demorando e falhando de jeitos diferentes. Quem já esperou um motor importado travado na alfândega a duas semanas do vídeo de voo vai reconhecer.
+
+**Lojas:**
+
+| Loja no jogo | Inspirada em | Vende | Preço | Prazo ⌛ | Risco |
+|---|---|---|---|---|---|
+| **HobbyKong** | HobbyKing | Motores, ESC, hélices, baterias, servos | Baixo | Longo (importação) | Taxação e retenção na alfândega; qualidade média |
+| **AliExpresso** | AliExpress | Tudo, inclusive eletrônica genérica | Muito baixo | Muito longo, espalhado | Peça fora da especificação; servo "comercial" falsificado |
+| **Mercado Solto** | Mercado Livre | Revendedores nacionais | Médio | Curto a médio | Depende da reputação do vendedor (estrelas) |
+| **Hangar do Aeromodelista** | Lojas nacionais de aeromodelismo | Componentes originais, equipamento | Alto | Curto | Baixo; às vezes sem estoque |
+| **Balsa Leve Madeiras** | Fornecedores de balsa | Balsa por densidade (leve, média, dura) | Médio | Médio | Lote leve é mais leve e mais frágil |
+| **Compósitos do Vale** | Fornecedores de fibra e resina | Fibra de carbono, fibra de vidro, resina | Alto | Médio | Resina vence se ficar parada |
+| **Desapega Aero** | OLX / grupos de veteranos | Peças usadas de equipes que se formaram | Muito baixo | Curto (retirada) | Condição desconhecida até chegar |
+
+**Como funciona:**
+
+- **Mesmo produto, várias lojas.** O motor de 600 W existe na HobbyKong, no AliExpresso e no Hangar do Aeromodelista. O jogador compara preço ◆, prazo ⌛ e risco ⚠ e decide. É o mesmo cartão de custo da seção 8.1, só que agora a escolha é onde comprar.
+- **Prazo é faixa, nunca data.** A loja promete "chega em 12–20 dias"; o real é sorteado (regra "nada é garantido" da simulação). Importados têm faixa mais larga.
+- **Frete é escolha do checkout.** Normal ou expresso, por loja (loja nacional tem expresso barato; importação quase não tem). Substitui a ação genérica "Frete expresso".
+- **Rastreio pela caixa de entrada.** "Pedido enviado", "Retido na fiscalização: pague ◆ 180 de imposto", "Saiu para entrega". Na entrega, a peça aparece no hangar.
+- **Qualidade de origem.** Peça comprada também tem qualidade (como a fabricada). Loja barata = mais variação. A equipe só descobre ao receber, e mais cedo se tiver balança ou bancada de motor.
+- **Regra real amarrada:** servo precisa ser comercial. Servo falsificado do AliExpresso pode reprovar na inspeção de segurança (seção 9.2).
+- **Estoque e promoções.** Itens esgotam e voltam; a HobbyKong tem promoção relâmpago de vez em quando. Cria a pergunta "compro agora ou espero?".
+- **Avaliações como risco legível.** Estrelas e comentários de outras equipes (paródia) mostram o risco em linguagem clara, como pede o pilar 5.
+
+**Fica de fora do Ano 1:** câmbio do dólar variando, vender peças no Desapega, patrocínio em produto (desconto numa loja).
+
 ---
 
 ## 9. A competição (o clímax)
@@ -427,6 +456,7 @@ Resultados possíveis: voo válido · não passou o obstáculo (inválido) · ro
 | Ensaios | Cena + painel | Escolher ensaio, ver acontecer, pontos da reta de previsão |
 | Relatório | Painel | Capítulos por disciplina, nota estimada, reta de previsão e peso vazio a congelar |
 | Finanças | Painel | Caixa, captação, gastos |
+| Navegador | Painel (abas de sites) | Lojas da seção 8.4, cada uma com visual próprio: vitrine, carrinho, checkout, rastreio de pedidos |
 | Regulamento | Painel | Regras do ano em linguagem acessível + aba **"Como é pontuado"** com as fórmulas reais **[DECIDIDO]** |
 | Competição | **Cena (Phaser)** + painel | Pista, fila, altitude densidade ao vivo, escolha de carga, voo, placar |
 
