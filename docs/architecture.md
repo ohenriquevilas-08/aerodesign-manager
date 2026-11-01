@@ -81,6 +81,14 @@ Coerência esperada da simulação: `no-takeoff` → rotação, folga, parada e 
 - O replay tem velocidade própria (`flightReplay.setSpeed`), independente de `clock.speed`.
 - Em dev, a tela Competição tem um painel que toca cada desfecho com `MOCK_PLAYBACKS`, e `window.__flightScene.seek(t)` pula o replay.
 
+### Fila da competição: `QueueScene`
+
+`src/scenes/QueueScene.ts` (chave `"queue"`), vista de lado como o voo: a taxiway com as equipes esperando, a cabeceira com a próxima a voar, a sua destacada em laranja com uma seta, o sol no arco do céu pela hora do relógio (manhã fria → tarde quente) e a biruta pelo vento. Quando `queueIndex` avança, o avião que estava na cabeceira corre e sai voando (só animação; o voo de verdade é a `FlightScene`) e a fila taxia um lugar. Cabeçalho: bateria, hora, temperatura, pressão, Hρ (`currentDensityAltitude`), vento, quantas equipes já voaram e quantas estão à sua frente. Fase `inspection`, `finished` ou `competition` nulo: cenário sem fila e um aviso no meio.
+
+- A cena só anima; a UI monta, como as outras: `<PhaserStage scene={QueueScene} sceneKey="queue" />` (ela recebe `{ store }` em `init`). Cada `PhaserStage` é um `Phaser.Game` próprio, então fila e voo podem ficar lado a lado ou alternar na tela Competição.
+- Lógica pura em `src/scenes/queue/queueView.ts` (testada em `tests/scenes/queueView.test.ts`): `queueViewFromState(state, maxShown)` (cabeceira primeiro, `hidden` além da janela, `playerAhead`), `hourOfDay`, `sunElevation`, `sunProgress`, `windsock`.
+- Tweens seguem `clock.speed` (pausa junto); o céu é redesenhado a cada minuto de jogo.
+
 ### Hangar: `BenchView`
 
 Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `tests/scenes/benchView.test.ts`). Cada bancada (asa, fuselagem, eletrônica, relatório) mostra uma tarefa com barra de progresso e as peças com estado (design §7.2).
