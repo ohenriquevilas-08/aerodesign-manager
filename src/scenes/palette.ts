@@ -16,6 +16,8 @@ export const palette = {
   ok: 0x3fd18b, // --ok
   warn: 0xffc23d, // --warn
   danger: 0xff5a5f, // --danger
+  blueprint: 0x0d3a66, // --blueprint
+  blueprintGrid: 0x1b5588, // --blueprint-grid
   night: 0x03070d, // --night
   lamp: 0xffd98a, // --lamp
   /** --text como número, para Graphics. */

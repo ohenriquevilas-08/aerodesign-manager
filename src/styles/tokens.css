@@ -26,6 +26,10 @@
   --warn: #ffc23d;
   --danger: #ff5a5f;
 
+  /* Blueprint da Prancheta (azul técnico; traço em --text) */
+  --blueprint: #0d3a66;
+  --blueprint-grid: #1b5588;
+
   /* Luz da oficina no hangar (escala, design §5.5) */
   --night: #03070d; /* escuro da noite sobre a oficina e nas janelas */
   --lamp: #ffd98a; /* luz quente das luminárias acesas */

@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import {
@@ -19,6 +19,9 @@ import { Segmented, Slider } from "../components/Controls";
 import { EstimateRow } from "../components/EstimateRow";
 import { formatNumber } from "../format";
 import { usePerformance } from "../hooks";
+import { blueprintChannel } from "../../scenes/blueprint/channel";
+import { BlueprintScene } from "../../scenes/BlueprintScene";
+import { PhaserStage } from "../PhaserStage";
 
 // Prancheta (design §6.1). O projeto mora em state.aircraft.design e muda por set-design;
 // antes do primeiro set-design a tela mostra DEFAULT_DESIGN.
@@ -137,6 +140,10 @@ export function Drafting() {
   const draft = saved ?? DEFAULT_DESIGN;
   const [altitude, setAltitudeState] = useState(savedAltitude);
   const estimate = usePerformance(altitude);
+  // O rascunho ainda não é estado do jogo: a cena do blueprint recebe o projeto por este canal.
+  useEffect(() => {
+    blueprintChannel.show(draft);
+  }, [draft.span, draft.surfaces, draft.powerW, draft.philosophy, draft.material, draft.gear]);
 
   const set = <K extends keyof AircraftDesign>(key: K, value: AircraftDesign[K]) =>
     store.dispatch({ type: "set-design", design: { ...draft, [key]: value } });
@@ -225,6 +232,11 @@ export function Drafting() {
               <p class="decision-text">{GEAR_TEXT[draft.gear]}</p>
             </div>
           </div>
+        </section>
+
+        <section class="panel blueprint-panel">
+          <h2 class="panel-title">Blueprint</h2>
+          <PhaserStage scene={BlueprintScene} sceneKey="blueprint" />
         </section>
 
         <div class="stack scroll-col">
