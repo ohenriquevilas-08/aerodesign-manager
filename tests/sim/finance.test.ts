@@ -125,17 +125,6 @@ describe("testHistory", () => {
     expect(testHistory(state).entries.map((e) => e.test)).toEqual(["structural", "thrust"]);
   });
 
-  it("flight tests give (Hρ, payload) points near the real payload line, without touching rng for the point", () => {
-    const state = finish(hangar(), "test-flight");
-    const { points, entries } = testHistory(state);
-    expect(points).toHaveLength(1);
-    expect(entries[0]!.payloadKg).toBe(points[0]!.payloadKg);
-    // A carga medida é a real daquele Hρ com ruído de medição pequeno.
-    const real = maxPayloadKg(playerFlightModel(hangar())!, points[0]!.densityAltitudeM);
-    expect(points[0]!.payloadKg).toBeGreaterThan(real * 0.9);
-    expect(points[0]!.payloadKg).toBeLessThan(real * 1.1);
-  });
-
   it("flags a test with an incident and lists the damaged part", () => {
     let found = false;
     for (let seed = 1; seed < 80 && !found; seed += 1) {

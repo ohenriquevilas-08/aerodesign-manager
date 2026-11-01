@@ -75,44 +75,117 @@ export const BALANCE = {
 
   /**
    * Modelo do avião (design §6). Física simplificada e plausível para a Classe Regular:
-   * pesos em kg, potência em W, envergadura em m. Calibrado para o projeto padrão
-   * (b 2,8 m, N 2, 550 W, leve, balsa) dar ~3,3 kg vazio e ~11–12 kg de carga a Hρ 1000 m.
+   * pesos em kg, potência em W, envergadura e corda em m. Calibrado para o projeto padrão
+   * (b 2,8 m, c 0,40 m, N 2, 550 W, hélice 14", leve, balsa) dar ~3,4 kg vazio e ~11–12 kg
+   * de carga a Hρ 1000 m. Fase 5: o peso vazio sai do orçamento de massa por subsistema.
    */
   aircraft: {
-    weight: {
-      /** Fuselagem, compartimento de carga e eletrônica. */
-      fuselage: 0.9,
-      /** Grupo motopropulsor: fixo + por W de potência projetada. */
-      powertrainBase: 0.25,
-      powertrainPerW: 0.0006,
-      /** Asa: coeficiente × b^wingExponent × fator do material. */
-      wingCoef: 0.45,
-      wingExponent: 1.3,
-      wingMaterial: { balsa: 1, mixed: 0.9, composite: 0.8 } as Record<string, number>,
-      /** Empenagem e superfícies extras por N (asa voadora não tem empenagem). */
-      tail: { 1: 0, 2: 0.25, 3: 0.45 } as Record<number, number>,
+    /** Corda de referência, m: a corrida e o braço de cauda se medem em relação a ela. */
+    refChordM: 0.4,
+    /** Braço da cauda horizontal lh, em cordas (aerodesign típico: 2,5 a 3 c). */
+    tailArmChords: 2.5,
+    /**
+     * Orçamento de massa (design §6.4). Asa = casca (kg/m² × S) + longarina (kg/m² × b² × c_ref/c):
+     * o momento fletor cresce com b e a altura da longarina com c, então asa fina e longa pesa mais.
+     * Valores de asas de balsa entelada de aerodesign (0,8–1,2 kg/m² com longarina).
+     */
+    mass: {
+      wingSkin: { balsa: 0.9, mixed: 0.8, composite: 0.72 } as Record<string, number>,
+      wingSpar: { balsa: 0.09, mixed: 0.08, composite: 0.065 } as Record<string, number>,
+      /** Asa voadora: corda central maior e reflexo pesam mais. */
+      flyingWingFactor: 1.1,
+      /** Empenagem: kg/m² de superfície + fixo (articulações, deriva). Canard (N=3) = fração de S. */
+      tailAreal: 1.05,
+      tailFixed: 0.04,
+      tailMaterial: { balsa: 1, mixed: 0.92, composite: 0.85 } as Record<string, number>,
+      canardAreaShare: 0.15,
+      canardFixed: 0.02,
+      /** Fuselagem e baia de carga + cone de cauda por metro de braço (a asa voadora não tem). */
+      fuselageBase: 0.4,
+      fuselagePerTailArmM: 0.24,
       gear: { low: 0.25, high: 0.35 } as Record<string, number>,
-      philosophy: { payload: 1.08, light: 0.9, stable: 1 } as Record<string, number>
+      /** Motor + ESC + hélice: fixo + por W + hélice ∝ D² (referência 14"). */
+      powertrainBase: 0.1,
+      powertrainPerW: 0.0003,
+      propKgAtRef: 0.035,
+      /** LiPo para ~2 min a 600 W de pico (4S–6S, 2200–3300 mAh): fixo + por W. */
+      batteryBase: 0.12,
+      batteryPerW: 0.0004,
+      /** Servos, receptor, wattímetro e fiação; canard tem servo a mais. */
+      electronics: 0.2,
+      electronicsCanard: 0.03,
+      /** Filosofia muda a estrutura (asa, fuselagem, empenagem, trem), não o que se compra pronto. */
+      philosophy: { payload: 1.08, light: 0.9, stable: 1 } as Record<string, number>,
+      /** Desvio ± de cada subsistema no sorteio escondido: estrutura feita em casa varia mais que componente comprado. */
+      builtSpread: 0.06,
+      boughtSpread: 0.02
     },
     lift: {
-      /** Massa máxima sustentada ao nível do mar: coeficiente × b^spanExponent × N × filosofia. */
-      coef: 7.24,
-      spanExponent: 0.8,
+      /**
+       * Massa sustentada ao nível do mar = coef × S × AR / (AR + 2) × N × filosofia × trimagem.
+       * coef ≈ ½ ρ0 V² CLmax / g com V ≈ 13 m/s e CLmax de perfil de alta sustentação (~1,9);
+       * AR/(AR+2) é a perda de sustentação da asa finita (aproximação de Helmbold).
+       */
+      coef: 18.9,
       surfaces: { 1: 0.88, 2: 1, 3: 1.08 } as Record<number, number>,
-      philosophy: { payload: 1.1, light: 0.95, stable: 1 } as Record<string, number>
+      philosophy: { payload: 1.1, light: 0.95, stable: 1 } as Record<string, number>,
+      /** Margem estática baixa = menos sustentação negativa na cauda: + carga por ponto abaixo de trimRefMargin. */
+      trimPerMarginPoint: 0.004,
+      trimRefMargin: 12,
+      trimRange: [0.92, 1.06] as const
     },
     takeoff: {
-      /** Corrida = k × m² / (σ² × b × P × fator de sustentação) × vento. */
+      /** Corrida = k × m² / (σ² × (S / c_ref) × P × fator de sustentação × fator de tração) × vento. */
       k: 226,
       /** Velocidade de rotação de referência para o efeito do vento, m/s. */
       liftoffSpeedMs: 13,
       /** Trem alto rotaciona um pouco antes (ângulo de ataque maior na corrida). */
-      gearFactor: { low: 1, high: 0.97 } as Record<string, number>
+      gearFactor: { low: 1, high: 0.97 } as Record<string, number>,
+      /** Tração estática com potência fixa ∝ D^(2/3) (teoria do momento: T = (2ρA P²)^(1/3)). */
+      refPropIn: 14,
+      propExponent: 2 / 3,
+      /** Asa baixa ganha efeito solo na corrida. */
+      lowWingGroundEffect: 1.04,
+      /** Margem acima de 20% CMA: profundor não levanta o nariz; corrida cresce por ponto. */
+      overStableFrom: 20,
+      overStablePerPoint: 0.015
     },
-    /** Estabilidade 0–1 (risco de queda e de pouso duro). */
+    /** Hélice máxima por altura do trem, pol. (folga ao solo). */
+    maxPropIn: { low: 15, high: 20 } as Record<string, number>,
+    /**
+     * Estabilidade longitudinal (design §6.5). Ponto neutro (% CMA) ≈ 25 + η × VH × (at/aw) × (1 − dε/dα) × 100
+     * − fuselagem, com aw ∝ AR/(AR+2), cauda de AR 4 e dε/dα ≈ 4/(AR+2) (downwash de asa elíptica).
+     * Asa voadora: 25 + reflexo/enflechamento. Canard desestabiliza.
+     */
+    neutralPoint: {
+      wingAc: 25,
+      tailEfficiency: 0.9,
+      tailAspectRatio: 4,
+      fuselageShift: -3,
+      flyingWing: 33,
+      canardShift: -8
+    },
+    /** Faixas de margem estática, % CMA. ok dentro de `ok`; risco dentro de `risk`; fora = falha. */
+    staticMarginBands: { ok: [5, 20], risk: [0, 30] } as const,
+    /** Desvio ± da margem real sobre a nominal (onde o CG cai de fato), % CMA. */
+    staticMarginSpread: 3,
+    /** Margem de erro da estimativa da margem estática sem conhecimento nem ensaios, % CMA. */
+    staticMarginMargin: 5,
+    /**
+     * Estabilidade 0–1 (risco de queda e de pouso duro) a partir da margem estática real:
+     * negativa = instável; sobe até overStableFrom; + filosofia, posição da asa e N.
+     */
     stability: {
-      philosophy: { payload: 0.6, light: 0.6, stable: 0.9 } as Record<string, number>,
-      surfaces: { 1: -0.2, 2: 0, 3: 0.05 } as Record<number, number>
+      unstableBase: 0.2,
+      unstablePerPoint: 0.03,
+      floor: 0.05,
+      lowBase: 0.15,
+      lowPerPoint: 0.04,
+      lowUntil: 10,
+      highPerPoint: 0.02,
+      philosophy: { payload: 0, light: 0, stable: 0.1 } as Record<string, number>,
+      wing: { high: 0.03, low: -0.03 } as Record<string, number>,
+      surfaces: { 1: -0.1, 2: 0, 3: 0 } as Record<number, number>
     },
     /** Desvio escondido do peso vazio por material: viés + variação ± (design §6.2). */
     material: {
@@ -147,8 +220,6 @@ export const BALANCE = {
   tests: {
     structural: { evidence: 1, breakChance: 0.25, breakDamage: 45, wear: 5 },
     thrust: { evidence: 0.7, standEvidence: 2, wear: 3 },
-    flight: { payloadEvidence: 1, takeoffEvidence: 0.5, incidentChance: 0.15, wear: 4, damage: [30, 70] as const, measureSpread: 0.04 },
-    video: { payloadEvidence: 0.3, incidentChance: 0.12, wear: 4, damage: [30, 70] as const },
     /** Piloto da CT (design §5.1): nível fixo para quem não tem piloto próprio. */
     ctPilot: 55,
     pilotingPerHour: 0.6
@@ -252,6 +323,37 @@ export const BALANCE = {
     stallPerExcess: 4,
     /** Penalidade por alteração de projeto depois de 27/set (Apêndice 6). Provisório. */
     lateChangePenalty: 5
+  },
+
+  /**
+   * Ensaio de voo como evento (Fase 5, S2; design §7.3). Locais em content/testVenues.ts.
+   */
+  flightTests: {
+    /** Hora da primeira decolagem e intervalo entre decolagens (h). */
+    startHour: 8,
+    intervalHours: 0.5,
+    /** Horas que a tripulação passa no campo (conhecimento tácito). */
+    crewHours: 6,
+    /** Pilotagem mínima de um integrante para pilotar o ensaio. */
+    minPiloting: 30,
+    /** Piloto contratado: custo ◆ e nível de pilotagem. */
+    hiredPilotCost: 150,
+    hiredPilot: 80,
+    /** Tripulação e cargas por evento. */
+    maxCrew: 6,
+    maxTakeoffs: 5,
+    /** Fração do pago devolvida no cancelamento. */
+    refundShare: 0.5,
+    /** Chance de dano no transporte por km de estrada (ida); dano sorteado na faixa. */
+    transportRiskPerKm: 0.002,
+    transportDamage: [10, 25] as const,
+    /** Desgaste por decolagem em cada peça instalada. */
+    wearPerTakeoff: 3,
+    /** Evidência por decolagem: válida (dá um ponto da reta) ou no limite (não decolou, rompeu a fita). */
+    validEvidence: { payload: 0.4, takeoff: 0.3, stability: 0.5 },
+    limitEvidence: { payload: 0.6, takeoff: 0.5, stability: 0.2 },
+    /** Conhecimento por hora para a tripulação (Desempenho, Aerodinâmica, Estabilidade). */
+    knowledgePerHour: 0.4
   },
 
   /** Formação por área (Fase 4, S3; design §5.1). */

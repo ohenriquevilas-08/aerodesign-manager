@@ -159,12 +159,14 @@ describe("ensaios", () => {
     const state = applyCommand(withDesign(), { type: "start-action", actionId: "test-structural" });
     expect(state.tasks).toHaveLength(0);
     expect(state.warning?.text).toContain("asa");
-    const flight = applyCommand({ ...withDesign(), credits: 100 }, { type: "start-action", actionId: "test-flight" });
-    expect(flight.warning?.text).toBe(
+    // Voo de ensaio virou evento (Fase 5): a recusa vem do agendamento.
+    const flight = { venueId: "farm", day: 10, pilot: { hired: true as const }, crew: ["captain-aero"], payloadPlanKg: [6] };
+    const none = applyCommand({ ...withDesign(), credits: 999 }, { type: "schedule-flight-test", ...flight });
+    expect(none.warning?.text).toBe(
       "Avião incompleto para voar. Faltam a asa, a fuselagem, a empenagem, o trem de pouso, o grupo motopropulsor e a eletrônica."
     );
     const noGear = withParts(withDesign(), PART_TYPES.filter((t) => t !== "landingGear").map((t) => part(t)));
-    const one = applyCommand({ ...noGear, credits: 100 }, { type: "start-action", actionId: "flight-video" });
+    const one = applyCommand({ ...noGear, credits: 999 }, { type: "schedule-flight-test", ...flight });
     expect(one.warning?.text).toBe("Avião incompleto para voar. Falta o trem de pouso.");
   });
 
@@ -177,41 +179,12 @@ describe("ensaios", () => {
     expect(done.parts.find((p) => p.type === "wing")!.condition).toBeLessThan(100);
     expect(relativeMargins(done).emptyWeight).toBeLessThan(relativeMargins(state).emptyWeight);
   });
-
-  it("voo filmado sem incidente vale como vídeo até 27/set e não depois", () => {
-    const state = withParts(withDesign());
-    expect(applyTest(state, "video", 100, 1).state.aircraft!.flightVideoAt).toBe(0);
-    const late = { ...state, clock: { ...state.clock, hours: dateToHours(Date.UTC(2026, 8, 28)) } };
-    expect(applyTest(late, "video", 100, 1).state.aircraft!.flightVideoAt).toBeNull();
-  });
-
-  it("voo de ensaio com equipe fraca às vezes danifica uma peça (sorteio com rngState)", () => {
-    const outcomes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((seed) => {
-      const state = withParts(withDesign(DEFAULT_DESIGN, seed));
-      return Math.min(...applyTest(state, "flight", 0, 1).state.parts.map((p) => p.condition));
-    });
-    expect(outcomes.some((c) => c < 80)).toBe(true);
-    expect(outcomes.some((c) => c >= 90)).toBe(true);
-  });
-
-  it("o ensaio pelo catálogo conclui pela tarefa e ensina pilotagem a quem voou", () => {
-    let state: GameState = { ...withParts(withDesign()), credits: 100 };
-    state = applyCommand(state, { type: "start-action", actionId: "test-flight" });
-    const taskId = state.tasks[0]!.id;
-    for (const id of ["captain-aero", "captain-struct"]) state = applyCommand(state, { type: "assign-member", memberId: id, taskId });
-    for (let i = 0; i < 200 && state.tasks[0]!.status !== "done"; i += 1) {
-      state = applyCommand(applyCommand(state, { type: "set-speed", speed: 4 }), { type: "tick", realSeconds: 10 });
-    }
-    expect(state.tasks[0]!.status).toBe("done");
-    expect(state.aircraft!.evidence!.payload).toBeGreaterThan(0);
-    expect(state.members.find((m) => m.id === "captain-aero")!.piloting).toBeGreaterThan(0);
-  });
 });
 
 describe("prancheta", () => {
   it("mudar o projeto mantém os desvios, perde metade dos ensaios e conta alteração tardia depois de 27/set", () => {
     const base = withDesign();
-    const tested: GameState = { ...base, aircraft: { ...base.aircraft!, evidence: { emptyWeight: 2, payload: 2, takeoff: 2 } } };
+    const tested: GameState = { ...base, aircraft: { ...base.aircraft!, evidence: { emptyWeight: 2, payload: 2, takeoff: 2, stability: 2 } } };
     const early = applyCommand(tested, { type: "set-design", design: { ...DEFAULT_DESIGN, span: 3 } });
     expect(early.aircraft!.evidence!.payload).toBe(1);
     expect(early.aircraft!.lateChanges).toBe(0);

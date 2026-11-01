@@ -85,6 +85,28 @@ export interface Member {
   classSlots: SlotKey[];
   /** Área da formação (content/formations.ts); null = novato sem área ou presidente. */
   area: Discipline | null;
+  /** Aparência do boneco isométrico (Fase 5, S3), sorteada ao criar. */
+  look: MemberLook;
+}
+
+// ---------------------------------------------------------------------------
+// Fase 5, S3: aparência dos integrantes (boneco isométrico, docs/phases/fase-5.md C2).
+// ---------------------------------------------------------------------------
+
+export type SkinTone = "light" | "tan" | "brown" | "dark";
+export type HairStyle = "short" | "buzz" | "curly" | "long" | "ponytail" | "bald";
+export type HairColor = "black" | "brown" | "blonde" | "red";
+/** Modelo da camiseta; a cor é sempre a da equipe (paleta das cenas). */
+export type ShirtStyle = "tee" | "polo" | "hoodie";
+export type Accessory = "glasses" | "cap" | "headphones";
+
+export interface MemberLook {
+  skin: SkinTone;
+  hair: HairStyle;
+  hairColor: HairColor;
+  shirt: ShirtStyle;
+  /** Ausente = nenhum. */
+  accessory?: Accessory;
 }
 
 /** Candidato da seletiva (design §5.2): vira Member com role "member" ao ser convidado. */
@@ -106,6 +128,8 @@ export interface Candidate {
   opinion: string;
   /** Turnos com aula no semestre; passa para o integrante ao contratar. */
   classSlots: SlotKey[];
+  /** Aparência; passa para o integrante ao contratar. */
+  look: MemberLook;
 }
 
 export type PartType = "wing" | "fuselage" | "tail" | "landingGear" | "powertrain" | "electronics";
@@ -171,7 +195,7 @@ export interface InboxMessage {
 }
 
 /** Motivo da pausa atual. "start": jogo recém-criado; "manual": jogador pausou. */
-/** "order": pedido retido ou entregue; "flight": seu voo na competição (replay); "competition": evento da competição ou da CT. */
+/** "order": pedido retido ou entregue; "flight": seu voo na competição (replay); "competition": evento da competição ou da CT; "flight-test": dia de ensaio de voo agendado. */
 export type PauseReason =
   | "start"
   | "manual"
@@ -180,7 +204,8 @@ export type PauseReason =
   | "deadline-passed"
   | "order"
   | "flight"
-  | "competition";
+  | "competition"
+  | "flight-test";
 
 export interface PauseInfo {
   reason: PauseReason;
@@ -216,6 +241,7 @@ export interface RivalTeam {
 export type DesignPhilosophy = "payload" | "light" | "stable";
 export type DesignMaterial = "balsa" | "composite" | "mixed";
 export type GearHeight = "low" | "high";
+export type WingPosition = "high" | "low";
 
 export interface AircraftDesign {
   /** Envergadura b, m (1,5 a 4,0; acima de REGULAR_2026.maxSpan gera PD). */
@@ -227,6 +253,17 @@ export interface AircraftDesign {
   philosophy: DesignPhilosophy;
   material: DesignMaterial;
   gear: GearHeight;
+  // Fase 5, S1 (design §6.1): engenharia de sistemas.
+  /** Corda média aerodinâmica, m. Alongamento = span / chordM (derivado). */
+  chordM: number;
+  /** Asa alta (estabilidade lateral, efeito pêndulo) ou baixa (efeito solo na corrida). */
+  wingPosition: WingPosition;
+  /** Volume de cauda horizontal VH = (Sh × lh) / (S × c), ~0,3–0,7. Ignorado na asa voadora. */
+  tailVolume: number;
+  /** Posição do CG, % da corda média a partir do bordo de ataque. */
+  cgPercentMac: number;
+  /** Diâmetro da hélice, polegadas; o trem limita o máximo (maxPropDiameterIn). */
+  propDiameterIn: number;
 }
 
 /** Número que a equipe enxerga: valor central ± margem (design §6.2). */
@@ -251,7 +288,14 @@ export interface AircraftHidden {
    * real + bias × margem × BALANCE.aircraft.biasShare. Ensaios sorteiam de novo. Ausente = 0.
    * NUNCA mostrar, como o resto de `hidden`: revelaria o desempenho real.
    */
-  bias?: { emptyWeight: number; payload: number; takeoff: number };
+  bias?: { emptyWeight: number; payload: number; takeoff: number; stability?: number };
+  /**
+   * Fase 5: desvio de cada subsistema sobre a massa nominal (multiplicador). Ausente = 1.
+   * Sorteado no primeiro set-design, como o resto.
+   */
+  massFactors?: Partial<Record<MassItemId, number>>;
+  /** Fase 5: margem estática real − nominal, % CMA (onde o CG cai de fato). Ausente = 0. */
+  staticMarginOffset?: number;
 }
 
 /** Ensaios acumulados que estreitam a margem de cada estimativa (design §7.3). */
@@ -259,6 +303,8 @@ export interface AircraftEvidence {
   emptyWeight: number;
   payload: number;
   takeoff: number;
+  /** Fase 5: voos que mostraram onde está o ponto neutro. Ausente = 0. */
+  stability?: number;
 }
 
 export interface Aircraft {
@@ -397,6 +443,8 @@ export interface FlightPlayback {
   crashPhase?: CrashPhase;
   /** Rótulos das peças afetadas, para o cartão final ("Trem de pouso danificado"). */
   damagedParts?: string[];
+  /** Local do ensaio de voo (content/testVenues.ts); ausente = pista da competição. */
+  venueId?: string;
 }
 
 /** Pontuação de uma bateria (scoring.ts, 7.7). */
@@ -478,7 +526,7 @@ export interface Standing {
 }
 
 export interface GameState {
-  version: 5;
+  version: 6;
   seed: number;
   rngState: number;
   clock: Clock;
@@ -520,6 +568,8 @@ export interface GameState {
   ledger: LedgerEntry[];
   /** Ensaios concluídos (Fase 4, S6), em ordem cronológica; a leitura é testHistory(). */
   testLog: TestRecord[];
+  /** Ensaios de voo agendados, feitos e cancelados (Fase 5, S2), na ordem em que foram marcados. */
+  flightTests: FlightTest[];
 }
 
 // ---------------------------------------------------------------------------
@@ -567,4 +617,129 @@ export interface TestRecord {
   affectedParts: string[];
   /** Carga medida no voo de ensaio, kg (só flight); alimenta a reta de previsão. */
   payloadKg: number | null;
+  /** Fase 5: decolagem de um ensaio agendado, com o replay e o evento de origem. */
+  playback?: FlightPlayback;
+  flightTestId?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Fase 5, S1: orçamento de massa, estabilidade e requisitos da missão (design §6).
+// ---------------------------------------------------------------------------
+
+/** Subsistemas do orçamento de massa. */
+export type MassItemId = "wing" | "fuselage" | "tail" | "landingGear" | "powertrain" | "battery" | "electronics";
+
+export interface MassItem {
+  id: MassItemId;
+  label: string;
+  kg: Estimate;
+}
+
+/** Peso estimado por subsistema; `total` é o peso vazio de estimatePerformance. */
+export interface MassBudget {
+  items: MassItem[];
+  total: Estimate;
+}
+
+export type RequirementStatus = "ok" | "risk" | "fail";
+
+/** Margem estática e ponto neutro estimados (% CMA a partir do bordo de ataque). */
+export interface StabilityEstimate {
+  neutralPointPercentMac: Estimate;
+  /** Margem estática = ponto neutro − CG. */
+  staticMarginPercentMac: Estimate;
+  cgPercentMac: number;
+  /** Pela faixa STATIC_MARGIN_BANDS, contando a margem de erro. */
+  status: RequirementStatus;
+}
+
+export type RequirementId = "takeoff-run" | "obstacle-clearance" | "static-margin" | "span" | "power" | "empty-weight";
+
+export interface MissionRequirement {
+  id: RequirementId;
+  label: string;
+  /** Alvo em texto, para a lista: "≤ 55 m", "5–20 % CMA". */
+  target: string;
+  /** Limites numéricos do alvo, na unidade de `value`. */
+  limit: { min?: number; max?: number };
+  value: Estimate;
+  unit: string;
+  /** ok: passa mesmo no pior caso da margem; risk: passa no valor central; fail: não passa. */
+  status: RequirementStatus;
+}
+
+/** Um lado da comparação de projetos (compareDesigns). */
+export interface DesignSnapshot {
+  design: AircraftDesign;
+  requirements: MissionRequirement[];
+  mass: MassBudget;
+  stability: StabilityEstimate;
+  /** Multiplicador de configuração (7.5): superfícies × envergadura. */
+  multiplier: number;
+  /** Carga máxima estimada na Hρ da comparação, kg. */
+  maxPayloadKg: Estimate;
+  /** Nota estimada de uma bateria com a carga-alvo e previsões certeiras (7.7). */
+  flightScore: Estimate;
+}
+
+export interface DesignComparison {
+  densityAltitudeM: number;
+  targetPayloadKg: number;
+  a: DesignSnapshot;
+  b: DesignSnapshot;
+}
+
+// ---------------------------------------------------------------------------
+// Fase 5, S2: ensaio de voo como evento (design §7.3).
+// ---------------------------------------------------------------------------
+
+/** Piloto do ensaio: um integrante ou um piloto contratado. */
+export type FlightTestPilot = { memberId: string } | { hired: true };
+
+export type FlightTestStatus = "scheduled" | "done" | "cancelled";
+
+/** Uma decolagem do ensaio, resolvida pelo motor de voo da competição. */
+export interface FlightTestTakeoff {
+  payloadKg: number;
+  outcome: FlightOutcome;
+  densityAltitudeM: number;
+  at: number;
+  playback: FlightPlayback;
+}
+
+export interface FlightTest {
+  id: string;
+  venueId: string;
+  /** Dia de jogo (Math.floor(horas / 24)). */
+  day: number;
+  /** Hora da primeira decolagem (horas de jogo). */
+  at: number;
+  pilot: FlightTestPilot;
+  crew: string[];
+  payloadPlanKg: number[];
+  filmed: boolean;
+  status: FlightTestStatus;
+  /** ◆ pagos adiantado (local + piloto contratado); base do reembolso. */
+  paidCredits: number;
+  /** Quando foi marcado (horas de jogo). */
+  scheduledAt: number;
+  /** Preenchido no dia, na ordem das decolagens. */
+  takeoffs: FlightTestTakeoff[];
+  densityAltitudeM: number | null;
+  /** Rótulos das peças danificadas no transporte. */
+  transportDamage: string[];
+  /** Resumo do dia (o mesmo texto da inbox); null antes. */
+  summary: string | null;
+}
+
+/** Item de upcomingEvents: ensaio agendado ou a competição. */
+export interface UpcomingEvent {
+  kind: "flight-test" | "competition";
+  /** Id do FlightTest ou "competition". */
+  id: string;
+  at: number;
+  title: string;
+  /** Dias inteiros até o evento (0 = hoje). */
+  daysLeft: number;
+  venueId?: string;
 }

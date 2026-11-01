@@ -7,6 +7,7 @@ import { advanceCompetition, clockPace } from "./competition";
 import { BALANCE } from "./content/balance";
 import { OFFICIAL_CALENDAR } from "./content/calendar2026";
 import { findAction } from "./content/actions";
+import { advanceFlightTests } from "./flightTests";
 import { crewRates } from "./crew";
 import { overnightWeight, shiftEffects, workshopTaskRates } from "./workshop";
 import { reportEvents } from "./report";
@@ -159,6 +160,11 @@ export function step(state: GameState, dt: number): GameState {
 
   // 5b. Relatório: envio automático no prazo e apresentação oral (os marcos acima já pausam).
   next = reportEvents(next, t0, t1);
+
+  // 5b2. Ensaios de voo agendados: o dia do ensaio pausa o relógio (Fase 5, S2).
+  const flightTests = advanceFlightTests(next, t0, t1);
+  next = flightTests.state;
+  pauses.push(...flightTests.pauses);
 
   // 5c. Competição: começa no marco, fila e baterias nas janelas de voo; seu voo pausa.
   const competition = advanceCompetition(next, t0, t1);

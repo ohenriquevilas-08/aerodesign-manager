@@ -4,7 +4,7 @@
 import { BALANCE } from "./content/balance";
 import { DEFAULT_CATEGORY, FORMATIONS, findFormationArea, type FormationCategory } from "./content/formations";
 import { warn } from "./tasks";
-import { canWork, clamp, DISCIPLINE_LABELS } from "./team";
+import { canWork, clamp, DISCIPLINE_LABELS, rosterMembers } from "./team";
 import type { Discipline, GameState, Member } from "./types";
 
 export interface FormationAreaView {
@@ -29,7 +29,7 @@ export interface FormationView {
 }
 
 export function formationView(state: GameState, category: FormationCategory = DEFAULT_CATEGORY): FormationView {
-  const players = state.members.filter(canWork);
+  const players = rosterMembers(state);
   const areas = FORMATIONS[category].map((def): FormationAreaView => {
     const inArea = players.filter((member) => member.area === def.discipline);
     const captain = inArea.find((member) => member.role === "captain") ?? null;

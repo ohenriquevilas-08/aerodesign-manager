@@ -10,6 +10,7 @@ import {
   type SelectionFormat,
   type SelectionFormatDef
 } from "./content/selection";
+import { drawLook } from "./looks";
 import { nextRandom } from "./rng";
 import { DISCIPLINES, zeroKnowledge } from "./state";
 import { drawClassSlots } from "./workshop";
@@ -58,6 +59,8 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
     const fabrication = between(format.fabrication);
     const classes = drawClassSlots(rng);
     rng = classes.rngState;
+    const looks = drawLook(rng);
+    rng = looks.rngState;
     drawn.push({
       id: `cand-${nextId}`,
       name,
@@ -71,7 +74,8 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
       hoursPerDay: between(CANDIDATE_HOURS_PER_DAY),
       graduation: pick(CANDIDATE_GRADUATIONS),
       opinion: opinionFor(state, focus, knowledge[focus], fabrication),
-      classSlots: classes.slots
+      classSlots: classes.slots,
+      look: looks.look
     });
     nextId += 1;
   }
@@ -97,7 +101,8 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     taskId: null,
     workStreakHours: 0,
     classSlots: [...candidate.classSlots],
-    area: null
+    area: null,
+    look: { ...candidate.look }
   };
   return {
     ...state,

@@ -2,6 +2,7 @@
 
 import { TEAM_POOL } from "./content/teams";
 import { createReport } from "./report";
+import { drawLook } from "./looks";
 import { nextRandom } from "./rng";
 import { createShops } from "./shop";
 import { createWorkshop, drawClassSlots } from "./workshop";
@@ -41,7 +42,8 @@ function founder(id: string, name: string, role: Member["role"], focus: Discipli
     taskId: null,
     workStreakHours: 0,
     classSlots: [],
-    area: role === "president" ? null : focus
+    area: role === "president" ? null : focus,
+    look: { skin: "tan", hair: "short", hairColor: "black", shirt: "tee" }
   };
 }
 
@@ -78,13 +80,16 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
     founder("captain-aero", "Capitão de Aerodinâmica", "captain", "aerodynamics"),
     founder("captain-struct", "Capitã de Estruturas", "captain", "structures")
   ].map((member) => {
-    if (member.role === "president") return member;
+    // Aparência sorteada para todos (o presidente aparece no cabeçalho); aula só para quem trabalha.
+    const looks = drawLook(rngState);
+    rngState = looks.rngState;
+    if (member.role === "president") return { ...member, look: looks.look };
     const drawn = drawClassSlots(rngState);
     rngState = drawn.rngState;
-    return { ...member, classSlots: drawn.slots };
+    return { ...member, classSlots: drawn.slots, look: looks.look };
   });
   return {
-    version: 5,
+    version: 6,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },
@@ -120,6 +125,7 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
     workshop: createWorkshop(members),
     news: [],
     ledger: [],
-    testLog: []
+    testLog: [],
+    flightTests: []
   };
 }
