@@ -1,7 +1,9 @@
 import { render } from "preact";
+import { startAutosave } from "./app/save";
 import { startClock, store } from "./app/store";
 import "./styles/app.css";
-import { App } from "./ui/App";
+import { Root } from "./ui/Root";
 
-render(<App />, document.getElementById("app")!);
+render(<Root />, document.getElementById("app")!);
+startAutosave(store);
 startClock(store);

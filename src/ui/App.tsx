@@ -10,6 +10,7 @@ import { Drafting } from "./screens/Drafting";
 import { Report } from "./screens/Report";
 import { Rules } from "./screens/Rules";
 import { Team } from "./screens/Team";
+import { onNavigate } from "./nav";
 import { TopBar } from "./TopBar";
 import { WarningToast } from "./WarningToast";
 
@@ -60,6 +61,8 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  useEffect(() => onNavigate(setScreen), []);
 
   const current = SCREENS.find((item) => item.id === screen)!;
   const View = current.view;
