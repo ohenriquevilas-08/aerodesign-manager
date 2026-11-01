@@ -6,7 +6,7 @@ export * from "./time";
 export { applyCommand, type Command } from "./commands";
 export { deserializeState, SAVE_VERSION, serializeState } from "./save";
 export { createGame, drawField, DISCIPLINES, FIELD_SIZE } from "./state";
-export { canWork, DISCIPLINE_LABELS, effectiveKnowledge, isOverloaded, memberHoursPerDay, motivationFactor, rosterMembers } from "./team";
+export { canWork, DISCIPLINE_LABELS, effectiveKnowledge, isOverloaded, memberHoursPerDay, motivationFactor, rosterMembers, traineeProgress } from "./team";
 export { partState, PART_STATE_LABELS } from "./parts";
 export {
   ACTIONS,
@@ -87,7 +87,46 @@ export { crewRates, estimateRemainingDays, estimateTaskDays, leadDaysRange } fro
 export { expectedApplicants, missingCast } from "./selection";
 export { SELECTION_FORMATS, type SelectionFormat, type SelectionFormatDef } from "./content/selection";
 export { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";
-export { OFFICIAL_CALENDAR, SEASON_START, type Deadline } from "./content/calendar2026";
+export {
+  ACADEMIC_PERIODS,
+  OFFICIAL_CALENDAR,
+  REGULATION_DATE,
+  SEASON_START,
+  SELECTION_END,
+  TRAINEE_END,
+  TRAINEE_START,
+  type AcademicPeriod,
+  type Deadline,
+  type DeadlineKind
+} from "./content/season2026";
+export { AGENDAS, findAgenda, FOUNDERS, type AgendaDef, type FounderDef } from "./content/founders";
+export {
+  advisorView,
+  daysToRegulation,
+  defaultFounding,
+  FOUNDER_IDS,
+  presidentView,
+  regulationPublished,
+  REGULATION_HOURS,
+  traineesOf,
+  type AdvisorView,
+  type AgendaStatus,
+  type FoundTeamRequest,
+  type PresidentView
+} from "./season";
+export {
+  calendarMonth,
+  seasonOverview,
+  SEASON_MONTHS,
+  type CalendarDay,
+  type CalendarFlightTest,
+  type CalendarMonth,
+  type CalendarOrder,
+  type CalendarPlanned,
+  type CalendarTask,
+  type ScheduleActionRequest,
+  type SeasonMonth
+} from "./calendar";
 export { TEAM_POOL, type TeamSeed } from "./content/teams";
 export { formationView, type FormationAreaView, type FormationView } from "./formation";
 export { DEFAULT_CATEGORY, FORMATIONS, type FormationArea, type FormationCategory } from "./content/formations";

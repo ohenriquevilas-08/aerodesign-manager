@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { REPORT_DEADLINE } from "../../src/sim/report";
-import { applyCommand, createGame, DEFAULT_DESIGN, DISCIPLINES, reportChecklist, type GameState } from "../../src/sim";
+import { applyCommand, DEFAULT_DESIGN, DISCIPLINES, reportChecklist, type GameState } from "../../src/sim";
+import { startedGame } from "./helpers";
 
-const game = () => createGame({ seed: 3, teamName: "T" });
+const game = () => startedGame({ seed: 3, teamName: "T" });
 const designed = (state: GameState): GameState => applyCommand(state, { type: "set-design", design: DEFAULT_DESIGN });
 const writing = (state: GameState, hours: number): GameState => ({
   ...state,
@@ -64,7 +65,7 @@ describe("reportChecklist", () => {
     const list = reportChecklist(state);
     expect(list.predictions).toEqual({ emptyWeight: "ready", payloadLine: "missing" });
     expect(list.deadline.at).toBe(REPORT_DEADLINE);
-    expect(list.deadline.hoursLeft).toBe(REPORT_DEADLINE);
+    expect(list.deadline.hoursLeft).toBe(REPORT_DEADLINE - state.clock.hours);
     expect(list.deadline.passed).toBe(false);
     expect(list.deadline.countdown).toMatch(/^\d+d \d\dh$/);
     expect(reportChecklist({ ...state, clock: { ...state.clock, hours: REPORT_DEADLINE + 5 } }).deadline.passed).toBe(true);

@@ -11,7 +11,6 @@ import {
   applyCommand,
   BALANCE,
   compareDesigns,
-  createGame,
   DEFAULT_DESIGN,
   designProblem,
   DESIGN_LIMITS,
@@ -28,13 +27,14 @@ import {
   type Part,
   type PartType
 } from "../../src/sim";
+import { startedGame } from "./helpers";
 
 const PART_TYPES: PartType[] = ["wing", "fuselage", "tail", "landingGear", "powertrain", "electronics"];
 const parts = (): Part[] => PART_TYPES.map((type) => ({ id: `p-${type}`, type, label: type, quality: 75, condition: 100 }));
 const make = (patch: Partial<AircraftDesign>): AircraftDesign => ({ ...DEFAULT_DESIGN, ...patch });
 
 function hangar(design: AircraftDesign = DEFAULT_DESIGN, seed = 7): GameState {
-  return { ...applyCommand(createGame({ seed, teamName: "T" }), { type: "set-design", design }), parts: parts() };
+  return { ...applyCommand(startedGame({ seed, teamName: "T" }), { type: "set-design", design }), parts: parts() };
 }
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
@@ -46,7 +46,7 @@ describe("prancheta com engenharia de sistemas (S1)", () => {
       expect(DEFAULT_DESIGN[key]).toBeGreaterThanOrEqual(DESIGN_LIMITS[key].min);
       expect(DEFAULT_DESIGN[key]).toBeLessThanOrEqual(DESIGN_LIMITS[key].max);
     }
-    const game = createGame({ seed: 1, teamName: "T" });
+    const game = startedGame({ seed: 1, teamName: "T" });
     const big = applyCommand(game, { type: "set-design", design: make({ propDiameterIn: 18 }) });
     expect(big.aircraft).toBeNull();
     expect(big.warning?.text).toContain("bate no chão");
@@ -181,7 +181,7 @@ describe("requisitos da missão e comparação (S1)", () => {
   });
 
   it("sem carga-alvo usa a carga máxima estimada; funciona antes do primeiro set-design", () => {
-    const game = createGame({ seed: 3, teamName: "T" });
+    const game = startedGame({ seed: 3, teamName: "T" });
     const list = missionRequirements(game, DEFAULT_DESIGN, 1000);
     expect(list.find((item) => item.id === "takeoff-run")!.label).toMatch(/Corrida com \d+,\d kg/);
   });

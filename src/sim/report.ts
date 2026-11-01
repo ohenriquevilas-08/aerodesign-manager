@@ -4,7 +4,7 @@
 
 import { TEST_CITES } from "./aircraft";
 import { BALANCE } from "./content/balance";
-import { OFFICIAL_CALENDAR } from "./content/calendar2026";
+import { OFFICIAL_CALENDAR } from "./content/season2026";
 import { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";
 import { nextRandom } from "./rng";
 import { DISCIPLINES } from "./state";

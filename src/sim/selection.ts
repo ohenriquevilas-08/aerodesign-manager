@@ -10,7 +10,9 @@ import {
   type SelectionFormat,
   type SelectionFormatDef
 } from "./content/selection";
+import { TRAINEE_END } from "./content/season2026";
 import { drawLook } from "./looks";
+import { dateToHours } from "./time";
 import { nextRandom } from "./rng";
 import { DISCIPLINES, zeroKnowledge } from "./state";
 import { drawClassSlots } from "./workshop";
@@ -25,8 +27,10 @@ export function findSelectionFormat(id: string | null): SelectionFormatDef | und
 const AERO_SIDE: readonly Discipline[] = ["conceptual", "aerodynamics", "performance", "stability"];
 
 function opinionFor(state: GameState, focus: Discipline, knowledge: number, fabrication: number): string {
-  const captainId = AERO_SIDE.includes(focus) ? "captain-aero" : "captain-struct";
-  const captain = state.members.find((member) => member.id === captainId)?.name ?? "Capitão";
+  const captains = state.members.filter((member) => member.role === "captain");
+  const side = AERO_SIDE.includes(focus);
+  const captain =
+    (captains.find((member) => member.area !== null && AERO_SIDE.includes(member.area) === side) ?? captains[0])?.name ?? "A equipe";
   const level =
     knowledge >= 30 ? "Chega sabendo; pode puxar a frente" : knowledge >= 15 ? "Tem base e aprende rápido" : "Vai precisar de tempo";
   const shop = fabrication >= 35 ? " Mão boa na oficina." : "";
@@ -86,10 +90,12 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
 export function hireCandidate(state: GameState, candidateId: string): GameState | null {
   const candidate = state.candidates.find((item) => item.id === candidateId);
   if (!candidate) return null;
+  const now = state.clock.hours;
   const member: Member = {
     id: `member-${state.nextId}`,
     name: candidate.name,
-    role: "member",
+    // Quem entra na seletiva chega como trainee e passa pela etapa (design §5.2).
+    role: now < dateToHours(TRAINEE_END) ? "trainee" : "member",
     knowledge: { ...candidate.knowledge },
     fabrication: candidate.fabrication,
     piloting: 0,
@@ -102,7 +108,8 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     workStreakHours: 0,
     classSlots: [...candidate.classSlots],
     area: null,
-    look: { ...candidate.look }
+    look: { ...candidate.look },
+    ...(now < dateToHours(TRAINEE_END) ? { trainingHours: 0 } : {})
   };
   return {
     ...state,
@@ -120,7 +127,7 @@ export function missingCast(state: GameState): ("aerodynamics" | "structures" | 
   const missing: ("aerodynamics" | "structures" | "third")[] = [];
   if (!state.members.some((member) => member.knowledge.aerodynamics > 0)) missing.push("aerodynamics");
   if (!state.members.some((member) => member.knowledge.structures > 0)) missing.push("structures");
-  if (!state.members.some((member) => member.role === "member")) missing.push("third");
+  if (!state.members.some((member) => member.role === "member" || member.role === "trainee")) missing.push("third");
   return missing;
 }
 

@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { clearSave, hasSave, loadSave, SAVE_KEY, startAutosave, writeSave } from "../../src/app/save";
 import { createStore } from "../../src/app/store";
-import { applyCommand, createGame, deserializeState, serializeState, type GameState } from "../../src/sim";
+import { applyCommand, deserializeState, serializeState, type GameState } from "../../src/sim";
 import { step } from "../../src/sim/loop";
+import { startedGame } from "./helpers";
 
-const devGame = (): GameState => applyCommand(createGame({ seed: 5, teamName: "Salva" }), { type: "dev-start-competition" });
+const devGame = (): GameState => applyCommand(startedGame({ seed: 5, teamName: "Salva" }), { type: "dev-start-competition" });
 
 function fakeStorage() {
   const data = new Map<string, string>();
@@ -38,7 +39,7 @@ describe("serializeState / deserializeState", () => {
   });
 
   it("returns null for another version, broken JSON or a hollow object", () => {
-    const state = createGame({ seed: 1, teamName: "X" });
+    const state = startedGame({ seed: 1, teamName: "X" });
     expect(deserializeState(JSON.stringify({ ...state, version: 4 }))).toBeNull();
     expect(deserializeState("{ não é json")).toBeNull();
     expect(deserializeState("null")).toBeNull();
@@ -49,7 +50,7 @@ describe("serializeState / deserializeState", () => {
 describe("app/save (localStorage)", () => {
   it("writes, loads and clears a single slot", () => {
     const storage = fakeStorage();
-    const state = createGame({ seed: 2, teamName: "Slot" });
+    const state = startedGame({ seed: 2, teamName: "Slot" });
     expect(hasSave(storage)).toBe(false);
     expect(loadSave(storage)).toEqual({ state: null, discarded: false });
     expect(writeSave(state, storage)).toBe(true);
@@ -61,19 +62,19 @@ describe("app/save (localStorage)", () => {
 
   it("discards and warns about an old version", () => {
     const storage = fakeStorage();
-    storage.setItem(SAVE_KEY, JSON.stringify({ ...createGame({ seed: 1, teamName: "Velho" }), version: 4 }));
+    storage.setItem(SAVE_KEY, JSON.stringify({ ...startedGame({ seed: 1, teamName: "Velho" }), version: 4 }));
     expect(loadSave(storage)).toEqual({ state: null, discarded: true });
     expect(storage.data.has(SAVE_KEY)).toBe(false);
   });
 
   it("works without storage (private window)", () => {
-    expect(writeSave(createGame({ seed: 1, teamName: "X" }), null)).toBe(false);
+    expect(writeSave(startedGame({ seed: 1, teamName: "X" }), null)).toBe(false);
     expect(loadSave(null)).toEqual({ state: null, discarded: false });
   });
 
   it("autosaves when the game day turns and when the clock pauses", () => {
     const storage = fakeStorage();
-    const store = createStore({ ...createGame({ seed: 3, teamName: "Auto" }), clock: { hours: 0, speed: 1 } });
+    const store = createStore({ ...startedGame({ seed: 3, teamName: "Auto" }), clock: { hours: 0, speed: 1 } });
     const stop = startAutosave(store, storage);
     store.dispatch({ type: "set-speed", speed: 4 });
     expect(storage.data.has(SAVE_KEY)).toBe(false);

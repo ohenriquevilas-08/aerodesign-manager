@@ -392,6 +392,48 @@ export const BALANCE = {
     minGap: 20
   },
 
+  /** Temporada desde novembro (Fase 6, S1). PROPOSTA: valores a calibrar no simulador de ano. */
+  season: {
+    /** Férias de verão (meados de dez a 13/fev): fração das horas por integrante. */
+    summerFactor: 0.5,
+    /** Leitura do regulamento: sem ela, a penalidade por alteração de projeto na inspeção é multiplicada por isto. */
+    unreadPenaltyFactor: 2
+  },
+
+  /** Trainees (Fase 6, S2): etapa de dez a jan. */
+  trainee: {
+    /** Horas de treino do trainee para completar a etapa (progresso 100%). */
+    hoursRequired: 24,
+    /** Conhecimento ganho por hora de treino na disciplina de foco do trainee. */
+    knowledgePerHour: 0.6,
+    /** Sem capitão no treino, o trainee aproveita só esta fração das horas. */
+    withoutCaptainShare: 0.5,
+    /** No fim da etapa: chance de ficar = piso + (teto - piso) × motivação/100, × (0,5 + 0,5 × progresso). */
+    stayChanceAtZero: 0.4,
+    stayChanceAtFull: 0.95
+  },
+
+  /** Perfil do presidente (Fase 6, S2). PROPOSTA. */
+  agenda: {
+    /** Motivação para cada integrante ao concluir uma tarefa alinhada com a agenda. */
+    alignedBoost: 1,
+    /** Dias seguidos sem tarefa da agenda até o presidente perder motivação. */
+    idleDays: 3,
+    /** Motivação perdida por dia depois disso. */
+    idlePenalty: 3,
+    /** Dias guardados no registro (o "mês" da agenda). */
+    logDays: 30
+  },
+
+  /** Orientador (Fase 6, S2): reputação 0–100, só exibida no Ano 1. */
+  advisor: {
+    startReputation: 10,
+    reportSubmitted: 3,
+    /** Fim da competição: ganho = base + por posição abaixo do último lugar do campo, arredondado. */
+    competitionBase: 2,
+    competitionPerPlaceFromLast: 0.25
+  },
+
   calendar: {
     /** Aviso de prazo próximo, em dias (design §4.1). */
     warnDays: 7

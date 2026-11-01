@@ -12,7 +12,6 @@ import { step } from "../../src/sim/loop";
 import {
   applyCommand,
   BALANCE,
-  createGame,
   currentDensityAltitude,
   densityAltitude,
   MIN_TEAMS_AHEAD_TO_REVISE,
@@ -23,8 +22,9 @@ import {
   type BatteryResult,
   type GameState
 } from "../../src/sim";
+import { startedGame } from "./helpers";
 
-const devGame = (seed = 11): GameState => applyCommand(createGame({ seed, teamName: "Equipe Teste" }), { type: "dev-start-competition" });
+const devGame = (seed = 11): GameState => applyCommand(startedGame({ seed, teamName: "Equipe Teste" }), { type: "dev-start-competition" });
 
 /** Joga em 4× até a condição, retomando pausas (como quem assiste o replay e segue). */
 function playUntil(state: GameState, done: (s: GameState) => boolean, maxTicks = 20_000): GameState {
@@ -41,7 +41,7 @@ const mine = (s: GameState) => s.competition!.results.filter((r) => r.teamId ===
 
 describe("início da competição", () => {
   it("começa sozinha no marco do calendário, com inspeção e fila da bateria 1", () => {
-    const base = createGame({ seed: 4, teamName: "T" });
+    const base = startedGame({ seed: 4, teamName: "T" });
     const state = step({ ...base, clock: { hours: COMPETITION_START - 0.5, speed: 1 } }, 1);
     expect(state.competition).not.toBeNull();
     expect(state.competition!.phase).toBe("inspection");
@@ -136,7 +136,7 @@ describe("baterias", () => {
       expect(refused.warning?.text).toContain("3 equipes");
     }
     expect(applyCommand(state, { type: "set-battery-payload", payloadKg: 25 }).warning?.text).toContain("Carga");
-    expect(applyCommand(createGame({ seed: 1, teamName: "T" }), { type: "set-battery-payload", payloadKg: 8 }).warning).not.toBeNull();
+    expect(applyCommand(startedGame({ seed: 1, teamName: "T" }), { type: "set-battery-payload", payloadKg: 8 }).warning).not.toBeNull();
   });
 
   it("joga até o fim: classificação pela Tabela 10.1, placar ordenado e resultado final", () => {
@@ -215,7 +215,7 @@ describe("voo e rivais", () => {
   });
 
   it("rivais de destaque seguem o arquétipo e são determinísticas pelo seed", () => {
-    const state = createGame({ seed: 9, teamName: "T" });
+    const state = startedGame({ seed: 9, teamName: "T" });
     const team = (archetype: string) => state.rivals.find((r) => r.archetype === archetype)!;
     const strong = rivalProfile(9, team("tradicional"));
     const rookie = rivalProfile(9, team("novata"));

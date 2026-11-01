@@ -1,5 +1,7 @@
 // Criação do estado inicial do Ano 1 (design §5.2 e §8.3).
 
+import { BALANCE } from "./content/balance";
+import { FOUNDERS, type FounderDef } from "./content/founders";
 import { TEAM_POOL } from "./content/teams";
 import { createReport } from "./report";
 import { drawLook, TEAM_SHIRT_COLOR } from "./looks";
@@ -23,27 +25,29 @@ export const FIELD_SIZE = 30;
 export const zeroKnowledge = (): Record<Discipline, number> =>
   Object.fromEntries(DISCIPLINES.map((discipline) => [discipline, 0])) as Record<Discipline, number>;
 
-function founder(id: string, name: string, role: Member["role"], focus: Discipline | null): Member {
+/** Aluno fundador (content/founders.ts): conhecimento inicial baixo no foco e uma "cara". Ninguém começa com cargo. */
+function founderMember(def: FounderDef): Member {
   const knowledge = zeroKnowledge();
-  if (focus) knowledge[focus] = 25;
+  knowledge[def.focus] = def.knowledge;
   return {
-    id,
-    name,
-    role,
+    id: def.id,
+    name: def.name,
+    role: "member",
     knowledge,
-    fabrication: 20,
-    piloting: 0,
+    fabrication: def.fabrication,
+    piloting: def.piloting,
     agility: 40,
-    communication: role === "president" ? 50 : 30,
+    communication: def.communication,
     motivation: 80,
-    // O presidente é o jogador e não entra na capacidade da equipe.
-    hoursPerDay: role === "president" ? 0 : 3,
+    hoursPerDay: 3,
     graduation: "2027.2",
     taskId: null,
     workStreakHours: 0,
     classSlots: [],
-    area: role === "president" ? null : focus,
-    look: { skin: 0, hair: 0, hairColor: 0, shirt: TEAM_SHIRT_COLOR }
+    area: null,
+    look: { skin: 0, hair: 0, hairColor: 0, shirt: TEAM_SHIRT_COLOR },
+    agenda: def.agenda,
+    flair: def.flair
   };
 }
 
@@ -72,24 +76,22 @@ export function drawField(seed: number): { rivals: RivalTeam[]; rngState: number
   return { rivals, rngState: state };
 }
 
-export function createGame(options: { seed: number; teamName: string }): GameState {
+/**
+ * Estado inicial do Ano 1: seg, 10/nov/2025, relógio pausado no estado `founding`. Os fundadores
+ * convidam o orientador; o comando found-team escolhe presidente e capitães e libera o relógio.
+ */
+export function createGame(options: { seed: number; teamName: string; advisorName?: string }): GameState {
   const { rivals, rngState: fieldRng } = drawField(options.seed);
   let rngState = fieldRng;
-  const members = [
-    founder("president", "Você", "president", null),
-    founder("captain-aero", "Capitão de Aerodinâmica", "captain", "aerodynamics"),
-    founder("captain-struct", "Capitã de Estruturas", "captain", "structures")
-  ].map((member) => {
-    // Aparência sorteada para todos (o presidente aparece no cabeçalho); aula só para quem trabalha.
+  const members = FOUNDERS.map((def) => {
+    const member = founderMember(def);
     const looks = drawLook(rngState);
-    rngState = looks.rngState;
-    if (member.role === "president") return { ...member, look: looks.look };
-    const drawn = drawClassSlots(rngState);
+    const drawn = drawClassSlots(looks.rngState);
     rngState = drawn.rngState;
     return { ...member, classSlots: drawn.slots, look: looks.look };
   });
   return {
-    version: 6,
+    version: 7,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },
@@ -105,9 +107,9 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
       {
         id: "welcome",
         at: 0,
-        from: "Comissão Técnica",
-        title: "Regulamento 2026 publicado",
-        body: "O Regulamento da Competição Aerodesign Brasil 2026 está disponível. Leia antes de definir o avião.",
+        from: "Fundadores",
+        title: "Convite para orientar a equipe",
+        body: "Um grupo de alunos quer criar uma equipe de aerodesign e convida você para ser o professor orientador. Escolham juntos o presidente e os capitães.",
         read: false
       }
     ],
@@ -126,6 +128,11 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
     news: [],
     ledger: [],
     testLog: [],
-    flightTests: []
+    flightTests: [],
+    advisor: { name: options.advisorName ?? "Helena Prado", reputation: BALANCE.advisor.startReputation },
+    founding: true,
+    regulationRead: false,
+    plannedActions: [],
+    agendaLog: []
   };
 }

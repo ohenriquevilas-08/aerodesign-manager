@@ -6,7 +6,7 @@
 import { citeTest, damageParts, installedParts, missingPartsText, playerFlightModel } from "./aircraft";
 import { COMPETITION_START, damagePlayerParts, playerUnloadSeconds, resolveFlight, weatherAt } from "./competition";
 import { BALANCE } from "./content/balance";
-import { OFFICIAL_CALENDAR } from "./content/calendar2026";
+import { OFFICIAL_CALENDAR } from "./content/season2026";
 import { findVenue, type TestVenue } from "./content/testVenues";
 import { REGULAR_2026 } from "./content/regulation2026";
 import { recordLedger } from "./ledger";

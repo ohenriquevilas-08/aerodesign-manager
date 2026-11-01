@@ -4,7 +4,6 @@ import {
   BALANCE,
   clockToDate,
   COMPETITION_START,
-  createGame,
   DEFAULT_DESIGN,
   deserializeState,
   findVenue,
@@ -18,13 +17,17 @@ import {
   type Part,
   type PartType
 } from "../../src/sim";
+import { startedGame, TEST_START_HOURS } from "./helpers";
+
+/** Dia de jogo de hoje no começo do teste. */
+const TODAY = Math.floor(TEST_START_HOURS / 24);
 
 const F = BALANCE.flightTests;
 const PART_TYPES: PartType[] = ["wing", "fuselage", "tail", "landingGear", "powertrain", "electronics"];
 const parts = (): Part[] => PART_TYPES.map((type) => ({ id: `p-${type}`, type, label: type, quality: 75, condition: 100 }));
 
 function hangar(seed = 7): GameState {
-  const game = applyCommand(createGame({ seed, teamName: "T" }), { type: "set-design", design: DEFAULT_DESIGN });
+  const game = applyCommand(startedGame({ seed, teamName: "T" }), { type: "set-design", design: DEFAULT_DESIGN });
   return { ...game, parts: parts(), credits: 1000 };
 }
 
@@ -39,9 +42,9 @@ type Schedule = Extract<Command, { type: "schedule-flight-test" }>;
 const request = (patch: Partial<Schedule> = {}): Schedule => ({
   type: "schedule-flight-test",
   venueId: "farm",
-  day: 5,
+  day: TODAY + 5,
   pilot: { hired: true },
-  crew: ["captain-aero"],
+  crew: ["founder-marina"],
   payloadPlanKg: [6, 8],
   ...patch
 });
@@ -74,7 +77,7 @@ describe("agendar e cancelar ensaio de voo (S2)", () => {
     expect(state.warning).toBeNull();
     const test = state.flightTests[0]!;
     expect(test.status).toBe("scheduled");
-    expect(test.at).toBe(5 * 24 + F.startHour);
+    expect(test.at).toBe((TODAY + 5) * 24 + F.startHour);
     const paid = findVenue("farm")!.cost + F.hiredPilotCost;
     expect(test.paidCredits).toBe(paid);
     expect(state.credits).toBe(1000 - paid);
@@ -89,20 +92,20 @@ describe("agendar e cancelar ensaio de voo (S2)", () => {
     const base = hangar();
     const refused = (state: GameState, command: Schedule) => applyCommand(state, command).warning?.text ?? null;
     expect(refused(base, request({ venueId: "lua" }))).toContain("desconhecido");
-    expect(refused(base, request({ venueId: "aeroclub", day: firstDay(1, [0, 6]) }))).toContain("antecedência");
-    expect(refused(base, request({ venueId: "model-field", day: firstDay(10, [1, 2, 4, 5]) }))).toContain("dia da semana");
+    expect(refused(base, request({ venueId: "aeroclub", day: firstDay(TODAY + 1, [0, 6]) }))).toContain("antecedência");
+    expect(refused(base, request({ venueId: "model-field", day: firstDay(TODAY + 10, [1, 2, 4, 5]) }))).toContain("dia da semana");
     expect(refused({ ...base, credits: 10 }, request())).toContain("Caixa");
-    expect(refused(base, request({ pilot: { memberId: "captain-struct" } }))).toContain("não pilota");
+    expect(refused(base, request({ pilot: { memberId: "founder-caio" } }))).toContain("não pilota");
     expect(refused(base, request({ crew: [] }))).toContain("tripulação");
     expect(refused(base, request({ payloadPlanKg: [] }))).toContain("decolagens");
     expect(refused(base, request({ payloadPlanKg: [25] }))).toContain("entre 0 e 20");
-    expect(refused(base, request({ crew: ["president"] }))).toContain("integrantes");
+    expect(refused(base, request({ crew: ["ghost"] }))).toContain("integrantes");
     const once = applyCommand(base, request());
     expect(refused(once, request({ venueId: "farm" }))).toContain("já está em outro ensaio");
     expect(refused({ ...base, parts: [] }, request())).toContain("Avião incompleto");
     // Integrante treinado pode pilotar.
-    const trained = { ...base, members: base.members.map((m) => (m.id === "captain-struct" ? { ...m, piloting: F.minPiloting } : m)) };
-    expect(refused(trained, request({ pilot: { memberId: "captain-struct" } }))).toBeNull();
+    const trained = { ...base, members: base.members.map((m) => (m.id === "founder-caio" ? { ...m, piloting: F.minPiloting } : m)) };
+    expect(refused(trained, request({ pilot: { memberId: "founder-caio" } }))).toBeNull();
   });
 
   it("cancelar devolve parte do pago e tira dos próximos eventos", () => {
@@ -148,11 +151,11 @@ describe("o dia do ensaio (S2)", () => {
     expect(state.aircraft!.evidence!.stability).toBeGreaterThan(0);
     expect(state.report.chapters.performance.testsCited).toBe(1);
     // Tripulação aprende; o piloto contratado não leva conhecimento para a equipe.
-    const before = scheduled.members.find((m) => m.id === "captain-aero")!;
-    const after = state.members.find((m) => m.id === "captain-aero")!;
+    const before = scheduled.members.find((m) => m.id === "founder-marina")!;
+    const after = state.members.find((m) => m.id === "founder-marina")!;
     expect(after.knowledge.performance).toBeGreaterThan(before.knowledge.performance);
-    expect(state.members.find((m) => m.id === "captain-struct")!.knowledge.performance).toBe(
-      scheduled.members.find((m) => m.id === "captain-struct")!.knowledge.performance
+    expect(state.members.find((m) => m.id === "founder-caio")!.knowledge.performance).toBe(
+      scheduled.members.find((m) => m.id === "founder-caio")!.knowledge.performance
     );
     // Peças desgastam.
     expect(Math.min(...state.parts.map((part) => part.condition))).toBeLessThan(100);
@@ -166,10 +169,10 @@ describe("o dia do ensaio (S2)", () => {
 
   it("piloto integrante treina pilotagem; queda encerra o dia", () => {
     const base = hangar();
-    const trained = { ...base, members: base.members.map((m) => (m.id === "captain-struct" ? { ...m, piloting: 40 } : m)) };
-    const scheduled = applyCommand(trained, request({ pilot: { memberId: "captain-struct" } }));
+    const trained = { ...base, members: base.members.map((m) => (m.id === "founder-caio" ? { ...m, piloting: 40 } : m)) };
+    const scheduled = applyCommand(trained, request({ pilot: { memberId: "founder-caio" } }));
     const done = runUntilDone(scheduled, scheduled.flightTests[0]!.id);
-    expect(done.members.find((m) => m.id === "captain-struct")!.piloting).toBeGreaterThan(40);
+    expect(done.members.find((m) => m.id === "founder-caio")!.piloting).toBeGreaterThan(40);
     // Carga muito acima da sustentação: estola e cai na primeira, o resto não voa.
     const heavy = applyCommand(hangar(), request({ payloadPlanKg: [16, 6] }));
     const crashed = runUntilDone(heavy, heavy.flightTests[0]!.id).flightTests[0]!;

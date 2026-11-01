@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { advanceShops } from "../../src/sim/shop";
-import { applyCommand, ACTIONS, BALANCE, createGame, listingId, listingStock, type Command, type GameState } from "../../src/sim";
+import { applyCommand, ACTIONS, BALANCE, listingId, listingStock, type Command, type GameState } from "../../src/sim";
+import { startedGame } from "./helpers";
 
-const game = (credits = 2000, seed = 5): GameState => ({ ...createGame({ seed, teamName: "T" }), credits });
+const game = (credits = 2000, seed = 5): GameState => ({ ...startedGame({ seed, teamName: "T" }), credits });
 
 const order = (state: GameState, command: Omit<Extract<Command, { type: "place-order" }>, "type">) =>
   applyCommand(state, { type: "place-order", ...command });
@@ -25,21 +26,23 @@ describe("checkout", () => {
     const placed = state.orders[0]!;
     expect(placed).toMatchObject({ shopId: "hangar-aeromodelista", status: "processing", customsDue: null, deliveredAt: null });
     expect(placed.lines).toEqual([{ productId: "motor-600", quantity: 1, unitPrice: 480 }]);
-    expect(placed.expectedAt).toBe(6 * 24);
-    expect(placed.arrivesAt).toBeGreaterThanOrEqual(3 * 24);
-    expect(placed.arrivesAt).toBeLessThanOrEqual(6 * 24 * (1 + BALANCE.shop.lateness.national!));
+    const now = state.clock.hours;
+    expect(placed.expectedAt - now).toBe(6 * 24);
+    expect(placed.arrivesAt - now).toBeGreaterThanOrEqual(3 * 24);
+    expect(placed.arrivesAt - now).toBeLessThanOrEqual(6 * 24 * (1 + BALANCE.shop.lateness.national!));
   });
 
   it("expresso encurta o prazo pelo leadFactor da loja", () => {
     const normal = order(game(), { shopId: "mercadosolto", lines: [{ productId: "servos", quantity: 1 }], shipping: "standard" }).orders[0]!;
     const fast = order(game(), { shopId: "mercadosolto", lines: [{ productId: "servos", quantity: 1 }], shipping: "express" }).orders[0]!;
-    expect(fast.expectedAt).toBeCloseTo(normal.expectedAt * 0.35);
-    expect(fast.arrivesAt).toBeCloseTo(normal.arrivesAt * 0.35);
+    const now = game().clock.hours;
+    expect(fast.expectedAt - now).toBeCloseTo((normal.expectedAt - now) * 0.35);
+    expect(fast.arrivesAt - now).toBeCloseTo((normal.arrivesAt - now) * 0.35);
   });
 
   it("usa o preço da promoção ativa", () => {
     const base = game();
-    const onSale = { ...base, shops: { ...base.shops, sales: { [listingId("hobbykong", "servos")]: { price: 120, until: 100 } } } };
+    const onSale = { ...base, shops: { ...base.shops, sales: { [listingId("hobbykong", "servos")]: { price: 120, until: base.clock.hours + 100 } } } };
     const state = order(onSale, { shopId: "hobbykong", lines: [{ productId: "servos", quantity: 2 }], shipping: "standard" });
     expect(state.orders[0]!.lines[0]!.unitPrice).toBe(120);
     expect(state.credits).toBe(2000 - 240 - 40);

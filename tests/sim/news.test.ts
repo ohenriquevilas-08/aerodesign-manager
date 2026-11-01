@@ -4,7 +4,6 @@ import { LISTINGS, SHOPS } from "../../src/sim/content/shops";
 import { SELLER_REVIEWS, sellerRisk } from "../../src/sim/content/sellerReviews";
 import {
   applyCommand,
-  createGame,
   newsFeed,
   OFFICIAL_CALENDAR,
   promoEndsAt,
@@ -13,8 +12,9 @@ import {
   type GameState
 } from "../../src/sim";
 import { dateToHours } from "../../src/sim/time";
+import { startedGame } from "./helpers";
 
-const game = (seed = 4): GameState => createGame({ seed, teamName: "Notícias" });
+const game = (seed = 4): GameState => startedGame({ seed, teamName: "Notícias" });
 
 function daysLater(state: GameState, days: number): GameState {
   let next = state;

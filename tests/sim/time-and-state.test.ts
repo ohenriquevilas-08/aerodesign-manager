@@ -24,14 +24,15 @@ describe("relógio", () => {
     expect(advanceClock(clock, 30)).toBe(clock);
   });
 
-  it("começa na segunda-feira em que o regulamento foi publicado", () => {
-    expect(formatDate(SEASON_START)).toBe("seg, 9 fev 2026");
+  it("começa na segunda-feira 10 de novembro de 2025", () => {
+    expect(formatDate(SEASON_START)).toBe("seg, 10 nov 2025");
   });
 
   it("mostra contagem regressiva até o próximo prazo", () => {
+    // O convite dos fundadores é o marco do dia 0; o próximo é o processo seletivo.
     const [first] = upcomingDeadlines(0);
-    expect(first?.id).toBe("rev01");
-    expect(formatCountdown(0, Date.UTC(2026, 1, 10, 4))).toBe("1d 04h");
+    expect(first?.id).toBe("selection");
+    expect(formatCountdown(0, Date.UTC(2025, 10, 11, 4))).toBe("1d 04h");
   });
 
   it("aplica o calendário acadêmico genérico", () => {
@@ -42,11 +43,17 @@ describe("relógio", () => {
 });
 
 describe("estado inicial do Ano 1", () => {
-  it("começa com caixa zero e os três fundadores", () => {
+  it("começa com caixa zero, quatro fundadores sem cargo e o orientador", () => {
     const game = createGame({ seed: 42, teamName: "Teste" });
+    expect(game.version).toBe(7);
     expect(game.credits).toBe(0);
-    expect(game.members.map((member) => member.role)).toEqual(["president", "captain", "captain"]);
+    expect(game.members).toHaveLength(4);
+    expect(game.members.every((member) => member.role === "member" && member.area === null)).toBe(true);
+    expect(game.members.every((member) => member.agenda && member.flair)).toBe(true);
+    expect(game.founding).toBe(true);
     expect(game.clock).toEqual({ hours: 0, speed: 0 });
+    expect(game.advisor.reputation).toBeGreaterThan(0);
+    expect(game.plannedActions).toEqual([]);
   });
 
   it("sorteia um campo reproduzível, nacional e com as rivais de destaque", () => {

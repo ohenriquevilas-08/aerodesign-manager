@@ -4,9 +4,10 @@
 // conhecimento e ensaios. Fase 5: peso vazio por orçamento de massa e estabilidade por margem estática.
 
 import { BALANCE } from "./content/balance";
-import { OFFICIAL_CALENDAR } from "./content/calendar2026";
+import { OFFICIAL_CALENDAR } from "./content/season2026";
 import { nextRandom } from "./rng";
 import { REGULAR_2026 } from "./content/regulation2026";
+import { regulationPublished } from "./season";
 import { warn } from "./tasks";
 import { clamp, effectiveKnowledge } from "./team";
 import { dateToHours } from "./time";
@@ -472,6 +473,7 @@ export function designProblem(design: AircraftDesign): string | null {
 }
 
 export function setDesign(state: GameState, design: AircraftDesign): GameState {
+  if (!regulationPublished(state)) return warn(state, "Aguardando regulamento (9/fev): a Prancheta abre quando ele for publicado.");
   const problem = designProblem(design);
   if (problem) return warn(state, problem);
   const current = state.aircraft;

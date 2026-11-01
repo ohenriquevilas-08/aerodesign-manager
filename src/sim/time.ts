@@ -1,7 +1,7 @@
 // Tempo corrido (design §4). O relógio guarda horas de jogo desde SEASON_START;
 // a camada de app converte tempo real em horas de jogo com REAL_SECONDS_PER_DAY.
 
-import { ACADEMIC_PERIODS, OFFICIAL_CALENDAR, SEASON_START, type Deadline } from "./content/calendar2026";
+import { ACADEMIC_PERIODS, OFFICIAL_CALENDAR, SEASON_START, type Deadline } from "./content/season2026";
 import type { Clock, ClockSpeed } from "./types";
 
 const HOUR_MS = 3_600_000;
