@@ -6,6 +6,7 @@ import {
   ACTIONS,
   canWork,
   clockToDate,
+  DEDICATIONS,
   DISCIPLINES,
   effectiveKnowledge,
   estimateOutcome,
@@ -20,13 +21,14 @@ import {
   SELECTION_FORMATS,
   type ActionCategory,
   type ActionDef,
+  type Dedication,
   type Discipline,
   type Member,
   type Task
 } from "../../sim";
 import { ActionCard, CostLegend, CostTag } from "../components/CostTag";
 import { Meter } from "../components/Controls";
-import { crewText, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatDays, formatNumber, SKILL_LABEL } from "../format";
+import { crewText, isCounterfeit, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatDays, formatNumber, SKILL_LABEL } from "../format";
 
 // Tela Ações (design §4.2 e §8): iniciar uma ação cria uma tarefa. O tempo não pula: a tarefa
 // espera o prazo ⌛ e avança com as horas de quem está alocado, até o limite de pessoas da ação.
@@ -116,10 +118,18 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
       .map((member) => member.id)
   );
   const [target, setTarget] = useState("");
+  // Compras não têm dedicação: sempre "normal".
+  const [dedication, setDedication] = useState<Dedication>("normal");
 
   const usesCrew = action.crew.max > 0;
-  const estimate = estimateTaskDays(store.getState(), action.id, usesCrew ? picked : []);
-  const outcome = usesCrew ? estimateOutcome(store.getState(), action.id, picked, target || null) : null;
+  const options = DEDICATIONS.map((item) => ({
+    ...item,
+    days: estimateTaskDays(store.getState(), action.id, usesCrew ? picked : [], item.id),
+    outcome: usesCrew ? estimateOutcome(store.getState(), action.id, picked, target || null, item.id) : null
+  }));
+  const chosen = options.find((item) => item.id === dedication)!;
+  const estimate = chosen.days;
+  const outcome = chosen.outcome;
   // Disciplina que conta para ações de conhecimento: a da ação ou a escolhida como alvo.
   const skillDiscipline = action.discipline ?? (action.target === "discipline" && target ? (target as Discipline) : null);
   const skillOf = (member: Member): number | null => {
@@ -151,7 +161,12 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
 
   const start = () => {
     const before = store.getState().tasks.length;
-    store.dispatch({ type: "start-action", actionId: action.id, targetId: target || undefined });
+    store.dispatch({
+      type: "start-action",
+      actionId: action.id,
+      targetId: target || undefined,
+      dedication: usesCrew ? dedication : undefined
+    });
     const after = store.getState();
     const created = after.tasks.length > before ? after.tasks[after.tasks.length - 1] : undefined;
     if (!created) return; // recusado: o aviso da simulação aparece no topo
@@ -205,7 +220,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
           <TargetSelect label="Peça" value={target} onChange={setTarget} empty="Nenhuma peça fabricada ainda">
             {parts.map((part) => (
               <option key={part.id} value={part.id}>
-                {part.label} · {PART_STATE_LABELS[partState(part.condition)]} ({Math.round(part.condition)})
+                {part.label} · {PART_STATE_LABELS[partState(part.condition)]} ({Math.round(part.condition)}){isCounterfeit(part) ? " · fora da especificação" : ""}
               </option>
             ))}
           </TargetSelect>
@@ -251,6 +266,33 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
         ) : (
           <p class="muted small">Não ocupa ninguém: é só esperar a entrega.</p>
         )}
+
+        {usesCrew ? (
+          <div class="segmented-field">
+            <span class="slider-label">Dedicação</span>
+            <div class="dedication" role="radiogroup" aria-label="Dedicação">
+              {options.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={item.id === dedication}
+                  class="dedication-option"
+                  onClick={() => setDedication(item.id)}
+                >
+                  <span class="dedication-label">{item.label}</span>
+                  <span class="dedication-rule">
+                    ⏱ ×{formatNumber(item.hoursFactor, 1)} · qualidade{" "}
+                    {item.qualityBonus > 0 ? "+" : item.qualityBonus < 0 ? "−" : "±"}
+                    {Math.abs(item.qualityBonus)}
+                  </span>
+                  <span class="dedication-days">{formatDays(item.days)}</span>
+                  {item.outcome ? <span class="dedication-outcome">{item.outcome.text}</span> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div class="estimate">
           <span class="slider-label">Fica pronto em</span>

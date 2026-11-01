@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "../../src/sim";
-import { costParts, crewText, formatDays, formatNumber, motivationLabel } from "../../src/ui/format";
+import { costParts, crewText, formatDays, formatNumber, isCounterfeit, motivationLabel, pauseReasonLabel } from "../../src/ui/format";
 
 describe("costParts (design §8)", () => {
   it("mantém a ordem horas, créditos, prazo, risco", () => {
@@ -54,5 +54,22 @@ describe("tarefas", () => {
     expect(crewText({ min: 1, ideal: 1, max: 1 })).toBe("1 pessoa");
     expect(crewText({ min: 1, ideal: 2, max: 3 })).toBe("1–3 pessoas · ideal 2");
     expect(crewText({ min: 1, ideal: 2, max: 2 })).toBe("1–2 pessoas");
+  });
+});
+
+describe("motivo da pausa", () => {
+  it("cobre os motivos novos da Fase 3 e cai em 'Pausado' se não conhecer", () => {
+    expect(pauseReasonLabel("order")).toBe("Pedido");
+    expect(pauseReasonLabel("flight")).toBe("Seu voo");
+    expect(pauseReasonLabel("competition")).toBe("Competição");
+    expect(pauseReasonLabel("algo-novo")).toBe("Pausado");
+  });
+});
+
+describe("peça falsificada", () => {
+  const part = { id: "p", type: "electronics" as const, label: "Servos", quality: 50, condition: 90 };
+  it("só marca quando counterfeit é true", () => {
+    expect(isCounterfeit(part)).toBe(false);
+    expect(isCounterfeit({ ...part, counterfeit: true } as typeof part)).toBe(true);
   });
 });

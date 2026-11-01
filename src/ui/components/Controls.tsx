@@ -14,11 +14,12 @@ interface SliderProps {
   /** Destaca o valor quando passa de um limite do regulamento. */
   alert?: boolean;
   hint?: ComponentChildren;
+  disabled?: boolean;
 }
 
-export function Slider({ label, value, min, max, step, display, onChange, alert, hint }: SliderProps) {
+export function Slider({ label, value, min, max, step, display, onChange, alert, hint, disabled }: SliderProps) {
   return (
-    <label class={`slider${alert ? " is-alert" : ""}`}>
+    <label class={`slider${alert ? " is-alert" : ""}${disabled ? " is-disabled" : ""}`}>
       <span class="slider-head">
         <span class="slider-label">{label}</span>
         <span class="slider-value">{display}</span>
@@ -29,6 +30,7 @@ export function Slider({ label, value, min, max, step, display, onChange, alert,
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         onInput={(event) => onChange(Number(event.currentTarget.value))}
       />
       {hint ? <span class="slider-hint">{hint}</span> : null}

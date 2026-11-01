@@ -3,9 +3,11 @@ import { useEffect, useState } from "preact/hooks";
 import { store } from "../app/store";
 import { SPEEDS } from "../sim";
 import { Actions } from "./screens/Actions";
+import { Browser } from "./screens/Browser";
 import { Central } from "./screens/Central";
 import { Competition } from "./screens/Competition";
 import { Drafting } from "./screens/Drafting";
+import { Report } from "./screens/Report";
 import { Rules } from "./screens/Rules";
 import { Team } from "./screens/Team";
 import { TopBar } from "./TopBar";
@@ -19,8 +21,9 @@ const SCREENS: readonly { id: string; label: string; key: string; view?: Functio
   { id: "team", label: "Equipe", key: "E", view: Team },
   { id: "drafting", label: "Prancheta", key: "P", view: Drafting },
   { id: "tests", label: "Ensaios", key: "S" },
-  { id: "report", label: "Relatório", key: "R" },
+  { id: "report", label: "Relatório", key: "R", view: Report },
   { id: "finance", label: "Finanças", key: "F" },
+  { id: "browser", label: "Navegador", key: "N", view: Browser },
   { id: "rules", label: "Regulamento", key: "G", view: Rules },
   { id: "competition", label: "Competição", key: "M", view: Competition }
 ];

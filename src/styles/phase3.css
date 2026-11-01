@@ -1,0 +1,252 @@
+/* Telas da Fase 3 (Prancheta ligada à simulação, Relatório, Navegador, Competição).
+   Só tokens de tokens.css; as cores de cada loja ficam em tokens --shop-*. */
+
+/* Estimativas "valor ± margem" (design §6.2) */
+.estimate-margin {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.estimate-empty {
+  color: var(--text-dim);
+}
+
+.slider.is-disabled {
+  opacity: 0.55;
+}
+
+.slider.is-disabled input {
+  cursor: not-allowed;
+}
+
+/* Relatório */
+.report-grid {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: var(--space-4);
+}
+
+.report-grid > .panel > .panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.data-table .num-dim {
+  color: var(--text-dim);
+}
+
+.predictions-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-5);
+}
+
+.confirm-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.confirm-row .muted {
+  flex: 1;
+}
+
+.confirm-row .btn-primary,
+.confirm-row .btn-ghost {
+  margin-top: 0;
+  align-self: auto;
+}
+
+/* Gráficos com legenda, cruz e dica (skill dataviz) */
+.payload-chart {
+  margin: 0;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legend-line {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--highlight-soft);
+  box-shadow: inset 0 0 0 1px var(--highlight);
+}
+
+.chart-wrap {
+  position: relative;
+}
+
+.chart-payload .chart-line.is-active {
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-band {
+  fill: var(--highlight-soft);
+  stroke: none;
+}
+
+.chart-band-mid {
+  fill: none;
+  stroke: var(--highlight);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+
+.chart-crosshair {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+}
+
+.chart-payload .chart-dot {
+  fill: var(--accent);
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 6px;
+  transform: translateX(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.chart-tooltip.is-flipped {
+  transform: translateX(calc(-100% - 8px));
+}
+
+.chart-tooltip-title {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chart-tooltip-row strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.chart-table summary {
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chart-table .data-table {
+  margin-top: var(--space-2);
+}
+
+/* Dedicação na tela Ações: as três opções lado a lado, cada uma com prazo e resultado. */
+.dedication {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.dedication-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.dedication-option:hover {
+  border-color: var(--border-strong);
+}
+
+.dedication-option[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.dedication-label {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dedication-rule {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.dedication-days {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.dedication-outcome {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--highlight);
+}
+
+.clock-pause {
+  color: var(--accent);
+}
+
+/* Peça comprada fora da especificação (Part.counterfeit): reprova na inspeção, §9.2. */
+.seal-counterfeit {
+  margin-left: var(--space-2);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--highlight-soft);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}

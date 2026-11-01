@@ -1,32 +1,37 @@
 import { useState } from "preact/hooks";
-import { REGULAR_2026, spanFactor, surfacesFactor } from "../../sim";
+import { store } from "../../app/store";
+import { useGame } from "../../app/useGame";
+import {
+  DEFAULT_DESIGN,
+  DESIGN_LIMITS,
+  estimatePerformance,
+  powerPenalty,
+  REGULAR_2026,
+  spanFactor,
+  spanPenalty,
+  surfacesFactor,
+  type AircraftDesign,
+  type DesignMaterial,
+  type DesignPhilosophy,
+  type GearHeight
+} from "../../sim";
 import { Segmented, Slider } from "../components/Controls";
+import { EstimateRow } from "../components/EstimateRow";
 import { formatNumber } from "../format";
+import { usePerformance } from "../hooks";
 
-// Prancheta (design §6.1). Estado local enquanto a simulação não tem o projeto da aeronave:
-// as escolhas ainda não afetam o jogo, só mostram o compromisso de cada uma.
-
-type Philosophy = "payload" | "light" | "stable";
-type Material = "balsa" | "composite" | "mixed";
-type Gear = "low" | "high";
-
-interface Draft {
-  span: number;
-  surfaces: 1 | 2 | 3;
-  power: number;
-  philosophy: Philosophy;
-  material: Material;
-  gear: Gear;
-}
-
-const DEFAULT_DRAFT: Draft = { span: 2.8, surfaces: 2, power: 550, philosophy: "light", material: "balsa", gear: "low" };
-
-// Sobrevive à troca de tela; some ao recarregar (não é estado do jogo).
-let savedDraft = DEFAULT_DRAFT;
+// Prancheta (design §6.1). O projeto mora em state.aircraft.design e muda por set-design;
+// antes do primeiro set-design a tela mostra DEFAULT_DESIGN.
 
 const R = REGULAR_2026;
 const n = formatNumber;
-const SPAN_MIN = 1.5;
+const SPAN = DESIGN_LIMITS.span;
+const POWER = DESIGN_LIMITS.powerW;
+
+/** Altitudes densidade de referência para a estimativa (manhã fria → tarde quente). */
+const REFERENCE_ALTITUDES = [300, 600, 900, 1200] as const;
+// Sobrevive à troca de tela; não é estado do jogo.
+let savedAltitude: number = 900;
 
 const SURFACES = [
   { value: 1, label: "Asa voadora", sub: "N = 1 · ×1,22" },
@@ -34,7 +39,7 @@ const SURFACES = [
   { value: 3, label: "Três superfícies", sub: "N = 3 · ×1,15" }
 ] as const;
 
-const SURFACES_TEXT: Record<Draft["surfaces"], string> = {
+const SURFACES_TEXT: Record<AircraftDesign["surfaces"], string> = {
   1: "Pontua 22% a mais, mas é difícil de estabilizar e o compartimento de carga briga com o centro de gravidade.",
   2: "Asa e empenagem: a escolha segura, fácil de projetar e de pilotar. Multiplicador neutro.",
   3: "Canard + asa + empenagem: 15% a mais e mais área para carga, desde que a terceira superfície tenha função real."
@@ -46,7 +51,7 @@ const PHILOSOPHIES = [
   { value: "stable", label: "Estável" }
 ] as const;
 
-const PHILOSOPHY_TEXT: Record<Philosophy, string> = {
+const PHILOSOPHY_TEXT: Record<DesignPhilosophy, string> = {
   payload: "Asa grande e estrutura reforçada para levar muito peso. EE alta se a estrutura aguentar; peso vazio sobe junto.",
   light: "Cada grama conta: a EE cresce pelo denominador. Estrutura no limite, mais sensível a dano nos ensaios.",
   stable: "Margens folgadas de estabilidade e estrutura. Menos pontos no papel, menos susto na pista."
@@ -58,7 +63,7 @@ const MATERIALS = [
   { value: "mixed", label: "Misto" }
 ] as const;
 
-const MATERIAL_TEXT: Record<Material, string> = {
+const MATERIAL_TEXT: Record<DesignMaterial, string> = {
   balsa: "Barata e rápida de cortar. Peso vazio razoável; qualidade depende muito de quem fabrica.",
   composite: "Fibra e resina: leve e rígido, mas caro, exige molde e cura (⌛) e gente com mão de fabricação.",
   mixed: "Longarina em compósito, nervuras em balsa. Meio-termo de peso, custo e dificuldade."
@@ -69,7 +74,7 @@ const GEARS = [
   { value: "high", label: "Trem alto" }
 ] as const;
 
-const GEAR_TEXT: Record<Gear, string> = {
+const GEAR_TEXT: Record<GearHeight, string> = {
   low: "Mais leve e sem risco com a fita, mas a hélice fica perto do chão: limita o diâmetro.",
   high: "Permite hélice maior e rotação mais fácil. Altura é livre em 2026, mas se abortar a decolagem pode romper a fita."
 };
@@ -79,21 +84,31 @@ interface Alert {
   text: string;
 }
 
-function alertsFor(draft: Draft): Alert[] {
+function alertsFor(draft: AircraftDesign): Alert[] {
   const alerts: Alert[] = [];
-  if (draft.span >= R.maxSpan - 0.05) {
+  if (draft.span > R.maxSpan) {
+    alerts.push({
+      tone: "danger",
+      text: `Envergadura acima de ${n(R.maxSpan, 1)} m: penalidade de ${n(spanPenalty(draft.span), 0)} pontos (100 por metro, +20 passando de 5 cm) em toda bateria.`
+    });
+  } else if (draft.span >= R.maxSpan - 0.05) {
     alerts.push({
       tone: "danger",
       text: `Envergadura no limite de ${n(R.maxSpan, 1)} m. Um erro de fabricação vira penalidade: 100 pontos por metro de excesso, +20 se passar de 5 cm, em toda bateria.`
     });
   }
-  if (draft.power >= R.maxPower) {
+  if (draft.powerW > R.maxPower) {
+    alerts.push({
+      tone: "danger",
+      text: `Potência acima de ${R.maxPower} W: ${n(powerPenalty(draft.powerW), 0)} pontos de penalidade por bateria (0,5 por watt).`
+    });
+  } else if (draft.powerW >= R.maxPower) {
     alerts.push({
       tone: "danger",
       text: `Potência no limite de ${R.maxPower} W. O wattímetro mede o pico; cada watt acima custa 0,5 ponto por bateria.`
     });
   }
-  if (draft.power < 400) {
+  if (draft.powerW < 400) {
     alerts.push({
       tone: "warn",
       text: `Pouca potência: com carga alta, risco de não passar o obstáculo de ${n(R.obstacleHeight, 1)} m aos ${R.obstacleDistance} m.`
@@ -118,9 +133,17 @@ function alertsFor(draft: Draft): Alert[] {
 }
 
 export function Drafting() {
-  const [draft, setDraftState] = useState(savedDraft);
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
-    setDraftState((previous) => (savedDraft = { ...previous, [key]: value }));
+  const saved = useGame((state) => state.aircraft?.design ?? null);
+  const draft = saved ?? DEFAULT_DESIGN;
+  const [altitude, setAltitudeState] = useState(savedAltitude);
+  const estimate = usePerformance(altitude);
+
+  const set = <K extends keyof AircraftDesign>(key: K, value: AircraftDesign[K]) =>
+    store.dispatch({ type: "set-design", design: { ...draft, [key]: value } });
+  const setAltitude = (value: number) => {
+    savedAltitude = value;
+    setAltitudeState(value);
+  };
 
   const sf = surfacesFactor(draft.surfaces);
   const bf = spanFactor(draft.span);
@@ -133,7 +156,11 @@ export function Drafting() {
     <div class="screen">
       <header class="screen-head">
         <h1 class="screen-title">Prancheta</h1>
-        <span class="muted">Rascunho: as escolhas ainda não entram na simulação.</span>
+        <span class="muted">
+          {saved
+            ? "Projeto gravado: cada mudança vale para o avião da equipe."
+            : "Ainda sem projeto: a primeira mudança grava o avião da equipe."}
+        </span>
       </header>
       <div class="drafting-grid">
         <section class="panel">
@@ -143,16 +170,16 @@ export function Drafting() {
               <Slider
                 label="Envergadura (b)"
                 value={draft.span}
-                min={SPAN_MIN}
-                max={R.maxSpan}
+                min={SPAN.min}
+                max={SPAN.max}
                 step={0.05}
                 display={`${n(draft.span, 2)} m`}
                 alert={draft.span >= R.maxSpan - 0.05}
-                onChange={(value) => set("span", value)}
+                onChange={(value) => set("span", Math.round(value * 100) / 100)}
               />
               <p class="decision-text">
                 Mais envergadura = mais sustentação e carga. Mas a nota de voo é multiplicada por 1,15^(−b): aqui ×
-                {n(bf, 3)}.
+                {n(bf, 3)}. Acima de {n(R.maxSpan, 1)} m, penalidade em toda bateria.
               </p>
             </div>
             <div class="decision">
@@ -167,17 +194,17 @@ export function Drafting() {
             <div class="decision">
               <Slider
                 label="Potência (P)"
-                value={draft.power}
-                min={300}
-                max={R.maxPower}
+                value={draft.powerW}
+                min={POWER.min}
+                max={POWER.max}
                 step={10}
-                display={`${draft.power} W`}
-                alert={draft.power >= R.maxPower}
-                onChange={(value) => set("power", value)}
+                display={`${draft.powerW} W`}
+                alert={draft.powerW >= R.maxPower}
+                onChange={(value) => set("powerW", value)}
               />
               <p class="decision-text">
                 Mais potência decola antes dos {R.obstacleDistance} m com mais carga, mas pede bateria e motor mais
-                pesados, que aumentam o peso vazio.
+                pesados, que aumentam o peso vazio. Acima de {R.maxPower} W, penalidade por watt.
               </p>
             </div>
             <div class="decision">
@@ -201,6 +228,26 @@ export function Drafting() {
         </section>
 
         <div class="stack scroll-col">
+          <section class="panel">
+            <h2 class="panel-title">Estimativa de desempenho</h2>
+            <div class="panel-body stack-tight">
+              <Segmented
+                label="Altitude densidade de referência (Hρ)"
+                value={altitude}
+                options={REFERENCE_ALTITUDES.map((value) => ({ value, label: `${n(value)} m` }))}
+                onChange={setAltitude}
+              />
+              <EstimateRow label="Peso vazio" value={estimate?.emptyWeightKg} unit="kg" digits={2} />
+              <EstimateRow label="Carga máxima" value={estimate?.maxPayloadKg} unit="kg" digits={1} />
+              <EstimateRow label="Eficiência estrutural" value={estimate?.structuralEfficiency} digits={2} />
+              <EstimateRow label="Corrida de decolagem" value={estimate?.takeoffDistanceM} unit="m" digits={0} />
+              <p class="muted small">
+                {estimate
+                  ? `É o que a equipe acha, não o avião real: o real costuma cair dentro da margem. Ensaios e conhecimento de Aerodinâmica, Desempenho e Estruturas encolhem a faixa. Obstáculo aos ${R.obstacleDistance} m.`
+                  : "Sem estimativa ainda: a equipe precisa de um projeto gravado para calcular."}
+              </p>
+            </div>
+          </section>
           <section class="panel">
             <h2 class="panel-title">Multiplicador de pontuação</h2>
             <div class="panel-body">
@@ -229,15 +276,8 @@ export function Drafting() {
               ))}
             </div>
           </section>
-          <button
-            type="button"
-            class="btn-ghost"
-            onClick={() => {
-              savedDraft = DEFAULT_DRAFT;
-              setDraftState(DEFAULT_DRAFT);
-            }}
-          >
-            Restaurar rascunho
+          <button type="button" class="btn-ghost" onClick={() => store.dispatch({ type: "set-design", design: DEFAULT_DESIGN })}>
+            Restaurar projeto padrão
           </button>
         </div>
       </div>
@@ -250,9 +290,9 @@ const CHART = { width: 340, height: 150, pad: 28, yMin: 0.5, yMax: 1.0 };
 
 function MultiplierChart({ span, surfaces }: { span: number; surfaces: number }) {
   const { width, height, pad, yMin, yMax } = CHART;
-  const x = (b: number) => pad + ((b - SPAN_MIN) / (R.maxSpan - SPAN_MIN)) * (width - pad - 8);
+  const x = (b: number) => pad + ((b - SPAN.min) / (SPAN.max - SPAN.min)) * (width - pad - 8);
   const y = (m: number) => 8 + (1 - (m - yMin) / (yMax - yMin)) * (height - pad - 8);
-  const spans = Array.from({ length: 26 }, (_, i) => SPAN_MIN + (i * (R.maxSpan - SPAN_MIN)) / 25);
+  const spans = Array.from({ length: 26 }, (_, i) => SPAN.min + (i * (SPAN.max - SPAN.min)) / 25);
   const line = (count: number) =>
     spans.map((b) => `${x(b).toFixed(1)},${y(Math.min(yMax, surfacesFactor(count) * spanFactor(b))).toFixed(1)}`).join(" ");
   const current = surfacesFactor(surfaces) * spanFactor(span);
@@ -267,7 +307,7 @@ function MultiplierChart({ span, surfaces }: { span: number; surfaces: number })
           </text>
         </g>
       ))}
-      {[1.5, 2, 2.5, 3, 3.5, 4].map((b) => (
+      {[1.5, 2, 2.5, 3, 3.5, 4, 4.5].map((b) => (
         <text key={b} class="chart-label" x={x(b)} y={height - 8} text-anchor="middle">
           {n(b, 1)} m
         </text>
@@ -275,7 +315,7 @@ function MultiplierChart({ span, surfaces }: { span: number; surfaces: number })
       {[1, 2, 3].map((count) => (
         <g key={count}>
           <polyline class={`chart-line${count === surfaces ? " is-active" : ""}`} points={line(count)} />
-          <text class="chart-label" x={x(SPAN_MIN) + 4} y={y(Math.min(yMax, surfacesFactor(count) * spanFactor(SPAN_MIN))) - 4}>
+          <text class="chart-label" x={x(SPAN.min) + 4} y={y(Math.min(yMax, surfacesFactor(count) * spanFactor(SPAN.min))) - 4}>
             N={count}
           </text>
         </g>

@@ -1,3 +1,4 @@
+import { useState } from "preact/hooks";
 import { useGame } from "../../app/useGame";
 import {
   academicFactor,
@@ -10,6 +11,7 @@ import {
   type Member
 } from "../../sim";
 import { Meter } from "../components/Controls";
+import { WorkshopSchedule } from "../team/WorkshopSchedule";
 import { DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
 
 // Tela Equipe (design §5), só leitura: elenco, conhecimento tácito por disciplina e o acervo
@@ -24,6 +26,10 @@ function focusOf(member: Member): Discipline | null {
   return best;
 }
 
+type TeamTab = "roster" | "schedule";
+// Sobrevive à troca de tela; não é estado do jogo.
+let savedTab: TeamTab = "roster";
+
 function motivationTone(value: number) {
   if (value >= 75) return "ok" as const;
   if (value >= 50) return "accent" as const;
@@ -32,6 +38,8 @@ function motivationTone(value: number) {
 }
 
 export function Team() {
+  const [tab, setTabState] = useState(savedTab);
+  const setTab = (value: TeamTab) => setTabState((savedTab = value));
   const members = useGame((state) => state.members);
   const documented = useGame((state) => state.documented);
   const day = useGame((state) => Math.floor(state.clock.hours / 24));
@@ -45,6 +53,14 @@ export function Team() {
     <div class="screen">
       <header class="screen-head">
         <h1 class="screen-title">Equipe</h1>
+        <div class="tabs team-tabs" role="tablist" aria-label="Visão da equipe">
+          <button type="button" role="tab" aria-selected={tab === "roster"} onClick={() => setTab("roster")}>
+            Elenco
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "schedule"} onClick={() => setTab("schedule")}>
+            Escala da oficina
+          </button>
+        </div>
         <div class="stat-row">
           <span class="stat">
             <span class="stat-label">Integrantes</span>
@@ -62,7 +78,8 @@ export function Team() {
           </span>
         </div>
       </header>
-      <div class="team-grid">
+      {tab === "schedule" ? <WorkshopSchedule /> : null}
+      <div class="team-grid" hidden={tab !== "roster"}>
         <div class="member-list scroll-col">
           {members.map((member) => {
             const focus = focusOf(member);
