@@ -11,7 +11,6 @@ import {
   reliabilityBonus,
   REPORT_CHAPTERS,
   scoreBattery,
-  SEASON_START,
   spanFactor,
   surfacesFactor,
   type BatteryInput
@@ -47,10 +46,7 @@ export function Rules() {
 const R = REGULAR_2026;
 const n = formatNumber;
 
-const CALENDAR = [
-  { id: "rev00", date: SEASON_START, title: "Regulamento publicado (Rev00)", kind: "info" as const },
-  ...OFFICIAL_CALENDAR
-];
+const CALENDAR = OFFICIAL_CALENDAR;
 
 function RulesTab() {
   const day = useGame((state) => Math.floor(state.clock.hours / 24));

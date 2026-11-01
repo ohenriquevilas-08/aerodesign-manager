@@ -2,7 +2,7 @@
 
 import { createGame } from "../sim";
 import { clearSave, loadSave, type LoadResult } from "./save";
-import { store } from "./store";
+import { foundDefault, store } from "./store";
 
 /** Lido uma vez ao abrir a página: um save de versão antiga é apagado aqui e a tela avisa. */
 export const initialSave: LoadResult = loadSave();
@@ -20,6 +20,7 @@ export function continueGame(): boolean {
 /** Apaga o save e começa o Ano 1 com outra semente. */
 export function newGame() {
   clearSave();
-  store.replace(createGame({ seed: (Date.now() % 2147483647) + 1, teamName: TEAM_NAME }));
+  // PROVISÓRIO (Fase 6): fundação padrão até existir a abertura (U2).
+  store.replace(foundDefault(createGame({ seed: (Date.now() % 2147483647) + 1, teamName: TEAM_NAME })));
   store.setSpeed(0);
 }

@@ -50,7 +50,7 @@ export function Team() {
   const date = clockToDate(day * 24);
   const academic = academicFactor(date);
   const workers = rosterMembers({ members });
-  const president = members.find((member) => !canWork(member));
+  const president = members.find((member) => member.role === "president");
   const teamHours = workers.reduce((sum, member) => sum + memberHoursPerDay(member, date), 0);
 
   return (
@@ -69,8 +69,8 @@ export function Team() {
           </button>
         </div>
         {president ? (
-          <span class="stat" title="O presidente coordena e fica fora das listas">
-            <span class="stat-label">Você</span>
+          <span class="stat" title="Aluno eleito na fundação; o jogador é o professor orientador">
+            <span class="stat-label">Presidente</span>
             <strong>{president.name}</strong>
           </span>
         ) : null}
