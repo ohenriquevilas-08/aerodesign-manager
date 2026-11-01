@@ -1,14 +1,18 @@
 // Loop de preparação: o que acontece enquanto o relógio corre (design §4).
 // O tick é quebrado em passos de até BALANCE.stepHours; um evento que pausa o relógio
 // interrompe o tick no passo em que aconteceu e o resto do tempo real é descartado.
-// Nas janelas de voo da competição o relógio anda mais devagar (competition.ts, clockPace).
+// Eventos (Fase 7) abrem por aqui e param o relógio: ver events.ts.
 
 import { advancePlanned } from "./calendar";
-import { advanceCompetition, clockPace, standings } from "./competition";
+import { COMPETITION_START, startCompetition } from "./competition";
 import { BALANCE } from "./content/balance";
 import { OFFICIAL_CALENDAR } from "./content/season2026";
 import { findAction } from "./content/actions";
-import { advanceFlightTests } from "./flightTests";
+import { dueFlightTests } from "./flightTests";
+import { buildCompetitionEvent } from "./eventCompetition";
+import { buildFlightTestEvent } from "./eventFlightTest";
+import { buildSelectionDay } from "./eventSelection";
+import { openEvent } from "./events";
 import { crewRates } from "./crew";
 import { overnightWeight, shiftEffects, workshopTaskRates } from "./workshop";
 import { reportEvents } from "./report";
@@ -18,20 +22,18 @@ import { awardReputation, resolveTrainees, trackAgenda } from "./season";
 import { addMessage, completeTask } from "./tasks";
 import { canWork, clamp, isOverloaded } from "./team";
 import { clockToDate, dateToHours, gameHoursForRealSeconds } from "./time";
-import { PLAYER_TEAM_ID, type GameState, type Member, type PauseInfo, type PauseReason } from "./types";
+import type { GameState, Member, PauseInfo, PauseReason } from "./types";
 
 const EPSILON = 1e-9;
 
 export function tick(state: GameState, realSeconds: number): GameState {
-  if (state.clock.speed === 0 || realSeconds <= 0) return state;
+  // Evento aberto (Fase 7): o relógio da gestão fica parado até close-event.
+  if (state.activeEvent || state.clock.speed === 0 || realSeconds <= 0) return state;
   let next = state;
   let realLeft = realSeconds;
   while (realLeft > EPSILON && next.clock.speed !== 0) {
-    const pace = clockPace(next);
-    const hoursPerSecond = gameHoursForRealSeconds(1, next.clock.speed) * pace.factor;
+    const hoursPerSecond = gameHoursForRealSeconds(1, next.clock.speed);
     let dt = Math.min(realLeft * hoursPerSecond, BALANCE.stepHours);
-    // O ritmo pode mudar na virada da hora (início e fim das janelas de voo).
-    if (pace.nextChange - next.clock.hours > EPSILON) dt = Math.min(dt, pace.nextChange - next.clock.hours);
     // Os turnos da oficina começam e acabam em horas cheias: o passo não atravessa a virada.
     const toHour = Math.floor(next.clock.hours + EPSILON) + 1 - next.clock.hours;
     if (toHour > EPSILON) dt = Math.min(dt, toHour);
@@ -167,15 +169,31 @@ export function step(state: GameState, dt: number): GameState {
   // 5b. Relatório: envio automático no prazo e apresentação oral (os marcos acima já pausam).
   next = reportEvents(next, t0, t1);
 
-  // 5b2. Ensaios de voo agendados: o dia do ensaio pausa o relógio (Fase 5, S2).
-  const flightTests = advanceFlightTests(next, t0, t1);
-  next = flightTests.state;
-  pauses.push(...flightTests.pauses);
-
-  // 5c. Competição: começa no marco, fila e baterias nas janelas de voo; seu voo pausa.
-  const competition = advanceCompetition(next, t0, t1);
-  next = competition.state;
-  pauses.push(...competition.pauses);
+  // 5b2. Eventos (Fase 7): a chamada do ensaio de voo, do dia da dinâmica da seletiva e da
+  // competição pausa o relógio e abre o modo evento (enter-event aceita).
+  if (!next.activeEvent) {
+    const test = dueFlightTests(next, t0, t1)[0];
+    if (test) {
+      const opened = openEvent(next, buildFlightTestEvent(next, test), "A equipe se reúne para a viagem até o campo de ensaio. Entre no evento para acompanhar o dia.");
+      next = opened.state;
+      pauses.unshift(opened.pause);
+    }
+  }
+  if (!next.activeEvent && next.selectionDay && t0 < next.selectionDay.at && next.selectionDay.at <= t1) {
+    const event = buildSelectionDay(next);
+    next = { ...next, selectionDay: null };
+    if (event) {
+      const opened = openEvent(next, event, "Os inscritos da seletiva chegam para o dia da dinâmica. Entre no evento para conhecê-los.");
+      next = opened.state;
+      pauses.unshift(opened.pause);
+    }
+  }
+  if (!next.competition && t0 < COMPETITION_START && COMPETITION_START <= t1) {
+    const started = startCompetition(next);
+    const opened = openEvent(started.state, buildCompetitionEvent(started.state), "Começa a Competição Aerodesign Brasil: chegada, inspeção técnica e três dias de voo.");
+    next = opened.state;
+    pauses.unshift(opened.pause);
+  }
 
   // 5d. Ações agendadas no calendário começam sozinhas; as que não dão certo pausam e avisam.
   const planned = advancePlanned(next, t1);
@@ -185,11 +203,6 @@ export function step(state: GameState, dt: number): GameState {
   // 5e. Agenda do presidente e reputação do orientador (Fase 6, S2).
   next = trackAgenda(state, next, t0, t1);
   if (!state.report.submittedAt && next.report.submittedAt) next = awardReputation(next, BALANCE.advisor.reportSubmitted);
-  if (state.competition?.phase !== "finished" && next.competition?.phase === "finished") {
-    const table = standings(next);
-    const position = table.find((row) => row.teamId === PLAYER_TEAM_ID)?.position ?? table.length;
-    next = awardReputation(next, BALANCE.advisor.competitionBase + (table.length - position) * BALANCE.advisor.competitionPerPlaceFromLast);
-  }
 
   // 6. Pausa automática: o relógio para e guarda o motivo do primeiro evento do passo.
   const first = pauses[0];

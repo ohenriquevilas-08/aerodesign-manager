@@ -67,8 +67,8 @@ export const MIN_TEAMS_AHEAD_TO_REVISE = 3;
 /** Meia-noite do dia do marco "competition" (horas de jogo). */
 export const COMPETITION_START = dateToHours(OFFICIAL_CALENDAR.find((item) => item.id === "competition")!.date);
 
-const SLOT_HOURS = C.slotMinutes / 60;
-const lastWindowEnd = () => COMPETITION_START + 24 * C.flightDays + C.windowEndHour;
+/** Uma equipe decola a cada slot (horas). */
+export const SLOT_HOURS = C.slotMinutes / 60;
 const firstWindowStart = () => COMPETITION_START + 24 + C.windowStartHour;
 
 /** Está numa janela de voo (dias seguintes ao marco, de windowStartHour a windowEndHour)? */
@@ -76,21 +76,6 @@ export function inFlightWindow(hours: number): boolean {
   const day = Math.floor((hours - COMPETITION_START) / 24);
   const hourOfDay = hours - Math.floor(hours / 24) * 24;
   return day >= 1 && day <= C.flightDays && hourOfDay >= C.windowStartHour && hourOfDay < C.windowEndHour;
-}
-
-const competing = (state: GameState) => state.competition !== null && state.competition.phase !== "finished";
-
-/**
- * Ritmo do relógio: nas janelas de voo da competição o tempo de jogo anda devagar
- * (BALANCE.competition.realSecondsPerGameHour), para a fila e a escolha de carga serem jogáveis.
- * Devolve o fator sobre o ritmo normal e o próximo instante em que o ritmo pode mudar.
- */
-export function clockPace(state: GameState): { factor: number; nextChange: number } {
-  if (!competing(state)) return { factor: 1, nextChange: Infinity };
-  const hours = state.clock.hours;
-  const normalHoursPerSecond = 24 / 10;
-  const factor = inFlightWindow(hours) ? 1 / C.realSecondsPerGameHour / normalHoursPerSecond : 1;
-  return { factor, nextChange: Math.floor(hours + 1e-9) + 1 };
 }
 
 // ---------------------------------------------------------------------------
@@ -303,16 +288,32 @@ const SCORED: ReadonlySet<FlightOutcome> = new Set(["valid", "landing-out", "dam
 // Inspeção, fila e baterias
 // ---------------------------------------------------------------------------
 
-/** Pendências da inspeção de segurança (design §9.2) e do cadastro da CT. */
-export function inspectionIssues(state: GameState): string[] {
-  if (!state.aircraft) return ["Sem avião: a equipe não tem projeto aprovado."];
-  const issues: string[] = [];
+/** Uma pendência da inspeção de segurança (design §9.2) e do cadastro da CT. */
+export interface InspectionFinding {
+  id: "no-aircraft" | "incomplete" | "no-video" | "counterfeit";
+  text: string;
+}
+
+export function inspectionFindings(state: GameState): InspectionFinding[] {
+  if (!state.aircraft) return [{ id: "no-aircraft", text: "Sem avião: a equipe não tem projeto aprovado." }];
+  const findings: InspectionFinding[] = [];
   const missing = missingPartsText(state);
-  if (missing) issues.push(`Avião incompleto. ${missing}`);
-  if (state.aircraft.flightVideoAt == null) issues.push("Sem vídeo de voo válido (27/set): a CT não libera o voo.");
+  if (missing) findings.push({ id: "incomplete", text: `Avião incompleto. ${missing}` });
+  if (state.aircraft.flightVideoAt == null) findings.push({ id: "no-video", text: "Sem vídeo de voo válido (27/set): a CT não libera o voo." });
   const electronics = installedParts(state).electronics;
-  if (electronics?.counterfeit) issues.push(`${electronics.label} sem certificação de fábrica (falsificados): troque antes de voar.`);
-  return issues;
+  if (electronics?.counterfeit) findings.push({ id: "counterfeit", text: `${electronics.label} sem certificação de fábrica (falsificados): troque antes de voar.` });
+  return findings;
+}
+
+/** Pendências da inspeção de segurança (design §9.2) e do cadastro da CT, em texto. */
+export function inspectionIssues(state: GameState): string[] {
+  return inspectionFindings(state).map((finding) => finding.text);
+}
+
+/** O que ainda trava o seu voo: as pendências menos as aceitas com penalidade (Fase 7, S4). */
+export function blockingFindings(state: GameState): InspectionFinding[] {
+  const waived = state.competition?.waivedIssues ?? [];
+  return inspectionFindings(state).filter((finding) => !waived.includes(finding.id));
 }
 
 const teamName = (state: GameState, id: string) =>
@@ -352,12 +353,12 @@ function shuffle(ids: string[], rngState: number): { ids: string[]; rngState: nu
   return { ids: list, rngState: rng };
 }
 
-interface Pending {
+export interface Pending {
   reason: PauseReason;
   messageId: string;
 }
 
-function startCompetition(state: GameState): { state: GameState; pending: Pending } {
+export function startCompetition(state: GameState): { state: GameState; pending: Pending } {
   const projectScores: Record<string, number> = { [PLAYER_TEAM_ID]: (state.report.score ?? 0) + (state.report.oralScore ?? 0) };
   const penalties: Record<string, number> = { [PLAYER_TEAM_ID]: (state.aircraft?.lateChanges ?? 0) * C.lateChangePenalty * (state.regulationRead ? 1 : BALANCE.season.unreadPenaltyFactor) };
   for (const team of state.rivals) {
@@ -394,7 +395,7 @@ function startCompetition(state: GameState): { state: GameState; pending: Pendin
   return { state: next, pending: { reason: "competition", messageId: added.id } };
 }
 
-function finishCompetition(state: GameState): { state: GameState; pending: Pending } {
+export function finishCompetition(state: GameState): { state: GameState; pending: Pending } {
   const competition = { ...state.competition!, phase: "finished" as const };
   let next: GameState = { ...state, competition };
   const table = standings(next);
@@ -418,7 +419,7 @@ function nextBattery(state: GameState): { state: GameState; pending: Pending | n
   const eligible = eligibleTeams(state, competition, battery);
   if (eligible.length === 0) return finishCompetition(state);
   const order = shuffle(eligible, state.rngState);
-  let next: GameState = { ...state, rngState: order.rngState, competition: { ...competition, battery, queue: order.ids, queueIndex: 0 } };
+  let next: GameState = { ...state, rngState: order.rngState, competition: { ...competition, battery, queue: order.ids, queueIndex: 0, plannedPayloadKg: null } };
   const inQueue = order.ids.includes(PLAYER_TEAM_ID);
   next = addMessage(next, {
     from: "Comissão Técnica",
@@ -479,7 +480,7 @@ export function playerPilot(state: GameState): number {
 }
 
 /** Carga que a equipe vai embarcar: a escolhida ou, sem escolha, a da reta de previsão. */
-function playerPayload(state: GameState, hrho: number): number {
+export function playerPayload(state: GameState, hrho: number): number {
   const planned = state.competition?.plannedPayloadKg;
   if (planned != null) return planned;
   const line = state.report.payloadLine;
@@ -493,7 +494,7 @@ function record(state: GameState, result: BatteryResult): GameState {
 
 function flyPlayer(state: GameState, at: number, weather: FieldWeather): { state: GameState; pending: Pending } {
   const competition = state.competition!;
-  const issues = inspectionIssues(state);
+  const issues = blockingFindings(state).map((finding) => finding.text);
   if (issues.length) {
     const added = addMessage(state, {
       from: "Comissão Técnica",
@@ -607,7 +608,7 @@ function flyRival(state: GameState, teamId: string, at: number, weather: FieldWe
 }
 
 /** Uma decolagem na fila; ao fim da fila, abre a próxima bateria. */
-function flySlot(state: GameState, at: number): { state: GameState; pending: Pending | null } {
+export function flySlot(state: GameState, at: number): { state: GameState; pending: Pending | null } {
   let next = state;
   let competition = next.competition!;
   if (competition.queueIndex >= competition.queue.length) {
@@ -633,40 +634,6 @@ function flySlot(state: GameState, at: number): { state: GameState; pending: Pen
     pending = pending ?? opened.pending;
   }
   return { state: next, pending };
-}
-
-/** A competição no relógio: começa no marco, atualiza clima e inspeção, faz as decolagens dos slots. */
-export function advanceCompetition(state: GameState, t0: number, t1: number): { state: GameState; pauses: Pending[] } {
-  const pauses: Pending[] = [];
-  let next = state;
-  if (!next.competition && t0 < COMPETITION_START && COMPETITION_START <= t1) {
-    const started = startCompetition(next);
-    next = started.state;
-    pauses.push(started.pending);
-  }
-  if (!competing(next)) return { state: next, pauses };
-
-  next = {
-    ...next,
-    competition: { ...next.competition!, weather: weatherAt(next.seed, t1), inspectionIssues: inspectionIssues(next) }
-  };
-  for (let k = Math.floor(t0 / SLOT_HOURS + 1e-9) + 1; k * SLOT_HOURS <= t1 + 1e-9; k += 1) {
-    const at = k * SLOT_HOURS;
-    if (!inFlightWindow(at) || at <= t0) continue;
-    if (next.competition!.phase === "inspection") next = { ...next, competition: { ...next.competition!, phase: "flights" } };
-    const flown = flySlot(next, at);
-    next = flown.state;
-    if (flown.pending) pauses.push(flown.pending);
-    if (next.competition!.phase === "finished") return { state: next, pauses };
-    // Seu voo para o relógio para o replay: o resto do passo fica para depois.
-    if (flown.pending?.reason === "flight") return { state: next, pauses };
-  }
-  if (t0 < lastWindowEnd() && lastWindowEnd() <= t1) {
-    const finished = finishCompetition(next);
-    next = finished.state;
-    pauses.push(finished.pending);
-  }
-  return { state: next, pauses };
 }
 
 // ---------------------------------------------------------------------------
@@ -774,10 +741,5 @@ export function devStartCompetition(state: GameState): GameState {
   next = { ...next, clock: { ...next.clock, hours: COMPETITION_START - 1 } };
   next = { ...next, report: { ...next.report, oralScore: expectedOralScore(next) } };
   const started = startCompetition({ ...next, clock: { ...next.clock, hours: COMPETITION_START } });
-  next = started.state;
-  return {
-    ...next,
-    clock: { hours: firstWindowStart() - 0.25, speed: 0 },
-    pause: { reason: "competition", at: firstWindowStart() - 0.25, messageId: started.pending.messageId }
-  };
+  return { ...started.state, clock: { hours: COMPETITION_START, speed: 0 }, pause: { reason: "competition", at: COMPETITION_START, messageId: started.pending.messageId } };
 }

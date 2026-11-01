@@ -5,7 +5,14 @@ import type { Discipline, FounderFlair, PresidentAgenda } from "../types";
 
 export interface AgendaDef {
   id: PresidentAgenda;
+  /** Rótulo curto da prioridade, sem prefixo: "Fazer o avião voar". */
   label: string;
+  /** "Prioridade: fazer o avião voar" (Fase 7, S5): o que o presidente quer. */
+  priority: string;
+  /** O que acontece: "tarefas de fabricação e ensaio animam a equipe". */
+  effect: string;
+  /** Rótulo completo para a UI: `${priority} · ${effect}`. */
+  text: string;
   /** Uma frase para a carta do fundador e para o cartão do presidente. */
   description: string;
   /** Ações do catálogo que contam como "da agenda". balanced: qualquer uma das três frentes. */
@@ -26,16 +33,21 @@ const FLIGHT_ACTIONS = [
 ] as const;
 const FUNDING_ACTIONS = ["raffle", "sponsor-pitch", "outreach-posters", "outreach-social", "outreach-classroom", "outreach-freshers"] as const;
 
+const agenda = (id: PresidentAgenda, label: string, effect: string, description: string, actions: readonly string[]): AgendaDef => ({
+  id,
+  label,
+  priority: `Prioridade: ${label.charAt(0).toLowerCase()}${label.slice(1)}`,
+  effect,
+  text: `Prioridade: ${label.charAt(0).toLowerCase()}${label.slice(1)} · ${effect}`,
+  description,
+  actions
+});
+
 export const AGENDAS: readonly AgendaDef[] = [
-  { id: "report", label: "Relatório", description: "Quer o relatório e o estudo em dia: leitura, capítulos, plantas e documentação.", actions: REPORT_ACTIONS },
-  { id: "flight", label: "Voo", description: "Quer o avião pronto e voando: fabricação, ensaios e treino de pilotagem.", actions: FLIGHT_ACTIONS },
-  { id: "funding", label: "Captação", description: "Quer caixa e gente: rifas, patrocínio e divulgação.", actions: FUNDING_ACTIONS },
-  {
-    id: "balanced",
-    label: "Equilibrada",
-    description: "Quer um pouco de cada frente: relatório, voo e captação.",
-    actions: [...REPORT_ACTIONS, ...FLIGHT_ACTIONS, ...FUNDING_ACTIONS]
-  }
+  agenda("report", "Entregar o relatório", "leitura, capítulos, plantas e documentação animam a equipe", "Quer o relatório e o estudo em dia: leitura, capítulos, plantas e documentação.", REPORT_ACTIONS),
+  agenda("flight", "Fazer o avião voar", "tarefas de fabricação e ensaio animam a equipe", "Quer o avião pronto e voando: fabricação, ensaios e treino de pilotagem.", FLIGHT_ACTIONS),
+  agenda("funding", "Levantar caixa e gente", "rifas, patrocínio e divulgação animam a equipe", "Quer caixa e gente: rifas, patrocínio e divulgação.", FUNDING_ACTIONS),
+  agenda("balanced", "Equilibrar as três frentes", "trabalhar em relatório, voo e captação ao mesmo tempo anima a equipe", "Quer um pouco de cada frente: relatório, voo e captação.", [...REPORT_ACTIONS, ...FLIGHT_ACTIONS, ...FUNDING_ACTIONS])
 ];
 
 export const findAgenda = (id: PresidentAgenda): AgendaDef => AGENDAS.find((agenda) => agenda.id === id)!;

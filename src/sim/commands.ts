@@ -6,6 +6,8 @@ import { rescheduleAction, scheduleAction, unscheduleAction, type ScheduleAction
 import { setArea } from "./formation";
 import { foundTeam, type FoundTeamRequest } from "./season";
 import { devStartCompetition, setBatteryPayload } from "./competition";
+import { ensureCompetitionEvent } from "./eventCompetition";
+import { advanceEvent, closeEvent, decideEvent, enterEvent } from "./events";
 import { cancelFlightTest, scheduleFlightTest, type ScheduleFlightTestRequest } from "./flightTests";
 import { tick } from "./loop";
 import { setPredictions, submitReport } from "./report";
@@ -56,13 +58,22 @@ export type Command =
   /** startAt em horas de jogo (dateToHours); a ação vira tarefa sozinha nessa hora. */
   | ({ type: "schedule-action" } & ScheduleActionRequest)
   | { type: "reschedule-action"; plannedId: string; startAt: number }
-  | { type: "unschedule-action"; plannedId: string };
+  | { type: "unschedule-action"; plannedId: string }
+  // Fase 7 (docs/phases/fase-7.md, S1): modo evento.
+  /** Aceita a chamada do evento ("Hoje: ..."). */
+  | { type: "enter-event" }
+  /** Resolve o bloco atual e vai para o próximo; recusa com decisão pendente. */
+  | { type: "advance-event" }
+  | { type: "decide-event"; optionId: string }
+  /** Aplica o resumo ao estado da gestão e devolve o relógio. */
+  | { type: "close-event" };
 
 export function applyCommand(state: GameState, command: Command): GameState {
   switch (command.type) {
     case "tick":
       return tick(state, command.realSeconds);
     case "set-speed":
+      if (state.activeEvent && command.speed !== 0) return warn(state, "Há um evento em andamento: termine o dia antes de soltar o relógio.");
       if (state.founding && command.speed !== 0) return warn(state, "A equipe ainda não foi fundada: escolha o presidente e os capitães.");
       if (state.clock.speed === command.speed) return state;
       return {
@@ -108,7 +119,7 @@ export function applyCommand(state: GameState, command: Command): GameState {
     case "grant-key":
       return grantKey(state, command.memberId);
     case "dev-start-competition":
-      return devStartCompetition(state);
+      return ensureCompetitionEvent(devStartCompetition(state));
     case "schedule-flight-test":
       return scheduleFlightTest(state, command);
     case "cancel-flight-test":
@@ -121,5 +132,13 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return rescheduleAction(state, command.plannedId, command.startAt);
     case "unschedule-action":
       return unscheduleAction(state, command.plannedId);
+    case "enter-event":
+      return enterEvent(state);
+    case "advance-event":
+      return advanceEvent(state);
+    case "decide-event":
+      return decideEvent(state, command.optionId);
+    case "close-event":
+      return closeEvent(state);
   }
 }

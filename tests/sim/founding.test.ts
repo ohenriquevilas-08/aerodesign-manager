@@ -136,7 +136,7 @@ describe("presidente e agenda", () => {
   it("presidentView mostra nome, agenda e o mês", () => {
     const state = foundedGame({ seed: 4, teamName: "T" });
     const view = presidentView(state)!;
-    expect(view).toMatchObject({ id: "founder-bia", name: state.members.find((m) => m.id === "founder-bia")!.name, agenda: "funding", agendaLabel: "Captação", status: "none", loggedDays: 0 });
+    expect(view).toMatchObject({ id: "founder-bia", name: state.members.find((m) => m.id === "founder-bia")!.name, agenda: "funding", agendaLabel: "Levantar caixa e gente", status: "none", loggedDays: 0 });
   });
 
   it("tarefa da agenda concluída dá bônus de motivação à equipe; fora da agenda, não", () => {

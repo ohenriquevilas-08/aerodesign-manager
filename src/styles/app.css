@@ -332,3 +332,75 @@ button {
   text-transform: uppercase;
   color: var(--text);
 }
+
+/* PROVISÓRIO (Fase 7): painel de evento até a UI definitiva (U1). */
+.event-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgb(3 7 13 / 0.88);
+}
+.event-panel {
+  width: min(760px, 94vw);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 20px 24px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  display: grid;
+  gap: 12px;
+}
+.event-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.event-block {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.event-block.is-current {
+  border-color: var(--highlight);
+  color: var(--text);
+  background: var(--highlight-soft);
+}
+.event-block.is-done {
+  color: var(--text-muted);
+}
+.event-decision {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--highlight);
+  background: var(--highlight-soft);
+}
+.event-decision button {
+  text-align: left;
+  display: grid;
+  gap: 2px;
+}
+.event-hint {
+  white-space: normal;
+}
+.event-log {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 2px;
+}
+.event-log .is-good {
+  color: var(--ok);
+}
+.event-log .is-bad {
+  color: var(--danger);
+}
+.event-summary {
+  display: grid;
+  gap: 6px;
+}

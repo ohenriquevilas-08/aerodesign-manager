@@ -64,7 +64,18 @@ export {
   type ReportChecklist
 } from "./report";
 export { listingPrice, listingStock, type OrderRequest } from "./shop";
-export { COMPETITION_START, currentDensityAltitude, inspectionIssues, MIN_TEAMS_AHEAD_TO_REVISE, standings, teamsAhead } from "./competition";
+export {
+  COMPETITION_START,
+  currentDensityAltitude,
+  inspectionFindings,
+  inspectionIssues,
+  MIN_TEAMS_AHEAD_TO_REVISE,
+  standings,
+  teamsAhead,
+  type InspectionFinding
+} from "./competition";
+export { eventView, type EventBlockView, type EventStage, type EventView } from "./events";
+export { drawPerson } from "./naming";
 export {
   findListing,
   findProduct,
@@ -83,7 +94,7 @@ export {
 } from "./content/shops";
 export { DEDICATIONS, findDedication, type Dedication, type DedicationDef } from "./content/dedication";
 export { applicantBand, crewQuality, estimateOutcome, outcomeBand, sponsorChance, type OutcomeBand, type OutcomeEstimate } from "./outcome";
-export { crewRates, estimateRemainingDays, estimateTaskDays, leadDaysRange } from "./crew";
+export { crewRates, estimateRemainingDays, estimateTaskDays, leadDaysRange, taskEta, type TaskEta } from "./crew";
 export { expectedApplicants, missingCast } from "./selection";
 export { SELECTION_FORMATS, type SelectionFormat, type SelectionFormatDef } from "./content/selection";
 export { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";

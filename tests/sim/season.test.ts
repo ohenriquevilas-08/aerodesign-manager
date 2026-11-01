@@ -162,12 +162,13 @@ describe("S4: o que dependia da data antiga continua funcionando", () => {
     expect(fresh.members.some((m) => m.role === "president")).toBe(true);
     const started = run(startedGame({ seed: 11, teamName: "T" }), { type: "dev-start-competition" });
     expect(started.competition?.phase).toBe("inspection");
-    expect(started.clock.hours).toBeGreaterThan(dateToHours(utc(2026, 10, 22)));
+    expect(started.clock.hours).toBeGreaterThanOrEqual(dateToHours(utc(2026, 10, 22)));
+    expect(started.activeEvent?.kind).toBe("competition");
   });
 
-  it("o save tem a versão 7 e descarta o da versão 6", () => {
+  it("o save tem a versão 8 e descarta o da versão 6", () => {
     const state = startedGame({ seed: 1, teamName: "X" });
-    expect(state.version).toBe(7);
+    expect(state.version).toBe(8);
     expect(deserializeState(serializeState(state))).toEqual(state);
     expect(deserializeState(JSON.stringify({ ...state, version: 6 }))).toBeNull();
   });

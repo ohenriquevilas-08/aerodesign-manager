@@ -3,7 +3,7 @@
 import { BALANCE } from "./content/balance";
 import { FOUNDERS, type FounderDef } from "./content/founders";
 import { TEAM_POOL } from "./content/teams";
-import { drawPersonName } from "./naming";
+import { drawPerson } from "./naming";
 import { createReport } from "./report";
 import { drawLook, TEAM_SHIRT_COLOR } from "./looks";
 import { nextRandom } from "./rng";
@@ -87,17 +87,17 @@ export function createGame(options: { seed: number; teamName: string; advisorNam
   const taken = new Set<string>();
   const members = FOUNDERS.map((def) => {
     // Nome de pessoa sorteado; o papel é rótulo separado.
-    const drawnName = drawPersonName(rngState, taken);
+    const drawnName = drawPerson(rngState, taken);
     taken.add(drawnName.name);
     rngState = drawnName.rngState;
     const member = founderMember(def, drawnName.name);
-    const looks = drawLook(rngState);
+    const looks = drawLook(rngState, drawnName.female);
     const drawn = drawClassSlots(looks.rngState);
     rngState = drawn.rngState;
     return { ...member, classSlots: drawn.slots, look: looks.look };
   });
   return {
-    version: 7,
+    version: 8,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },
@@ -139,6 +139,8 @@ export function createGame(options: { seed: number; teamName: string; advisorNam
     founding: true,
     regulationRead: false,
     plannedActions: [],
-    agendaLog: []
+    agendaLog: [],
+    activeEvent: null,
+    selectionDay: null
   };
 }
