@@ -127,14 +127,14 @@ export function slotStatus(state: GameState, memberId: string, slot: SlotKey): S
 }
 
 /** Turno em andamento agora; null entre turnos. A madrugada de 0h–3h é do dia anterior. */
-export function currentShift(state: GameState): SlotKey | null {
+export function currentShift(state: GameState): { day: Weekday; shift: ShiftId } | null {
   const date = new Date(clockToDate(state.clock.hours));
   const hour = date.getUTCHours();
   let day = date.getUTCDay() as Weekday;
   if (hour < 3) day = ((day + 6) % 7) as Weekday;
   const shifted = hour < 3 ? hour + 24 : hour;
   const shift = SHIFTS.find((item) => shifted >= item.from && shifted < item.to);
-  return shift ? slotKey(day, shift.id) : null;
+  return shift ? { day, shift: shift.id } : null;
 }
 
 /** Tarefas de oficina: só elas dependem da escala (§5.5). */
@@ -145,7 +145,8 @@ function isWorkshopAction(actionId: string): boolean {
 
 export function workshopNow(state: GameState): WorkshopNowView {
   const workshop = readWorkshop(state);
-  const slot = currentShift(state);
+  const current = currentShift(state);
+  const slot = current ? slotKey(current.day, current.shift) : null;
   const present = slot ? workshop.schedule[slot] ?? [] : [];
   const open = present.some((id) => workshop.keyHolders.includes(id));
   const workshopTasks = state.tasks.filter((task) => task.status === "active" && isWorkshopAction(task.actionId));

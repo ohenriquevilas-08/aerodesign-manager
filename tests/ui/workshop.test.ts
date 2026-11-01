@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canWork, createGame, dateToHours, type GameState, type Task } from "../../src/sim";
-import { currentShift, slotKey, suggestSchedule } from "../../src/ui/team/workshop";
+import { currentShift, suggestSchedule } from "../../src/ui/team/workshop";
 
 // Stub local da escala (design §5.5); estes testes caem junto quando a sim assumir o contrato.
 
@@ -14,14 +14,14 @@ function at(state: GameState, iso: string): GameState {
 describe("turno atual", () => {
   it("mapeia os horários dos turnos", () => {
     const state = game();
-    expect(currentShift(at(state, "2026-03-03T09:00:00Z"))).toBe(slotKey(2, "morning"));
-    expect(currentShift(at(state, "2026-03-03T15:00:00Z"))).toBe(slotKey(2, "afternoon"));
-    expect(currentShift(at(state, "2026-03-03T20:00:00Z"))).toBe(slotKey(2, "evening"));
+    expect(currentShift(at(state, "2026-03-03T09:00:00Z"))).toEqual({ day: 2, shift: "morning" });
+    expect(currentShift(at(state, "2026-03-03T15:00:00Z"))).toEqual({ day: 2, shift: "afternoon" });
+    expect(currentShift(at(state, "2026-03-03T20:00:00Z"))).toEqual({ day: 2, shift: "evening" });
     expect(currentShift(at(state, "2026-03-03T12:30:00Z"))).toBeNull();
   });
 
   it("madrugada depois da meia-noite é do dia anterior", () => {
-    expect(currentShift(at(game(), "2026-03-04T01:00:00Z"))).toBe(slotKey(2, "overnight"));
+    expect(currentShift(at(game(), "2026-03-04T01:00:00Z"))).toEqual({ day: 2, shift: "overnight" });
   });
 });
 
