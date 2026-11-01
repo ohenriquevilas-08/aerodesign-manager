@@ -64,7 +64,7 @@ describe("catálogo de ações", () => {
   it("classifica custos em só horas, só créditos ou os dois", () => {
     const byId = Object.fromEntries(ACTIONS.map((action) => [action.id, action.category]));
     expect(byId["raffle"]).toBe("hours");
-    expect(byId["buy-motor"]).toBe("credits");
+    expect(byId["buy-motor"]).toBeUndefined(); // compras saíram do catálogo: navegador (shop.ts)
     expect(byId["build-wing"]).toBe("both");
   });
 });

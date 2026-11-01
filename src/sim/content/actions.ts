@@ -92,7 +92,6 @@ export function categoryOf(value: Cost): ActionCategory {
 }
 
 const crew = (min: number, ideal: number, max: number): Crew => ({ min, ideal, max });
-const NO_CREW = crew(0, 0, 0);
 
 const defs: Omit<ActionDef, "category">[] = [
   // Só horas
@@ -123,28 +122,6 @@ const defs: Omit<ActionDef, "category">[] = [
   { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), crew: crew(1, 3, 4), skill: "communication", effect: { kind: "credits", amount: 500 } },
   { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), crew: crew(1, 1, 2), skill: "communication", effect: { kind: "sponsor" } },
   { id: "unload-drill", label: "Treino de retirada de carga", cost: cost(4, 0), crew: crew(1, 2, 2), skill: "agility", effect: { kind: "agility" } },
-  // Só créditos (quase sempre com prazo)
-  {
-    id: "buy-motor",
-    label: "Comprar motor 600 W",
-    cost: cost(0, 420, 10), crew: NO_CREW,
-    effect: { kind: "purchase-part", part: "powertrain", label: "Motor 600 W" }
-  },
-  {
-    id: "buy-servos",
-    label: "Comprar servos comerciais",
-    cost: cost(0, 260, 7), crew: NO_CREW,
-    effect: { kind: "purchase-part", part: "electronics", label: "Servos comerciais" }
-  },
-  { id: "buy-scale", label: "Comprar balança de precisão", cost: cost(0, 180, 5), crew: NO_CREW, effect: { kind: "equipment", item: "scale" } },
-  { id: "buy-balsa", label: "Comprar balsa", cost: cost(0, 150, 6), crew: NO_CREW, effect: { kind: "stock", item: "balsa", amount: 1 } },
-  {
-    id: "express-shipping",
-    label: "Frete expresso",
-    cost: cost(0, 90), crew: NO_CREW,
-    effect: { kind: "expedite", remainingFactor: 0.3 },
-    target: "waiting-task"
-  },
   // Horas + créditos
   {
     id: "build-wing",

@@ -181,6 +181,25 @@ export const BALANCE = {
     oralSpread: 0.1
   },
 
+  /** Lojas do navegador (design §8.4). */
+  shop: {
+    /** Atraso extra máximo sobre o prazo sorteado na faixa da vitrine, por origem da loja. */
+    lateness: { national: 0.15, import: 0.4, used: 0.1 } as Record<string, number>,
+    /** Dias até o pedido sair da loja (no máximo esta fração do prazo). */
+    processingDays: 1,
+    processingShare: 0.2,
+    /** Fração do trajeto em que o importado passa pela fiscalização. */
+    customsPoint: 0.6,
+    /** Dias para liberar depois de pagar o imposto. */
+    customsReleaseDays: [2, 5] as const,
+    /** Peça fora da especificação sai com a qualidade multiplicada por isto. */
+    counterfeitQuality: 0.7,
+    /** Promoção relâmpago: chance por dia, por loja que faz promoção; desconto; duração. */
+    sale: { shops: ["hobbykong"] as readonly string[], chancePerDay: 0.12, discount: [0.2, 0.35] as const, days: 2 },
+    /** Chance por dia de um anúncio com estoque limitado repor uma unidade. */
+    restockChancePerDay: 0.15
+  },
+
   calendar: {
     /** Aviso de prazo próximo, em dias (design §4.1). */
     warnDays: 7

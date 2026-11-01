@@ -7,6 +7,7 @@ import { OFFICIAL_CALENDAR } from "./content/calendar2026";
 import { findAction } from "./content/actions";
 import { crewRates } from "./crew";
 import { reportEvents } from "./report";
+import { advanceShops } from "./shop";
 import { addMessage, completeTask } from "./tasks";
 import { canWork, clamp, isOverloaded } from "./team";
 import { clockToDate, dateToHours, gameHoursForRealSeconds } from "./time";
@@ -104,6 +105,11 @@ export function step(state: GameState, dt: number): GameState {
     next = done.state;
     pauses.push({ reason: "task-done", messageId: done.messageId });
   }
+
+  // 4b. Pedidos das lojas: fiscalização e entregas pausam; promoções e reposição uma vez por dia.
+  const shops = advanceShops(next, t0, t1);
+  next = shops.state;
+  pauses.push(...shops.pauses);
 
   // 5. Calendário oficial: aviso a BALANCE.calendar.warnDays e no dia do marco.
   for (const deadline of OFFICIAL_CALENDAR) {

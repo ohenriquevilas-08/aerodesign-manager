@@ -311,6 +311,8 @@ export interface Order {
   status: OrderStatus;
   /** Imposto cobrado na fiscalização; enquanto não pago, o pedido fica parado. */
   customsDue: number | null;
+  /** Imposto já pago (◆); ausente = o pedido ainda não passou pela fiscalização com imposto. */
+  customsPaid?: number;
   deliveredAt: number | null;
 }
 
