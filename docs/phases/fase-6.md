@@ -13,6 +13,27 @@ Escopo: o jogador vira **professor orientador**, a temporada começa em **novemb
 - **Abertura:** um grupo pequeno de alunos propõe criar a equipe e convida o jogador para orientar. O primeiro presidente sai desse grupo.
 - **A temporada real** começa quando a competição anterior acaba, na 2ª semana de novembro: processo seletivo, etapa trainee, eleições e leitura do novo regulamento.
 
+## Status
+
+- **Simulação S1 a S4: feita** (branch `claude/sim-phase6-f4681d`, sem merge). Cenas C1 e UI U1 a U4: pendentes.
+
+### Como ficou a Simulação (contrato e desvios)
+
+Tudo exportado por `src/sim/index.ts`. `GameState.version` = 7.
+
+- **S1.** `SEASON_START` = 10/nov/2025; `content/calendar2026.ts` virou `content/season2026.ts` (também `REGULATION_DATE`, `SELECTION_END`, `TRAINEE_START`, `TRAINEE_END`). `OFFICIAL_CALENDAR` ganhou os marcos da pré-temporada; os de pré-temporada têm `quiet: true` (avisam na caixa de entrada, não pausam o relógio). Prancheta: `set-design` recusa antes de 9/fev com "Aguardando regulamento" (`regulationPublished`, `daysToRegulation`). `read-regulation` (12 h, conhecimento conceitual) só depois de 9/fev e uma vez (`GameState.regulationRead`). Sem ela, a penalidade por alteração tardia de projeto na inspeção é multiplicada (leitura **minha** do "risco maior": `BALANCE.season.unreadPenaltyFactor` = 2, aplicado em `lateChangePenalty`). `recruitment` só até 30/nov.
+- **S2.** `Role` ganhou `"trainee"`. `Member.agenda?`, `Member.flair?` (a "cara") e `Member.trainingHours?`. `GameState.advisor`, `GameState.founding`, `GameState.agendaLog`. 4 fundadores fixos (`content/founders.ts`: Marina, Caio, Bia, Rafa), sem cargo. `found-team { presidentId, captains, teamName? }`: **desvio:** `captains` é `Partial<Record<Discipline, string>>` (4 alunos não cobrem as 6 áreas); exige Aerodinâmica e Estruturas, só áreas da formação, um cargo por fundador. A agenda mora no fundador (perfil que ele traz se for eleito); `presidentView`/`advisorView` leem. `canWork` agora é sempre `true` e `rosterMembers` inclui o presidente e os trainees; `formationView` ganhou `trainees` e o presidente pode ocupar área (não a vaga de capitão). Enquanto `founding`, `set-speed` > 0 é recusado. Seletiva: `hire-candidate` cria `trainee` antes de 1/fev; ação nova `trainee-training` (8 h, mín. 2 pessoas). Em 1/fev cada trainee vira `member` ou desiste.
+- **S3.** `schedule-action`, `reschedule-action`, `unschedule-action`; `startAt` é em **horas de jogo** (`dateToHours`). Falha na hora (sem gente livre, caixa, material ou pré-condição): a ação sai da lista, avisa na caixa e pausa com `PauseReason` `"scheduled"` (novo; `ui/format.ts` ganhou o rótulo). `Task.startedAt` é campo novo. `calendarMonth(state, ano, mês 1–12)` e `seasonOverview(state)` (13 meses). Tarefa sem previsão de fim aparece do início até hoje.
+- **S4.** `dev-start-competition` funciona na abertura (faz a `found-team` padrão, `defaultFounding()`, e põe o relógio em 9/fev para abrir a Prancheta). Save v6 descartado.
+
+### Valores **[PROPOSTA]** em `BALANCE`
+
+`season.summerFactor` 0,5 · `season.unreadPenaltyFactor` 2 · `trainee.hoursRequired` 24, `knowledgePerHour` 0,6, `withoutCaptainShare` 0,5, `stayChanceAtZero` 0,4, `stayChanceAtFull` 0,95 · `agenda.alignedBoost` 1, `idleDays` 3, `idlePenalty` 3, `logDays` 30 · `advisor.startReputation` 10, `reportSubmitted` 3, `competitionBase` 2, `competitionPerPlaceFromLast` 0,25.
+
+### Provisório na UI
+
+`app/store.ts` e `app/session.ts` despacham `found-team` com `defaultFounding()` (Bia preside; Marina, Caio e Rafa capitaneiam) para o jogo abrir sem a tela de fundação (U2). A Prancheta ainda não mostra o aviso "Aguardando regulamento" (U4): ela só devolve o aviso ao confirmar. Os testes das fases antigas usam `tests/sim/helpers.ts` (`startedGame`: fundada em 19/fev/2026; `foundedGame`: fundada em 10/nov/2025).
+
 ## Frentes
 
 | Frente | Itens | Depende de |

@@ -15,7 +15,9 @@ src/
     commands.ts    Command + applyCommand: a única forma de mudar o estado
     time.ts        relógio contínuo, calendário, contagem regressiva
     scoring.ts     fórmulas da Classe Regular 2026
-    state.ts       estado inicial do Ano 1
+    state.ts       estado inicial do Ano 1 (abertura com 4 fundadores, Fase 6)
+    season.ts      regulamento, fundação, agenda do presidente, trainees (Fase 6)
+    calendar.ts    ações agendadas e leituras calendarMonth/seasonOverview (Fase 6)
     rng.ts         aleatoriedade com estado serializável
     content/       dados: regulamento, calendário, equipes, catálogo de ações
     index.ts       API pública; o resto do app importa só daqui
