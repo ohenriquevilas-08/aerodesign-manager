@@ -201,7 +201,7 @@ function Sheet({ member, tab, ctx }: { member: Member; tab: RosterTab; ctx: Rost
           <h2 class="sheet-name">{member.name}</h2>
           <div class="sheet-sub">
             <span class={`role-tag role-${member.role}`}>{ROLE_LABEL[member.role]}</span>
-            {member.role === "president" ? <span class="chip">Agenda: {findAgenda(member.agenda ?? "balanced").label}</span> : null}
+            {member.role === "president" ? <span class="chip" title={findAgenda(member.agenda ?? "balanced").text}>{findAgenda(member.agenda ?? "balanced").priority}</span> : null}
             <span class="muted">{member.area ? DISCIPLINE_LABEL[member.area] : "Sem área"}</span>
           </div>
         </div>

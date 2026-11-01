@@ -14,7 +14,7 @@ import { Rules } from "./screens/Rules";
 import { Team } from "./screens/Team";
 import { Tests } from "./screens/Tests";
 import { onNavigate } from "./nav";
-import { ProvisionalEvent } from "./ProvisionalEvent";
+import { EventMode } from "./EventMode";
 import { TopBar } from "./TopBar";
 import { WarningToast } from "./WarningToast";
 
@@ -102,7 +102,7 @@ export function App({ onNewGame }: { onNewGame: (seed: number) => void }) {
           </div>
         )}
       </main>
-      <ProvisionalEvent />
+      <EventMode />
       <WarningToast />
     </div>
   );

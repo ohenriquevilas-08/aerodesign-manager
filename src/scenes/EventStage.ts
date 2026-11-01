@@ -173,9 +173,9 @@ export class EventStage extends Phaser.Scene {
     const { width, height } = this.scale;
     this.cameras.main.setSize(width, height);
     this.hudCam.setSize(width, height);
-    this.clockText.setPosition(16, 14);
-    this.blockText.setPosition(16, 30);
-    this.tallyText.setPosition(16, 62);
+    this.clockText.setPosition(16, 96);
+    this.blockText.setPosition(16, 112);
+    this.tallyText.setPosition(16, 144);
     this.idleText.setPosition(width / 2, height / 2);
     this.snap = true;
   }

@@ -259,7 +259,7 @@ function PlayerCard({
       class={`fm-card tier-${tier(rating)}${captain ? " is-captain" : ""}${agenda ? " is-president" : ""}${dragging ? " is-dragging" : ""}`}
       draggable
       data-member={member.id}
-      title={`${member.name}${agenda ? ` · Presidente (agenda ${agenda.toLowerCase()})` : ""} · ${motivationLabel(member.motivation)} · ${task ? `em tarefa: ${task}` : "livre"}`}
+      title={`${member.name}${agenda ? ` · Presidente (prioridade: ${agenda.toLowerCase()})` : ""} · ${motivationLabel(member.motivation)} · ${task ? `em tarefa: ${task}` : "livre"}`}
       onDragStart={(event) => {
         event.dataTransfer?.setData("text/plain", member.id);
         onDragStart();
@@ -275,7 +275,7 @@ function PlayerCard({
       </span>
       {captain ? <span class="fm-captain">C</span> : null}
       {agenda ? (
-        <span class="fm-president" title={`Agenda: ${agenda}`}>
+        <span class="fm-president" title={`Prioridade: ${agenda.toLowerCase()}`}>
           Presidente · {agenda}
         </span>
       ) : null}

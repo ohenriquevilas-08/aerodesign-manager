@@ -6,12 +6,14 @@ import {
   ACTIONS,
   canWork,
   clockToDate,
+  formatDate,
+  type TaskEta,
   DEDICATIONS,
   DISCIPLINES,
   effectiveKnowledge,
   estimateOutcome,
-  estimateRemainingDays,
   estimateTaskDays,
+  taskEta,
   findAction,
   formatCountdown,
   leadDaysRange,
@@ -403,17 +405,25 @@ function arrivalText(hour: number, task: Task): string {
   return promised > hour ? `previsto em ${formatCountdown(hour, clockToDate(promised))}` : "atrasado, aguardando";
 }
 
+/** Prazo da tarefa em dias de calendário: "hoje", "amanhã" ou "em N dias (data)". */
+function etaText(eta: TaskEta | null): string {
+  if (!eta || eta.finishesAt === null || eta.daysLeft === null) return "parada";
+  if (eta.daysLeft === 0) return "termina hoje";
+  const when = formatDate(clockToDate(eta.finishesAt));
+  return eta.daysLeft === 1 ? `termina amanhã (${when})` : `termina em ${eta.daysLeft} dias (${when})`;
+}
+
 function TaskRow({ task }: { task: Task }) {
   const members = useGame((state) => state.members);
   const hour = useGame((state) => Math.floor(state.clock.hours));
   const [confirming, setConfirming] = useState(false);
   const action = findAction(task.actionId);
   const crew = action?.crew ?? { min: 0, ideal: 0, max: 0 };
-  const remaining = estimateRemainingDays(store.getState(), task.id);
+  const eta = taskEta(store.getState(), task.id);
   const waiting = task.status === "waiting";
   const stalled = !waiting && task.hoursTotal > 0 && task.assignees.length < Math.max(1, crew.min);
   const candidates = members.filter((member) => canWork(member) && !task.assignees.includes(member.id));
-  const progress = task.hoursTotal > 0 ? (task.hoursDone / task.hoursTotal) * 100 : 0;
+  const progress = eta?.percent ?? 0;
 
   return (
     <article class={`task${stalled ? " is-stalled" : ""}`}>
@@ -424,16 +434,19 @@ function TaskRow({ task }: { task: Task }) {
             ? `⌛ ${arrivalText(hour, task)}`
             : stalled
               ? "parada"
-              : formatDays(remaining)}
+              : etaText(eta)}
         </span>
       </div>
       {task.hoursTotal > 0 ? (
         <div class="task-progress">
           <Meter value={progress} label={`Progresso de ${task.label}`} />
           <span class="knowledge-value">
-            {formatNumber(task.hoursDone)}/{formatNumber(task.hoursTotal)} h
+            {formatNumber(progress)}%
           </span>
         </div>
+      ) : null}
+      {eta && task.hoursTotal > 0 && eta.workHoursLeft > 0 ? (
+        <span class="task-eta-detail">Faltam {formatNumber(eta.workHoursLeft)} h de trabalho (horas-pessoa, somadas entre a equipe).</span>
       ) : null}
       {crew.max > 0 ? (
         <div class="task-crew">

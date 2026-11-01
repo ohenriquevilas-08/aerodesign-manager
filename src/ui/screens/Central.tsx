@@ -32,8 +32,11 @@ function PresidentCard() {
       <h2 class="panel-title">Presidente · {view.name}</h2>
       <div class="panel-body stack-tight">
         <div>
-          <span class="chip">Agenda: {view.agendaLabel}</span>
+          <span class="chip">{view.agendaLabel}</span>
         </div>
+        <p class="small priority-label">
+          <strong>{view.priority}</strong> · {view.effect}
+        </p>
         <p class="small muted">{view.description}</p>
         <p class="small">
           <strong class={`agenda-${view.status}`}>{AGENDA_STATUS[view.status]}</strong>
