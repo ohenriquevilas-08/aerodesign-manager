@@ -1,3 +1,5 @@
+import { useState } from "preact/hooks";
+import { newGame } from "../app/session";
 import { store } from "../app/store";
 import { useGame } from "../app/useGame";
 import { academicFactor, clockToDate, formatDate, formatTime, SPEEDS, type ClockSpeed } from "../sim";
@@ -43,6 +45,52 @@ export function TopBar() {
         ))}
       </div>
       <div class="credits" title="Créditos em caixa">◆ {credits.toLocaleString("pt-BR")}</div>
+      <GameMenu />
     </header>
+  );
+}
+
+/** Menu do jogo (U7): Novo jogo, com confirmação, porque apaga o save. */
+function GameMenu() {
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const close = () => {
+    setOpen(false);
+    setConfirming(false);
+  };
+  return (
+    <div class="game-menu">
+      <button type="button" class="btn-ghost game-menu-btn" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+        Menu
+      </button>
+      {open ? (
+        <div class="game-menu-pop panel" role="menu">
+          {confirming ? (
+            <>
+              <p class="small">Começar de novo apaga o jogo salvo. Tem certeza?</p>
+              <div class="confirm-row">
+                <button type="button" class="btn-ghost" onClick={() => setConfirming(false)}>
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  class="btn-primary"
+                  onClick={() => {
+                    newGame();
+                    close();
+                  }}
+                >
+                  Apagar e começar
+                </button>
+              </div>
+            </>
+          ) : (
+            <button type="button" class="btn-ghost" role="menuitem" onClick={() => setConfirming(true)}>
+              Novo jogo
+            </button>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }

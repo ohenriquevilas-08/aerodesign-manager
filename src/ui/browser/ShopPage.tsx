@@ -2,8 +2,9 @@ import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import {
   clockToDate,
-  formatDate,
+  formatCountdown,
   findProduct,
+  sellerReview,
   LISTINGS,
   listingId,
   listingPrice,
@@ -75,6 +76,7 @@ export function ShopPage({
         </div>
         <span class="shop-origin">{ORIGIN_LABEL[shop.origin]}</span>
       </header>
+      <SellerReviews shopId={shop.id} />
       <div class="shop-banner">
         <strong>{voice.banner}</strong>
         <span>{shop.tagline}</span>
@@ -122,6 +124,7 @@ function ProductCard({
 }) {
   const product = findProduct(listing.productId)!;
   const voice = voiceOf(shop.id);
+  const now = useGame((state) => Math.floor(state.clock.hours));
   const soldOut = shelf.stock === 0;
   const risk = listingRisk(listing);
   const standard = shippedLead(listing.leadDays, shop.shipping.standard?.leadFactor ?? 1);
@@ -143,7 +146,7 @@ function ProductCard({
           <strong>◆ {shelf.price === null ? "—" : formatNumber(shelf.price)}</strong>
         </div>
         {shelf.saleUntil !== null ? (
-          <p class="product-sale">Até {formatDate(clockToDate(shelf.saleUntil))}</p>
+          <p class="product-sale">Termina em {formatCountdown(now, clockToDate(shelf.saleUntil))}</p>
         ) : null}
         <p class="product-stock">
           {soldOut ? voice.soldOut : shelf.stock === null ? voice.inStock : voice.stockLow(shelf.stock)}
@@ -387,5 +390,25 @@ function ProductIcon({ productId }: { productId: string }) {
     <svg viewBox="0 0 64 52" class="product-icon">
       {shapes[kind] ?? <circle cx="32" cy="26" r="16" class="pi-body" />}
     </svg>
+  );
+}
+
+/** Avaliação do vendedor (S5): nota e comentários; o risco real da loja nunca aparece como número. */
+function SellerReviews({ shopId }: { shopId: string }) {
+  const review = sellerReview(shopId);
+  if (!review) return null;
+  return (
+    <details class="seller-reviews">
+      <summary>
+        <Stars rating={review.rating} count={review.count} /> · avaliações do vendedor
+      </summary>
+      {review.comments.map((comment) => (
+        <blockquote key={comment.author + comment.text}>
+          <Stars rating={comment.stars} />
+          <p>“{comment.text}”</p>
+          <cite>{comment.author}</cite>
+        </blockquote>
+      ))}
+    </details>
   );
 }

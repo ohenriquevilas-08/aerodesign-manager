@@ -2,8 +2,7 @@
 // a cena só anima, o resultado chega pronto. Ensaio de voo reaproveita a FlightScene com o
 // FlightPlayback; os de bancada (estrutural, tração, balança) rodam numa bancada do hangar.
 //
-// TROCAR quando a frente de Simulação entregar `testHistory(state)` (S6): a UI passa a derivar
-// estas entradas de lá (data, Hρ, resultado, peças afetadas) e esta tipagem local some.
+// A UI deriva estas entradas de `testHistory(state)` em fromHistory.ts.
 
 import type { FlightPlayback } from "../../sim";
 import { flightReplay } from "../flight/replayChannel";

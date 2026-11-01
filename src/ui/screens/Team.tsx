@@ -11,6 +11,7 @@ import {
   type Member
 } from "../../sim";
 import { Meter } from "../components/Controls";
+import { Formation } from "../team/Formation";
 import { WorkshopSchedule } from "../team/WorkshopSchedule";
 import { DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
 
@@ -26,9 +27,9 @@ function focusOf(member: Member): Discipline | null {
   return best;
 }
 
-type TeamTab = "roster" | "schedule";
+type TeamTab = "formation" | "roster" | "schedule";
 // Sobrevive à troca de tela; não é estado do jogo.
-let savedTab: TeamTab = "roster";
+let savedTab: TeamTab = "formation";
 
 function motivationTone(value: number) {
   if (value >= 75) return "ok" as const;
@@ -54,6 +55,9 @@ export function Team() {
       <header class="screen-head">
         <h1 class="screen-title">Equipe</h1>
         <div class="tabs team-tabs" role="tablist" aria-label="Visão da equipe">
+          <button type="button" role="tab" aria-selected={tab === "formation"} onClick={() => setTab("formation")}>
+            Escalação
+          </button>
           <button type="button" role="tab" aria-selected={tab === "roster"} onClick={() => setTab("roster")}>
             Elenco
           </button>
@@ -78,6 +82,7 @@ export function Team() {
           </span>
         </div>
       </header>
+      {tab === "formation" ? <Formation /> : null}
       {tab === "schedule" ? <WorkshopSchedule /> : null}
       <div class="team-grid" hidden={tab !== "roster"}>
         <div class="member-list scroll-col">

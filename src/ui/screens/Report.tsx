@@ -10,6 +10,9 @@ import {
   formatDate,
   OFFICIAL_CALENDAR,
   predictedPayload,
+  reportChecklist,
+  type ChapterState,
+  type ReportChecklist,
   REGULAR_2026,
   reportFactor,
   REPORT_CHAPTERS,
@@ -20,6 +23,7 @@ import { Slider } from "../components/Controls";
 import { EstimateRow } from "../components/EstimateRow";
 import { DISCIPLINE_LABEL, formatNumber } from "../format";
 import { useDerived } from "../hooks";
+import { navigate } from "../nav";
 
 // Relatório e Portal da CT (design §6.2, §9.1, §11). Capítulos e plantas vêm do trabalho da equipe;
 // as previsões (peso vazio → FPV, reta de carga → PAC) são rascunho até o envio, depois congelam.
@@ -48,27 +52,18 @@ export function Report() {
   );
   const emptyEstimate = useDerived((state) => estimatePerformance(state, 0)?.emptyWeightKg ?? null, []);
 
+  const checklist = useDerived((state) => reportChecklist(state), []);
   const frozen = report.submittedAt !== null;
   const line = report.payloadLine ?? DEFAULT_LINE;
   const emptyWeight = report.predictedEmptyWeightKg ?? DEFAULT_EMPTY_WEIGHT;
   const setLine = (patch: Partial<PayloadLine>) =>
     store.dispatch({ type: "set-predictions", payloadLine: { ...line, ...patch } });
 
-  const now = clockToDate(hours);
-  const deadlineText =
-    now < REPORT_DEADLINE.date
-      ? `Prazo ${formatDate(REPORT_DEADLINE.date)} · faltam ${formatCountdown(hours, REPORT_DEADLINE.date)}`
-      : now < LATE_DEADLINE.date
-        ? `Prazo vencido: envio com penalidade até ${formatDate(LATE_DEADLINE.date)}`
-        : "Prazo encerrado";
-
   return (
     <div class="screen">
       <header class="screen-head">
         <h1 class="screen-title">Relatório</h1>
-        <span class="muted">
-          {frozen ? `Enviado ao Portal da CT em ${formatDate(clockToDate(report.submittedAt!))}.` : deadlineText}
-        </span>
+        <Countdown checklist={checklist} sentAt={report.submittedAt} />
         <div class="stat-row">
           <div class="stat">
             <span class="stat-label">{report.score === null ? "NR estimada" : "NR da CT"}</span>
@@ -81,51 +76,7 @@ export function Report() {
         </div>
       </header>
       <div class="report-grid">
-        <section class="panel">
-          <h2 class="panel-title">Capítulos</h2>
-          <div class="panel-body stack">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Capítulo</th>
-                  <th class="num">Horas</th>
-                  <th class="num">Ensaios citados</th>
-                  <th class="num">Máximo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {DISCIPLINES.map((discipline) => {
-                  const chapter = report.chapters[discipline];
-                  return (
-                    <tr key={discipline}>
-                      <td>{DISCIPLINE_LABEL[discipline]}</td>
-                      <td class="num">{chapter.hours > 0 ? `${n(chapter.hours)} h` : "—"}</td>
-                      <td class="num">{chapter.testsCited > 0 ? n(chapter.testsCited) : "—"}</td>
-                      <td class="num num-dim">{REPORT_CHAPTERS[discipline]}</td>
-                    </tr>
-                  );
-                })}
-                <tr>
-                  <td>Plantas (Conceitual e Estruturas)</td>
-                  <td class="num">{report.drawingsHours > 0 ? `${n(report.drawingsHours)} h` : "—"}</td>
-                  <td class="num">—</td>
-                  <td class="num num-dim">incl.</td>
-                </tr>
-                <tr class="row-total">
-                  <td>Relatório + plantas (NR)</td>
-                  <td class="num">{n(totalHours(report.chapters) + report.drawingsHours)} h</td>
-                  <td class="num">{n(totalTests(report.chapters))}</td>
-                  <td class="num">{R.reportMax}</td>
-                </tr>
-              </tbody>
-            </table>
-            <p class="muted small">
-              A nota de cada capítulo vem de conhecimento documentado, horas de escrita e ensaios citados. A NR
-              multiplica a nota de voo: FPR = mín(1,00; 0,50 + 0,75 × NR / {R.reportMax}). Apresentação oral vale mais{" "}
-              {R.oralMax} pontos{report.oralScore !== null ? ` (nota: ${n(report.oralScore, 1)})` : ""}.
-            </p>
-          </div>
-        </section>
+        <Checklist checklist={checklist} frozen={frozen} oralScore={report.oralScore} />
 
         <section class="panel">
           <h2 class="panel-title">Previsões do Portal da CT</h2>
@@ -205,7 +156,7 @@ export function Report() {
                   : "Rascunho ainda não gravado: mexa nos controles para gravar peso vazio e reta."}
               </p>
             ) : null}
-            <SubmitBar frozen={frozen} />
+            <SubmitBar frozen={frozen} checklist={checklist} nr={nr} />
           </div>
         </section>
       </div>
@@ -213,35 +164,147 @@ export function Report() {
   );
 }
 
-function SubmitBar({ frozen }: { frozen: boolean }) {
+function SubmitBar({ frozen, checklist, nr }: { frozen: boolean; checklist: ReportChecklist; nr: Estimate | null }) {
   const [confirming, setConfirming] = useState(false);
   if (frozen) {
     return <p class="alert alert-info">Previsões congeladas: são estas que a CT usa no FPV e no PAC.</p>;
   }
+  const notReady = checklist.chapters.filter((chapter) => chapter.state !== "ready").length;
   if (!confirming) {
     return (
-      <button type="button" class="btn-primary" onClick={() => setConfirming(true)}>
-        Enviar ao Portal da CT
-      </button>
+      <div class="stack-tight">
+        {checklist.blocker ? <p class="alert alert-warn">{checklist.blocker}</p> : null}
+        <button type="button" class="btn-primary" disabled={checklist.blocker !== null} onClick={() => setConfirming(true)}>
+          Enviar ao Portal da CT
+        </button>
+      </div>
     );
   }
   return (
-    <div class="confirm-row">
-      <span class="muted">Depois do envio, relatório e previsões não mudam mais.</span>
-      <button type="button" class="btn-ghost" onClick={() => setConfirming(false)}>
-        Voltar
-      </button>
-      <button
-        type="button"
-        class="btn-primary"
-        onClick={() => {
-          setConfirming(false);
-          store.dispatch({ type: "submit-report" });
-        }}
-      >
-        Confirmar envio
-      </button>
+    <div class="stack-tight submit-confirm">
+      <p class="alert alert-warn">
+        Nota esperada do relatório: <strong>{estimateText(nr, 0)}</strong> de {R.reportMax}.
+        {notReady > 0 ? ` ${notReady} de ${checklist.chapters.length} capítulos ainda não estão prontos.` : ""} Depois do
+        envio, relatório e previsões não mudam mais.
+      </p>
+      <div class="confirm-row">
+        <button type="button" class="btn-ghost" onClick={() => setConfirming(false)}>
+          Voltar
+        </button>
+        <button
+          type="button"
+          class="btn-primary"
+          onClick={() => {
+            setConfirming(false);
+            store.dispatch({ type: "submit-report" });
+          }}
+        >
+          Confirmar envio
+        </button>
+      </div>
     </div>
+  );
+}
+
+const STATE_LABEL: Record<ChapterState, string> = { "not-started": "Não começou", writing: "Escrevendo", ready: "Pronto" };
+const PREDICTION_LABEL = { missing: "Falta gravar", ready: "Gravada", sent: "Enviada" } as const;
+
+function Countdown({ checklist, sentAt }: { checklist: ReportChecklist; sentAt: number | null }) {
+  if (sentAt !== null) {
+    return <span class="deadline-chip is-done">Enviado ao Portal da CT em {formatDate(clockToDate(sentAt))}</span>;
+  }
+  const { deadline } = checklist;
+  return (
+    <span class={`deadline-chip${deadline.passed ? " is-late" : ""}`}>
+      {deadline.passed
+        ? `Prazo vencido: envio com penalidade até ${formatDate(LATE_DEADLINE.date)}`
+        : `Entrega em ${formatDate(REPORT_DEADLINE.date)} · faltam ${deadline.countdown}`}
+    </span>
+  );
+}
+
+function Checklist({ checklist, frozen, oralScore }: { checklist: ReportChecklist; frozen: boolean; oralScore: number | null }) {
+  const write = (actionId: string, targetId?: string) => navigate("actions", { actionId, targetId });
+  const ready = checklist.chapters.filter((chapter) => chapter.state === "ready").length;
+  return (
+    <section class="panel">
+      <h2 class="panel-title">
+        Checklist de entrega{" "}
+        <span class="panel-count">
+          {ready}/{checklist.chapters.length} capítulos
+        </span>
+      </h2>
+      <div class="panel-body stack-tight scroll-col">
+        {checklist.chapters.map((chapter) => (
+          <article key={chapter.discipline} class={`check-card is-${chapter.state}`}>
+            <header class="check-head">
+              <span class="check-title">{DISCIPLINE_LABEL[chapter.discipline]}</span>
+              <span class={`check-state state-${chapter.state}`}>{STATE_LABEL[chapter.state]}</span>
+            </header>
+            <div class="check-meta">
+              <span>
+                {n(chapter.hours)} / {n(chapter.readyHours)} h
+              </span>
+              <span>{chapter.testsCited > 0 ? `${n(chapter.testsCited)} ensaio(s) citado(s)` : "sem ensaios citados"}</span>
+              <span>
+                nota esperada {n(chapter.expectedScore, 1)} / {n(chapter.maxScore)}
+              </span>
+            </div>
+            {chapter.missing.length > 0 ? (
+              <ul class="check-missing">
+                {chapter.missing.map((text) => (
+                  <li key={text}>{text}</li>
+                ))}
+              </ul>
+            ) : null}
+            {!frozen ? (
+              <button type="button" class="btn-ghost check-write" onClick={() => write("report-chapter", chapter.discipline)}>
+                Escrever
+              </button>
+            ) : null}
+          </article>
+        ))}
+        <article class={`check-card is-${checklist.drawings.state}`}>
+          <header class="check-head">
+            <span class="check-title">Plantas (Conceitual e Estruturas)</span>
+            <span class={`check-state state-${checklist.drawings.state}`}>{STATE_LABEL[checklist.drawings.state]}</span>
+          </header>
+          <div class="check-meta">
+            <span>
+              {n(checklist.drawings.hours)} / {n(checklist.drawings.readyHours)} h
+            </span>
+          </div>
+          {!frozen ? (
+            <button type="button" class="btn-ghost check-write" onClick={() => write("drawings")}>
+              Desenhar
+            </button>
+          ) : null}
+        </article>
+        {(
+          [
+            ["Peso vazio previsto", checklist.predictions.emptyWeight],
+            ["Reta de carga prevista", checklist.predictions.payloadLine]
+          ] as const
+        ).map(([label, state]) => (
+          <article key={label} class={`check-card is-${state === "missing" ? "not-started" : "ready"}`}>
+            <header class="check-head">
+              <span class="check-title">{label}</span>
+              <span class={`check-state state-${state === "missing" ? "not-started" : "ready"}`}>{PREDICTION_LABEL[state]}</span>
+            </header>
+            {state === "missing" ? <p class="check-meta">Ajuste os controles do painel ao lado para gravar.</p> : null}
+          </article>
+        ))}
+        <details class="how-it-works">
+          <summary>Como funciona</summary>
+          <p class="muted small">
+            A nota de cada capítulo vem de conhecimento documentado, horas de escrita e ensaios citados. A NR multiplica a
+            nota de voo: FPR = mín(1,00; 0,50 + 0,75 × NR / {R.reportMax}). Peso vazio previsto vira o FPV; a reta de carga
+            vira o PAC. Apresentação oral vale mais {R.oralMax} pontos
+            {oralScore !== null ? ` (nota: ${n(oralScore, 1)})` : ""}.
+          </p>
+        </details>
+      </div>
+    </section>
   );
 }
 
@@ -255,14 +318,6 @@ function fprText(score: number | null, estimate: Estimate | null): string {
   const low = reportFactor(Math.max(0, estimate.value - estimate.margin));
   const high = reportFactor(Math.min(R.reportMax, estimate.value + estimate.margin));
   return low === high ? `× ${n(low, 2)}` : `× ${n(low, 2)}–${n(high, 2)}`;
-}
-
-function totalHours(chapters: Record<string, { hours: number }>): number {
-  return Object.values(chapters).reduce((sum, chapter) => sum + chapter.hours, 0);
-}
-
-function totalTests(chapters: Record<string, { testsCited: number }>): number {
-  return Object.values(chapters).reduce((sum, chapter) => sum + chapter.testsCited, 0);
 }
 
 // Reta de previsão sobre a faixa de carga máxima estimada (skill dataviz: linha 2 px,

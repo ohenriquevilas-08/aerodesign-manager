@@ -28,6 +28,7 @@ import {
 } from "../../sim";
 import { ActionCard, CostLegend, CostTag } from "../components/CostTag";
 import { Meter } from "../components/Controls";
+import { takeIntent } from "../nav";
 import { crewText, isCounterfeit, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatDays, formatNumber, SKILL_LABEL } from "../format";
 
 // Tela Ações (design §4.2 e §8): iniciar uma ação cria uma tarefa. O tempo não pula: a tarefa
@@ -40,7 +41,9 @@ const GROUPS: { category: ActionCategory; title: string }[] = [
 ];
 
 export function Actions() {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Vindo do Relatório ("Escrever"): abre a ação já com o alvo escolhido.
+  const [intent] = useState(takeIntent);
+  const [selectedId, setSelectedId] = useState<string | null>(intent?.actionId ?? null);
   const selected = selectedId ? findAction(selectedId) : undefined;
 
   return (
@@ -75,7 +78,7 @@ export function Actions() {
         </div>
         <div class="stack scroll-col">
           {selected ? (
-            <Composer key={selected.id} action={selected} onClose={() => setSelectedId(null)} />
+            <Composer key={selected.id} action={selected} initialTarget={intent?.actionId === selected.id ? intent.targetId : undefined} onClose={() => setSelectedId(null)} />
           ) : (
             <p class="panel hint-panel muted">Escolha uma ação para ver quem pode fazer e quanto tempo leva.</p>
           )}
@@ -100,7 +103,7 @@ function Reach() {
 // ---------------------------------------------------------------------------------------------
 // Nova tarefa
 
-function Composer({ action, onClose }: { action: ActionDef; onClose: () => void }) {
+function Composer({ action, initialTarget, onClose }: { action: ActionDef; initialTarget?: string; onClose: () => void }) {
   const hour = useGame((state) => Math.floor(state.clock.hours));
   const members = useGame((state) => state.members).filter(canWork);
   const credits = useGame((state) => state.credits);
@@ -117,7 +120,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
       .slice(0, action.crew.ideal)
       .map((member) => member.id)
   );
-  const [target, setTarget] = useState("");
+  const [target, setTarget] = useState(initialTarget ?? "");
   // Compras não têm dedicação: sempre "normal".
   const [dedication, setDedication] = useState<Dedication>("normal");
 
