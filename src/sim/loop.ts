@@ -1,11 +1,16 @@
 // Loop de preparação: o que acontece enquanto o relógio corre (design §4).
 // O tick é quebrado em passos de até BALANCE.stepHours; um evento que pausa o relógio
 // interrompe o tick no passo em que aconteceu e o resto do tempo real é descartado.
+// Nas janelas de voo da competição o relógio anda mais devagar (competition.ts, clockPace).
 
+import { advanceCompetition, clockPace } from "./competition";
 import { BALANCE } from "./content/balance";
 import { OFFICIAL_CALENDAR } from "./content/calendar2026";
 import { findAction } from "./content/actions";
 import { crewRates } from "./crew";
+import { overnightWeight, shiftEffects, workshopTaskRates } from "./workshop";
+import { reportEvents } from "./report";
+import { advanceShops } from "./shop";
 import { addMessage, completeTask } from "./tasks";
 import { canWork, clamp, isOverloaded } from "./team";
 import { clockToDate, dateToHours, gameHoursForRealSeconds } from "./time";
@@ -15,12 +20,19 @@ const EPSILON = 1e-9;
 
 export function tick(state: GameState, realSeconds: number): GameState {
   if (state.clock.speed === 0 || realSeconds <= 0) return state;
-  let remaining = gameHoursForRealSeconds(realSeconds, state.clock.speed);
   let next = state;
-  while (remaining > EPSILON && next.clock.speed !== 0) {
-    const dt = Math.min(remaining, BALANCE.stepHours);
+  let realLeft = realSeconds;
+  while (realLeft > EPSILON && next.clock.speed !== 0) {
+    const pace = clockPace(next);
+    const hoursPerSecond = gameHoursForRealSeconds(1, next.clock.speed) * pace.factor;
+    let dt = Math.min(realLeft * hoursPerSecond, BALANCE.stepHours);
+    // O ritmo pode mudar na virada da hora (início e fim das janelas de voo).
+    if (pace.nextChange - next.clock.hours > EPSILON) dt = Math.min(dt, pace.nextChange - next.clock.hours);
+    // Os turnos da oficina começam e acabam em horas cheias: o passo não atravessa a virada.
+    const toHour = Math.floor(next.clock.hours + EPSILON) + 1 - next.clock.hours;
+    if (toHour > EPSILON) dt = Math.min(dt, toHour);
     next = step(next, dt);
-    remaining -= dt;
+    realLeft -= dt / hoursPerSecond;
   }
   return next;
 }
@@ -55,20 +67,27 @@ export function step(state: GameState, dt: number): GameState {
     ...next,
     tasks: next.tasks.map((task) => {
       if (task.status !== "active" || task.assignees.length === 0) return task;
-      const crew = findAction(task.actionId)!.crew;
+      const action = findAction(task.actionId)!;
       const team = task.assignees.map((id) => membersById.get(id)).filter((member): member is Member => !!member);
-      const rates = crewRates(team, crew, date);
+      // Tarefa de oficina rende por hora de turno; as demais, por horas livres do dia.
+      const rates = action.workshop ? workshopTaskRates(state, task, t0) : crewRates(team, action.crew, date);
       if (rates.size === 0) return task;
+      const perStep = action.workshop ? dt : dt / 24;
       const contributions = { ...task.contributions };
       let hoursDone = task.hoursDone;
       rates.forEach((rate, memberId) => {
-        const hours = (rate * dt) / 24;
+        const hours = rate * perStep;
         contributions[memberId] = (contributions[memberId] ?? 0) + hours;
         hoursDone += hours;
       });
-      return { ...task, hoursDone, contributions };
+      const weight = action.workshop ? overnightWeight(t0) : 0;
+      if (weight === 0) return { ...task, hoursDone, contributions };
+      return { ...task, hoursDone, contributions, overnightHours: (task.overnightHours ?? 0) + (hoursDone - task.hoursDone) * weight };
     })
   };
+
+  // 2a. Turno corrente: madrugada mexe na motivação; veterano ensina novato.
+  next = shiftEffects(next, t0, dt);
 
   // 2b. Alcance de divulgação esfria com o tempo.
   if (next.outreach > 0) next = { ...next, outreach: next.outreach * Math.pow(1 - BALANCE.outreach.decayPerDay, dt / 24) };
@@ -104,6 +123,11 @@ export function step(state: GameState, dt: number): GameState {
     pauses.push({ reason: "task-done", messageId: done.messageId });
   }
 
+  // 4b. Pedidos das lojas: fiscalização e entregas pausam; promoções e reposição uma vez por dia.
+  const shops = advanceShops(next, t0, t1);
+  next = shops.state;
+  pauses.push(...shops.pauses);
+
   // 5. Calendário oficial: aviso a BALANCE.calendar.warnDays e no dia do marco.
   for (const deadline of OFFICIAL_CALENDAR) {
     const at = dateToHours(deadline.date);
@@ -127,6 +151,14 @@ export function step(state: GameState, dt: number): GameState {
       pauses.push({ reason: "deadline-passed", messageId: added.id });
     }
   }
+
+  // 5b. Relatório: envio automático no prazo e apresentação oral (os marcos acima já pausam).
+  next = reportEvents(next, t0, t1);
+
+  // 5c. Competição: começa no marco, fila e baterias nas janelas de voo; seu voo pausa.
+  const competition = advanceCompetition(next, t0, t1);
+  next = competition.state;
+  pauses.push(...competition.pauses);
 
   // 6. Pausa automática: o relógio para e guarda o motivo do primeiro evento do passo.
   const first = pauses[0];

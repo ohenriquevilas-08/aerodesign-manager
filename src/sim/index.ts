@@ -21,10 +21,10 @@ export {
   type StockItem
 } from "./content/actions";
 export { BALANCE } from "./content/balance";
-export { DEFAULT_DESIGN, DESIGN_LIMITS, estimatePerformance } from "./aircraft";
+export { DEFAULT_DESIGN, DESIGN_LIMITS, estimatePerformance, installedParts, missingParts, missingPartsText, PART_TYPE_LABELS } from "./aircraft";
 export { estimateReportScore } from "./report";
 export { listingPrice, listingStock, type OrderRequest } from "./shop";
-export { currentDensityAltitude, MIN_TEAMS_AHEAD_TO_REVISE, standings, teamsAhead } from "./competition";
+export { COMPETITION_START, currentDensityAltitude, inspectionIssues, MIN_TEAMS_AHEAD_TO_REVISE, standings, teamsAhead } from "./competition";
 export {
   findListing,
   findProduct,
@@ -49,3 +49,5 @@ export { SELECTION_FORMATS, type SelectionFormat, type SelectionFormatDef } from
 export { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";
 export { OFFICIAL_CALENDAR, SEASON_START, type Deadline } from "./content/calendar2026";
 export { TEAM_POOL, type TeamSeed } from "./content/teams";
+export { currentShift, slotStatus, suggestSchedule, workshopNow, type SlotStatus } from "./workshop";
+export { findShift, parseSlot, SHIFTS, slotKey, WEEKDAYS, type ShiftDef, type WeekdayDef } from "./content/workshop";

@@ -1,11 +1,12 @@
 // Trabalho em grupo: quantas pessoas cabem numa tarefa e quanto cada uma rende,
 // e a estimativa de duração que a UI mostra antes e durante a tarefa.
 
-import { findAction, type Crew } from "./content/actions";
+import { findAction, type ActionDef, type Crew } from "./content/actions";
 import { BALANCE } from "./content/balance";
 import { findDedication, type Dedication } from "./content/dedication";
 import { memberHoursPerDay } from "./team";
 import { clockToDate } from "./time";
+import { workshopDays } from "./workshop";
 import type { GameState, Member } from "./types";
 
 /** Limite de busca da estimativa: além disso a tarefa é tratada como "não termina". */
@@ -28,8 +29,11 @@ export function crewRates(members: readonly Member[], crew: Crew, date: number):
 }
 
 /** Dias para completar `hours` horas-pessoa com esses integrantes a partir de `fromHours`; null se não avança. */
-function workDays(state: GameState, crew: Crew, memberIds: readonly string[], hours: number, fromHours: number): number | null {
+function workDays(state: GameState, action: ActionDef, memberIds: readonly string[], hours: number, fromHours: number): number | null {
   if (hours <= 0) return 0;
+  // Oficina: só contam os turnos escalados; escala vazia = não anda.
+  if (action.workshop) return workshopDays(state, action, memberIds, hours, fromHours);
+  const crew = action.crew;
   const members = memberIds.map((id) => state.members.find((member) => member.id === id)).filter((m): m is Member => !!m);
   let remaining = hours;
   for (let day = 0; day < MAX_ESTIMATE_DAYS; day += 1) {
@@ -57,7 +61,7 @@ export function estimateTaskDays(
   if (!action) return null;
   const lead = action.cost.leadDays;
   const hours = action.cost.hours * findDedication(dedication).hoursFactor;
-  const work = workDays(state, action.crew, memberIds, hours, state.clock.hours + lead * 24);
+  const work = workDays(state, action, memberIds, hours, state.clock.hours + lead * 24);
   return work === null ? null : lead + work;
 }
 
@@ -70,7 +74,7 @@ export function estimateRemainingDays(state: GameState, taskId: string): number 
   // A UI só conhece o prazo prometido; o real (readyAt) fica escondido.
   const promised = task.expectedReadyAt ?? task.readyAt;
   const waitHours = task.status === "waiting" && promised !== null ? Math.max(0, promised - now) : 0;
-  const work = workDays(state, action.crew, task.assignees, task.hoursTotal - task.hoursDone, now + waitHours);
+  const work = workDays(state, action, task.assignees, task.hoursTotal - task.hoursDone, now + waitHours);
   return work === null ? null : waitHours / 24 + work;
 }
 

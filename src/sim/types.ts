@@ -38,6 +38,30 @@ export interface Clock {
 
 export type Role = "president" | "captain" | "member";
 
+// ---------------------------------------------------------------------------
+// Escala da oficina (design §5.5).
+// ---------------------------------------------------------------------------
+
+/** Turnos: manhã 8–12, tarde 13–18, noite 19–22, madrugada 22–3 (pertence ao dia em que começa). */
+export type ShiftId = "morning" | "afternoon" | "evening" | "overnight";
+/** Dia da semana, 0 = domingo. */
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+/** Turno da grade semanal, ex.: "1-morning" (segunda de manhã). */
+export type SlotKey = `${Weekday}-${ShiftId}`;
+
+/** Acesso ao prédio depois das 22h: sem ele a madrugada fica bloqueada na grade. */
+export type NightAccess = "none" | "requested" | "granted";
+
+export interface WorkshopState {
+  /** Lugares na oficina por turno (4 no Ano 1). */
+  capacity: number;
+  /** Quem tem chave: a oficina só abre com um deles no turno. */
+  keyHolders: string[];
+  nightAccess: NightAccess;
+  /** Quem está escalado em cada turno da semana (ids de integrantes). */
+  schedule: Partial<Record<SlotKey, string[]>>;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -61,6 +85,8 @@ export interface Member {
    * a pessoa está sobrecarregada. Recupera quando fica parada.
    */
   workStreakHours: number;
+  /** Turnos com aula no semestre (fim de semana e madrugada nunca têm aula). */
+  classSlots: SlotKey[];
 }
 
 /** Candidato da seletiva (design §5.2): vira Member com role "member" ao ser convidado. */
@@ -80,6 +106,8 @@ export interface Candidate {
   graduation: string;
   /** Parecer de um capitão, em PT-BR. */
   opinion: string;
+  /** Turnos com aula no semestre; passa para o integrante ao contratar. */
+  classSlots: SlotKey[];
 }
 
 export type PartType = "wing" | "fuselage" | "tail" | "landingGear" | "powertrain" | "electronics";
@@ -95,6 +123,11 @@ export interface Part {
   quality: number;
   /** 0–100. */
   condition: number;
+  /**
+   * Veio fora da especificação de uma loja (ex.: servo falsificado). A equipe só descobre na
+   * inspeção de segurança da competição (design §9.2) ou no relatório final.
+   */
+  counterfeit?: boolean;
 }
 
 /** waiting: esperando prazo ⌛ (readyAt); active: consome horas; done: concluída (fica como histórico). */
@@ -126,6 +159,8 @@ export interface Task {
   doneAt: number | null;
   /** Rápido, normal ou caprichado: já aplicado em hoursTotal; vira bônus de qualidade na conclusão. */
   dedication: TaskDedication;
+  /** Horas-pessoa feitas de madrugada (depois da 1h contam em dobro); tiram qualidade na conclusão. */
+  overnightHours?: number;
 }
 
 export interface InboxMessage {
@@ -138,7 +173,16 @@ export interface InboxMessage {
 }
 
 /** Motivo da pausa atual. "start": jogo recém-criado; "manual": jogador pausou. */
-export type PauseReason = "start" | "manual" | "task-done" | "deadline-soon" | "deadline-passed";
+/** "order": pedido retido ou entregue; "flight": seu voo na competição (replay); "competition": evento da competição ou da CT. */
+export type PauseReason =
+  | "start"
+  | "manual"
+  | "task-done"
+  | "deadline-soon"
+  | "deadline-passed"
+  | "order"
+  | "flight"
+  | "competition";
 
 export interface PauseInfo {
   reason: PauseReason;
@@ -202,8 +246,21 @@ export interface Estimate {
 export interface AircraftHidden {
   /** Multiplicador do peso vazio real sobre o nominal (ex.: 1,08 = 8% mais pesado). */
   emptyWeightFactor: number;
-  /** Multiplicador da carga máxima real sobre a nominal. */
+  /** Multiplicador da capacidade de sustentação real (e daí a carga máxima) sobre a nominal. */
   payloadFactor: number;
+  /**
+   * Erro da opinião da equipe, de −1 a 1, em frações da margem: a estimativa fica em
+   * real + bias × margem × BALANCE.aircraft.biasShare. Ensaios sorteiam de novo. Ausente = 0.
+   * NUNCA mostrar, como o resto de `hidden`: revelaria o desempenho real.
+   */
+  bias?: { emptyWeight: number; payload: number; takeoff: number };
+}
+
+/** Ensaios acumulados que estreitam a margem de cada estimativa (design §7.3). */
+export interface AircraftEvidence {
+  emptyWeight: number;
+  payload: number;
+  takeoff: number;
 }
 
 export interface Aircraft {
@@ -211,6 +268,10 @@ export interface Aircraft {
   hidden: AircraftHidden;
   /** Mudanças de projeto depois do prazo de 27/set (Apêndice 6: penalidade). */
   lateChanges: number;
+  /** Ensaios feitos; ausente = nenhum. */
+  evidence?: AircraftEvidence;
+  /** Momento (horas de jogo) do voo filmado válido; sem ele não voa na competição. */
+  flightVideoAt?: number | null;
 }
 
 /** Estimativa de desempenho para uma altitude densidade (design §6.2 e §9.4). */
@@ -252,6 +313,8 @@ export interface ReportState {
   score: number | null;
   /** Nota da apresentação oral (0–40), dada em 17/out. */
   oralScore: number | null;
+  /** Horas de ensaio da apresentação oral; ausente = 0. */
+  oralPracticeHours?: number;
 }
 
 /** Status de um pedido de loja (design §8.4). */
@@ -279,6 +342,8 @@ export interface Order {
   status: OrderStatus;
   /** Imposto cobrado na fiscalização; enquanto não pago, o pedido fica parado. */
   customsDue: number | null;
+  /** Imposto já pago (◆); ausente = o pedido ainda não passou pela fiscalização com imposto. */
+  customsPaid?: number;
   deliveredAt: number | null;
 }
 
@@ -398,6 +463,8 @@ export interface CompetitionState {
   penalties: Record<string, number>;
   /** Itens da inspeção de segurança reprovados que ainda precisam de correção (design §9.2). */
   inspectionIssues: string[];
+  /** Equipes fora de uma bateria (id → número da bateria), ex.: abortou com trem alto e rompeu a fita. */
+  suspended?: Record<string, number>;
 }
 
 /** Linha do placar (design §9.3: melhor bateria + BCF + projeto − penalidades). */
@@ -413,7 +480,7 @@ export interface Standing {
 }
 
 export interface GameState {
-  version: 3;
+  version: 4;
   seed: number;
   rngState: number;
   clock: Clock;
@@ -447,4 +514,6 @@ export interface GameState {
   shops: ShopsState;
   /** null até o dia da competição de voo. */
   competition: CompetitionState | null;
+  /** Oficina: lotação, chaves, acesso noturno e escala semanal (design §5.5). */
+  workshop: WorkshopState;
 }

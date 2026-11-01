@@ -32,8 +32,18 @@ function withRookie(game: GameState): GameState {
   return { ...game, members: [...game.members, rookie] };
 }
 
+/** Escala cheia: todos sem aula, todo dia de manhã e à tarde, para as tarefas de oficina andarem. */
+function withFullSchedule(game: GameState): GameState {
+  const crew = game.members.filter((item) => item.role !== "president").map((item) => item.id);
+  const schedule: GameState["workshop"]["schedule"] = {};
+  for (let day = 0; day <= 6; day += 1) {
+    for (const shift of ["morning", "afternoon"] as const) schedule[`${day as 0}-${shift}`] = crew;
+  }
+  return { ...game, members: game.members.map((item) => ({ ...item, classSlots: [] })), workshop: { ...game.workshop, schedule } };
+}
+
 const newGame = (overrides: Partial<GameState> = {}): GameState => ({
-  ...withRookie(createGame({ seed: 42, teamName: "Teste" })),
+  ...withFullSchedule(withRookie(createGame({ seed: 42, teamName: "Teste" }))),
   ...overrides
 });
 
@@ -98,28 +108,14 @@ describe("horas da equipe", () => {
 
 describe("tarefas do catálogo", () => {
   it("recusa ação sem caixa com aviso e sem criar tarefa", () => {
-    const game = run(newGame(), { type: "start-action", actionId: "buy-motor" });
+    const game = run(newGame({ parts: [{ id: "part-x", type: "wing", label: "Asa", quality: 50, condition: 40 }] }), {
+      type: "start-action",
+      actionId: "repair-part",
+      targetId: "part-x"
+    });
     expect(game.tasks).toHaveLength(0);
     expect(game.credits).toBe(0);
     expect(game.warning?.text).toContain("Caixa insuficiente");
-  });
-
-  it("debita créditos na hora e espera o prazo antes de concluir uma compra", () => {
-    let game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-motor" });
-    expect(game.credits).toBe(80);
-    const task = lastTask(game);
-    expect(task.status).toBe("waiting");
-    // Prometido 10 dias; o real é sorteado na faixa de BALANCE.lead e fica escondido.
-    expect(task.expectedReadyAt).toBe(10 * 24);
-    expect(task.readyAt!).toBeGreaterThanOrEqual(10 * 24 * BALANCE.lead.minFactor);
-    expect(task.readyAt!).toBeLessThanOrEqual(10 * 24 * BALANCE.lead.maxFactor);
-    expect(leadDaysRange("buy-motor")).toEqual({ min: 10 * BALANCE.lead.minFactor, promised: 10, max: 10 * BALANCE.lead.maxFactor });
-    game = play(game, task.readyAt! / 24 - 0.1);
-    expect(game.tasks[0]!.status).toBe("waiting");
-    game = play(game, 0.2);
-    expect(game.tasks[0]!.status).toBe("done");
-    expect(game.parts).toHaveLength(1);
-    expect(game.parts[0]).toMatchObject({ type: "powertrain", quality: BALANCE.parts.purchasedQuality, condition: 100 });
   });
 
   it("tarefa com prazo não consome horas antes de readyAt", () => {
@@ -133,24 +129,7 @@ describe("tarefas do catálogo", () => {
     game = play(game, 1);
     expect(game.tasks[0]!.status).toBe("active");
     expect(game.tasks[0]!.hoursDone).toBeGreaterThan(0);
-  });
-
-  it("ação sem horas e sem prazo conclui na hora (frete expresso encurta a espera)", () => {
-    let game = run(newGame({ credits: 600 }), { type: "start-action", actionId: "buy-motor" });
-    const motor = lastTask(game);
-    game = run(game, { type: "start-action", actionId: "express-shipping", targetId: motor.id });
-    expect(game.credits).toBe(600 - 420 - 90);
-    expect(lastTask(game).status).toBe("done");
-    const expedited = game.tasks.find((task) => task.id === motor.id)!;
-    expect(expedited.readyAt).toBeCloseTo(motor.readyAt! * 0.3);
-    expect(expedited.expectedReadyAt).toBeCloseTo(10 * 24 * 0.3);
-    expect(game.clock.speed).toBe(0);
-  });
-
-  it("frete expresso exige uma tarefa que ainda está chegando", () => {
-    const game = run(newGame({ credits: 600 }), { type: "start-action", actionId: "express-shipping" });
-    expect(game.credits).toBe(600);
-    expect(game.warning?.text).toContain("Frete expresso");
+    expect(leadDaysRange("sponsor-pitch")).toEqual({ min: 14 * BALANCE.lead.minFactor, promised: 14, max: 14 * BALANCE.lead.maxFactor });
   });
 
   it("realoca, desaloca e cancela tarefas mantendo integrantes e tarefas em sincronia", () => {
@@ -169,13 +148,6 @@ describe("tarefas do catálogo", () => {
     game = run(game, { type: "assign-member", memberId: "captain-aero", taskId: study!.id }, { type: "cancel-task", taskId: study!.id });
     expect(game.tasks.map((task) => task.id)).toEqual([raffle!.id]);
     expect(member(game, "captain-aero").taskId).toBeNull();
-  });
-
-  it("não aloca gente em compra (tarefa sem horas)", () => {
-    let game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-motor" });
-    game = run(game, { type: "assign-member", memberId: "rookie", taskId: lastTask(game).id });
-    expect(member(game, "rookie").taskId).toBeNull();
-    expect(game.warning).not.toBeNull();
   });
 
   it("applyCommand não muta o estado anterior", () => {
@@ -252,9 +224,7 @@ describe("efeitos de conclusão", () => {
     expect(game.warning?.text).toContain("balsa");
     expect(game.credits).toBe(1000);
 
-    game = run(game, { type: "start-action", actionId: "buy-balsa" });
-    game = playUntilDone(game, lastTask(game).id);
-    expect(game.stock.balsa).toBe(1);
+    game = { ...game, stock: { balsa: 1 } };
 
     game = run(game, { type: "start-action", actionId: "build-wing" });
     expect(game.stock.balsa).toBe(0);
@@ -307,16 +277,14 @@ describe("estados visíveis das peças", () => {
 
 describe("eventos e pausa automática", () => {
   it("pausa quando uma tarefa termina, com o motivo e a mensagem", () => {
-    let game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-scale" }, { type: "set-speed", speed: 4 });
-    const readyAt = lastTask(game).readyAt!;
+    let game = run(newGame(), { type: "start-action", actionId: "outreach-social" });
+    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId: lastTask(game).id }, { type: "set-speed", speed: 4 });
     game = run(game, { type: "tick", realSeconds: 60 });
     expect(game.clock.speed).toBe(0);
-    expect(game.clock.hours).toBeGreaterThanOrEqual(readyAt);
-    expect(game.clock.hours).toBeLessThan(readyAt + BALANCE.stepHours + 1e-9);
+    expect(game.clock.hours).toBeLessThan(24);
     expect(game.pause?.reason).toBe("task-done");
     const message = game.inbox.find((item) => item.id === game.pause?.messageId);
-    expect(message?.title).toBe("Concluído: Comprar balança de precisão");
-    expect(game.equipment).toEqual(["scale"]);
+    expect(message?.title).toBe("Concluído: Post nas redes");
   });
 
   it("avisa a 7 dias de um prazo oficial e quando ele passa", () => {
@@ -354,7 +322,7 @@ describe("motivação", () => {
 
   it("não cai para quem trabalha dentro do limite e cai para quem está sobrecarregado", () => {
     let game = newGame();
-    game = run(game, { type: "start-action", actionId: "report-chapter" });
+    game = run(game, { type: "start-action", actionId: "report-chapter", targetId: "aerodynamics" });
     const taskId = lastTask(game).id;
     game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
     game = play(game, 7);
@@ -383,7 +351,7 @@ describe("motivação", () => {
 
 describe("equipe por tarefa (crew)", () => {
   it("recusa alocar acima do máximo da ação", () => {
-    let game = run(newGame(), { type: "start-action", actionId: "report-chapter" });
+    let game = run(newGame(), { type: "start-action", actionId: "report-chapter", targetId: "aerodynamics" });
     const taskId = lastTask(game).id;
     game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "rookie", taskId });
     expect(game.tasks[0]!.assignees).toEqual(["captain-aero"]);
@@ -392,7 +360,7 @@ describe("equipe por tarefa (crew)", () => {
   });
 
   it("abaixo do mínimo a tarefa não avança", () => {
-    let game = run(newGame({ credits: 100 }), { type: "start-action", actionId: "test-flight" });
+    let game = run(newGame(), { type: "start-action", actionId: "outreach-freshers" });
     const taskId = lastTask(game).id;
     game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
     game = play(game, 2);
@@ -421,7 +389,6 @@ describe("equipe por tarefa (crew)", () => {
     expect(estimateTaskDays(game, "raffle", ["captain-aero", "captain-struct"])!).toBeLessThan(estimate);
     expect(estimateTaskDays(game, "raffle", [])).toBeNull();
     expect(estimateTaskDays(game, "test-flight", ["captain-aero"])).toBeNull();
-    expect(estimateTaskDays(game, "buy-motor", [])).toBe(10);
 
     let started = run(game, { type: "start-action", actionId: "raffle" });
     const taskId = lastTask(started).id;
@@ -431,10 +398,6 @@ describe("equipe por tarefa (crew)", () => {
     expect(done.tasks[0]!.doneAt! / 24).toBeCloseTo(estimate, 1);
   });
 
-  it("estima o restante de uma compra pelo prazo", () => {
-    const game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-motor" });
-    expect(estimateRemainingDays(play(game, 4), lastTask(game).id)).toBeCloseTo(6);
-  });
 });
 
 describe("presidente", () => {
@@ -489,7 +452,7 @@ describe("rendimento pela qualidade da equipe", () => {
   it("sem equipe válida ou sem resultado variável não há estimativa", () => {
     const game = newGame();
     expect(estimateOutcome(game, "raffle", [])).toBeNull();
-    expect(estimateOutcome(game, "buy-motor", [])).toBeNull();
+    expect(estimateOutcome(game, "study-aero", ["captain-aero"])).toBeNull();
     expect(estimateOutcome(game, "document", ["captain-aero"])).toBeNull();
   });
 
@@ -529,11 +492,6 @@ describe("dedicação", () => {
     expect(lastTask(game)).toMatchObject({ dedication: "normal", hoursTotal: 16 });
     game = run(game, { type: "start-action", actionId: "raffle", dedication: "careful" });
     expect(lastTask(game).hoursTotal).toBeCloseTo(16 * 1.6);
-  });
-
-  it("compras ignoram a dedicação", () => {
-    const game = run(newGame({ credits: 500 }), { type: "start-action", actionId: "buy-motor", dedication: "careful" });
-    expect(lastTask(game)).toMatchObject({ dedication: "normal", hoursTotal: 0 });
   });
 
   it("estimativas comparam as opções: caprichado demora mais e rende melhor", () => {

@@ -1,10 +1,12 @@
 // Tarefas a partir do catálogo de ações (design §4.2 e §8): iniciar, alocar, cancelar e concluir.
 // Funções puras: recebem o estado e devolvem um estado novo.
 
+import { applyTest, testProblem } from "./aircraft";
 import { findAction, type ActionDef, type StockItem } from "./content/actions";
 import { BALANCE } from "./content/balance";
 import { findDedication, type Dedication } from "./content/dedication";
 import { crewQuality, documentGain, fabricatedQuality, rollApplicants, rollMultiplier, sponsorChance } from "./outcome";
+import { addReportHours } from "./report";
 import { nextRandom } from "./rng";
 import { drawCandidates, expectedApplicants, findSelectionFormat } from "./selection";
 import { DISCIPLINES } from "./state";
@@ -12,7 +14,7 @@ import { canWork, clamp, DISCIPLINE_LABELS, learn } from "./team";
 import type { Discipline, GameState, InboxMessage, Part, Task } from "./types";
 
 /** Efeitos cujo resultado depende da qualidade da equipe (sim/outcome.ts). */
-const VARIABLE_EFFECTS = new Set(["credits", "sponsor", "fabricate", "document", "repair", "outreach", "selection"]);
+const VARIABLE_EFFECTS = new Set(["credits", "sponsor", "fabricate", "document", "repair", "outreach", "selection", "test"]);
 
 const STOCK_LABELS: Record<StockItem, string> = {
   balsa: "balsa média",
@@ -90,7 +92,11 @@ export function startAction(
   const action = findAction(actionId);
   if (!action) return warn(state, "Ação desconhecida.");
 
-  const problem = targetProblem(state, action, targetId);
+  if (action.effect?.kind === "night-access" && state.workshop.nightAccess !== "none") {
+    return warn(state, state.workshop.nightAccess === "granted" ? "O departamento já autorizou a madrugada." : "O pedido de acesso noturno já está no departamento.");
+  }
+
+  const problem = targetProblem(state, action, targetId) ?? (action.effect?.kind === "test" ? testProblem(state, action.effect.test) : null);
   if (problem) return warn(state, problem);
 
   for (const [item, amount] of Object.entries(action.requires ?? {}) as [StockItem, number][]) {
@@ -135,6 +141,7 @@ export function startAction(
   };
   const next: GameState = {
     ...state,
+    workshop: action.effect?.kind === "night-access" ? { ...state.workshop, nightAccess: "requested" } : state.workshop,
     credits: state.credits - action.cost.credits,
     rngState,
     stock,
@@ -208,7 +215,11 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
   let body = "Tarefa concluída.";
 
   // Rendimento: qualidade de quem trabalhou (antes de aprender com a tarefa) e um sorteio.
-  const quality = clamp(crewQuality(state, action, task.targetId, task.contributions) + findDedication(task.dedication).qualityBonus);
+  // Madrugada: cansaço gera erro, proporcional à fatia do trabalho feita de madrugada (design §5.5).
+  const tired = task.hoursTotal > 0 ? Math.min(1, (task.overnightHours ?? 0) / task.hoursTotal) : 0;
+  const quality = clamp(
+    crewQuality(state, action, task.targetId, task.contributions) + findDedication(task.dedication).qualityBonus - BALANCE.workshop.overnightQualityPenalty * tired
+  );
   const rolled = rollMultiplier(next.rngState, quality);
   const multiplier = rolled.multiplier;
   if (action.effect && VARIABLE_EFFECTS.has(action.effect.kind)) next = { ...next, rngState: rolled.rngState };
@@ -216,6 +227,7 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
   // Conhecimento tácito e habilidades de quem trabalhou (design §5.3).
   const fabricates = action.effect?.kind === "fabricate";
   const drills = action.effect?.kind === "agility";
+  const pilots = action.skill === "piloting";
   next = {
     ...next,
     members: next.members.map((member) => {
@@ -234,6 +246,7 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       }
       if (fabricates) updated = { ...updated, fabrication: learn(updated.fabrication, hours, BALANCE.knowledge.fabricationPerHour) };
       if (drills) updated = { ...updated, agility: learn(updated.agility, hours, BALANCE.knowledge.agilityPerHour) };
+      if (pilots) updated = { ...updated, piloting: learn(updated.piloting, hours, BALANCE.tests.pilotingPerHour) };
       return updated;
     })
   };
@@ -319,9 +332,28 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       }
       break;
     }
+    case "night-access":
+      next = { ...next, workshop: { ...next.workshop, nightAccess: "granted" } };
+      body = "O departamento autorizou a equipe a ficar na oficina depois das 22h. A madrugada está liberada na escala.";
+      break;
     case "agility":
       body = "A equipe ficou mais rápida na retirada de carga.";
       break;
+    case "report-chapter":
+    case "drawings":
+    case "oral-practice": {
+      const hours = Math.min(task.hoursTotal, Object.values(task.contributions).reduce((sum, value) => sum + value, 0));
+      const written = addReportHours(next, effect.kind, hours, isDiscipline(task.targetId) ? task.targetId : null);
+      next = written.state;
+      body = written.body;
+      break;
+    }
+    case "test": {
+      const tested = applyTest(next, effect.test, quality, multiplier);
+      next = tested.state;
+      body = tested.body;
+      break;
+    }
     case "outreach": {
       const reach = effect.amount * multiplier;
       next = { ...next, outreach: next.outreach + reach };
