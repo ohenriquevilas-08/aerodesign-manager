@@ -2,7 +2,8 @@
 // Eixos: x do nariz (0) para a cauda; y lateral (vista de cima, 0 = eixo da fuselagem); z altura sobre o solo (vista lateral).
 // A cena só escala e desenha; nenhuma regra do jogo mora aqui, só o aspecto do avião.
 
-import { DESIGN_LIMITS, type AircraftDesign, type DesignMaterial } from "../../sim";
+import { DESIGN_LIMITS, type DesignMaterial } from "../../sim";
+import { PHASE5_DEFAULTS, staticMarginStub, type BlueprintDesign, type StaticMargin } from "../phase5";
 
 export interface Surface {
   role: "wing" | "canard" | "tail";
@@ -44,6 +45,29 @@ export interface BlueprintGeometry {
   hatch: Hatch;
   /** Nervuras por semi-asa (balsa e misto). */
   ribs: number;
+  /** Corda média aerodinâmica da asa e o bordo de ataque dela (x), m. */
+  mac: { length: number; x: number };
+  /** Posição x do CG e do ponto neutro (vista lateral) e a margem entre eles, % da CMA. */
+  cg: { x: number; z: number; percentMac: number };
+  neutral: { x: number; percentMac: number };
+  marginPercentMac: number;
+  /** Alongamento da asa (b² / S) e volume de cauda usado. */
+  aspectRatio: number;
+  tailVolume: number;
+  /** Vista frontal: y lateral, z altura. */
+  front: {
+    wingPosition: "high" | "low";
+    /** Diedro fixo, graus. */
+    dihedralDeg: number;
+    /** Altura da asa na raiz e na ponta. */
+    wingRootZ: number;
+    wingTipZ: number;
+    tailSpan: number;
+    tailZ: number;
+    propDiameter: number;
+    /** Bitola do trem principal. */
+    track: number;
+  };
 }
 
 const POWER = DESIGN_LIMITS.powerW;
@@ -61,11 +85,25 @@ const RIB_SPACING = { balsa: 0.09, composite: 0.18, mixed: 0.12 } as const;
 /** Altura da linha de centro do eixo do motor sobre o solo para cada trem; o diâmetro da hélice cabe nela. */
 const GEAR_HEIGHT = { low: 0.15, high: 0.29 } as const;
 
-export function blueprintGeometry(design: AircraftDesign): BlueprintGeometry {
+const DIHEDRAL_DEG = 3;
+const IN = 0.0254;
+
+/** Corda média aerodinâmica de um trapézio e o x do bordo de ataque dela. */
+function macOf(wing: Surface) {
+  const r = 1 - wing.taper;
+  const length = wing.chord * (2 / 3) * ((1 + r + r * r) / (1 + r));
+  const yMac = (wing.span / 6) * ((1 + 2 * r) / (1 + r));
+  return { length, x: wing.x + wing.sweep * ((2 * yMac) / wing.span) };
+}
+
+export function blueprintGeometry(design: BlueprintDesign, margin: StaticMargin = staticMarginStub(design)): BlueprintGeometry {
   const { span, surfaces, powerW, philosophy, material, gear } = design;
   const flyingWing = surfaces === 1;
+  const tailVolume = design.tailVolume ?? PHASE5_DEFAULTS.tailVolume;
+  const cgPercent = design.cgPercentMac ?? PHASE5_DEFAULTS.cgPercentMac;
+  const wingPosition = design.wingPosition ?? PHASE5_DEFAULTS.wingPosition;
 
-  const wingChord = span * CHORD_RATIO[philosophy] * (flyingWing ? 1.3 : 1);
+  const wingChord = design.chordM ?? span * CHORD_RATIO[philosophy] * (flyingWing ? 1.3 : 1);
   const fuselage = {
     length: flyingWing ? 0.55 + span * 0.12 : 0.8 + span * 0.3,
     width: 0.1 + span * 0.015,
@@ -75,7 +113,7 @@ export function blueprintGeometry(design: AircraftDesign): BlueprintGeometry {
   const power = unit(powerW, POWER.min, POWER.max);
   const motorDiameter = lerp(0.03, 0.055, power);
   const motor = { x: -lerp(0.06, 0.1, power), length: lerp(0.07, 0.11, power), diameter: motorDiameter, z: fuselage.z + fuselage.height / 2 };
-  const prop = { x: motor.x - 0.02, diameter: lerp(0.26, 0.46, power) };
+  const prop = { x: motor.x - 0.02, diameter: design.propDiameterIn !== undefined ? design.propDiameterIn * IN : lerp(0.26, 0.46, power) };
   const gearHeight = GEAR_HEIGHT[gear];
 
   const wingX = fuselage.length * (flyingWing ? 0.3 : 0.28);
@@ -87,20 +125,28 @@ export function blueprintGeometry(design: AircraftDesign): BlueprintGeometry {
       chord: wingChord,
       sweep: flyingWing ? wingChord * 0.55 : 0,
       taper: flyingWing ? 0.35 : 0.1,
-      z: fuselage.z + fuselage.height * 0.75
+      z: fuselage.z + fuselage.height * (flyingWing ? 0.5 : wingPosition === "high" ? 1 : 0.15)
     }
   ];
+  const wing = list[0]!;
+  // Volume de cauda VH = Sh · lt / (Sw · c): a cauda escala com ele (lt = braço entre os quartos de corda).
+  const wingArea = span * wingChord * (1 - wing.taper / 2);
+  const tailArm = (chord: number) => Math.max(0.3, fuselage.length - chord * 0.9 + chord / 4 - (wing.x + wingChord / 4));
+  const tailSpanFor = (chord: number, cap: number) => Math.min(span * cap, (tailVolume * wingArea * wingChord) / (tailArm(chord) * chord));
   if (surfaces === 2) {
     const chord = wingChord * 0.62;
-    list.push({ role: "tail", x: fuselage.length - chord * 0.9, span: span * 0.38, chord, sweep: 0, taper: 0, z: fuselage.z + fuselage.height * 0.55 });
+    list.push({ role: "tail", x: fuselage.length - chord * 0.9, span: tailSpanFor(chord, 0.6), chord, sweep: 0, taper: 0, z: fuselage.z + fuselage.height * 0.55 });
   }
   if (surfaces === 3) {
     const chord = wingChord * 0.5;
     list.push({ role: "canard", x: 0.12, span: span * 0.3, chord, sweep: 0, taper: 0, z: fuselage.z + fuselage.height * 0.5 });
     const tail = wingChord * 0.55;
-    list.push({ role: "tail", x: fuselage.length - tail * 0.9, span: span * 0.34, chord: tail, sweep: 0, taper: 0, z: fuselage.z + fuselage.height * 0.55 });
+    list.push({ role: "tail", x: fuselage.length - tail * 0.9, span: tailSpanFor(tail, 0.5), chord: tail, sweep: 0, taper: 0, z: fuselage.z + fuselage.height * 0.55 });
   }
 
+  const mac = macOf(wing);
+  const cgX = mac.x + (cgPercent / 100) * mac.length;
+  const tailSurface = list.find((surface) => surface.role === "tail");
   const finChord = flyingWing ? wingChord * 0.5 : wingChord * 0.6;
   return {
     wingspan: span,
@@ -123,6 +169,22 @@ export function blueprintGeometry(design: AircraftDesign): BlueprintGeometry {
     sparWidth: SPAR_WIDTH[philosophy],
     sparAt: 0.28,
     hatch: HATCH[material],
-    ribs: Math.max(3, Math.round(span / 2 / RIB_SPACING[material]))
+    ribs: Math.max(3, Math.round(span / 2 / RIB_SPACING[material])),
+    mac,
+    cg: { x: cgX, z: fuselage.z + fuselage.height / 2, percentMac: cgPercent },
+    neutral: { x: cgX + (margin.marginPercentMac / 100) * mac.length, percentMac: margin.neutralPointPercentMac },
+    marginPercentMac: margin.marginPercentMac,
+    aspectRatio: (span * span) / wingArea,
+    tailVolume,
+    front: {
+      wingPosition,
+      dihedralDeg: DIHEDRAL_DEG,
+      wingRootZ: wing.z,
+      wingTipZ: wing.z + (span / 2) * Math.tan((DIHEDRAL_DEG * Math.PI) / 180),
+      tailSpan: tailSurface?.span ?? 0,
+      tailZ: tailSurface?.z ?? 0,
+      propDiameter: prop.diameter,
+      track: Math.min(span * 0.22, 0.6)
+    }
   };
 }

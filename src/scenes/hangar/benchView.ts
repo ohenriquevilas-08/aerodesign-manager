@@ -2,6 +2,7 @@
 // progresso e as peças com seu estado visível. Funções puras (testadas em tests/scenes/):
 // a cena só desenha o que elas devolvem a partir de `state.tasks`, `state.parts` e `state.members`.
 
+import { lookFor, type MemberLook } from "../phase5";
 import { canWork, findAction, partState, type GameState, type Part, type PartState, type PartType, type Task } from "../../sim";
 
 export type BenchId = "wing" | "fuselage" | "electronics" | "report";
@@ -164,6 +165,7 @@ export function aircraftViewFromState(state: GameState): AircraftView {
 export interface WorkerView {
   memberId: string;
   name: string;
+  look: MemberLook;
   bench: BenchId | null;
   /** Posição entre os que estão no mesmo lugar (bancada ou área livre), em ordem de `members`. */
   slot: number;
@@ -185,7 +187,7 @@ export function workerViewsFromState(state: GameState, present?: readonly string
     const bench = canWork(member) && task && task.status !== "done" ? benchForTask(state, task) : null;
     const slot = counts.get(bench) ?? 0;
     counts.set(bench, slot + 1);
-    return { memberId: member.id, name: member.name, bench, slot, working: bench !== null && task?.status === "active" };
+    return { memberId: member.id, name: member.name, look: lookFor(member), bench, slot, working: bench !== null && task?.status === "active" };
   });
 }
 

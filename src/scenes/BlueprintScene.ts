@@ -4,11 +4,12 @@
 // A escala é fixa (cabe o maior avião possível), para o desenho crescer e encolher com os controles.
 
 import Phaser from "phaser";
-import { DEFAULT_DESIGN, DESIGN_LIMITS, type AircraftDesign } from "../sim";
+import { DEFAULT_DESIGN, DESIGN_LIMITS } from "../sim";
 import { vec } from "./hangar/iso";
 import { blueprintChannel } from "./blueprint/channel";
 import { blueprintGeometry, type BlueprintGeometry, type Surface } from "./blueprint/geometry";
 import { css, fonts, palette } from "./palette";
+import { marginBand, type BlueprintDesign, type MarginBand } from "./phase5";
 
 const fmt = (value: number, digits = 2) =>
   value.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -18,6 +19,9 @@ const REF_LENGTH = 2.5;
 const REF_SPAN = DESIGN_LIMITS.span.max;
 const MARGIN = 28;
 const LINE = 2;
+
+const BAND_COLOR: Record<MarginBand, number> = { ok: palette.ok, risk: palette.warn, unstable: palette.danger };
+const BAND_LABEL: Record<MarginBand, string> = { ok: "margem", risk: "margem baixa", unstable: "INSTÁVEL" };
 
 const SURFACE_LABEL = { 1: "Asa voadora (N = 1)", 2: "Convencional (N = 2)", 3: "Três superfícies (N = 3)" } as const;
 const MATERIAL_LABEL = { balsa: "Balsa", composite: "Compósito", mixed: "Misto" } as const;
@@ -31,8 +35,11 @@ export class BlueprintScene extends Phaser.Scene {
   private labels: Phaser.GameObjects.Text[] = [];
   private labelCursor = 0;
   /** Projeto pedido e projeto desenhado; envergadura e potência deslizam até o pedido. */
-  private target: AircraftDesign = DEFAULT_DESIGN;
-  private shown: AircraftDesign = DEFAULT_DESIGN;
+  private target: BlueprintDesign = DEFAULT_DESIGN;
+  private shown: BlueprintDesign = DEFAULT_DESIGN;
+  /** Projeto gravado do modo comparação, desenhado em traço apagado por baixo do rascunho. */
+  private reference: BlueprintDesign | null = null;
+  private ghost = false;
   private dirty = true;
   private unsubscribe: (() => void) | null = null;
 
@@ -44,10 +51,17 @@ export class BlueprintScene extends Phaser.Scene {
     this.target = blueprintChannel.current ?? DEFAULT_DESIGN;
     this.shown = this.target;
     this.gfx = this.add.graphics();
-    this.unsubscribe = blueprintChannel.subscribe((design) => {
-      this.target = design;
-      this.dirty = true;
-    });
+    this.reference = blueprintChannel.reference;
+    this.unsubscribe = blueprintChannel.subscribe(
+      (design) => {
+        this.target = design;
+        this.dirty = true;
+      },
+      (reference) => {
+        this.reference = reference;
+        this.dirty = true;
+      }
+    );
     const onResize = () => {
       this.dirty = true;
     };
@@ -78,6 +92,7 @@ export class BlueprintScene extends Phaser.Scene {
   // ------------------------------------------------------------------ texto
 
   private text(content: string, x: number, y: number, options: { color?: string; size?: string; origin?: Point; family?: string } = {}) {
+    if (this.ghost) return;
     let label = this.labels[this.labelCursor];
     if (!label) {
       label = this.add.text(0, 0, "", { fontFamily: fonts.mono }).setResolution(2).setDepth(10);
@@ -104,13 +119,30 @@ export class BlueprintScene extends Phaser.Scene {
     g.fillStyle(palette.blueprint, 1).fillRect(0, 0, width, height);
     this.drawGrid(width, height);
 
-    const geo = blueprintGeometry(this.shown);
-    const scale = Math.min((width - MARGIN * 2 - 130) / REF_LENGTH, ((height - MARGIN * 2) * 0.58) / REF_SPAN);
-    const topY = MARGIN + 20 + (REF_SPAN * scale) / 2;
+    // Três vistas: superior e lateral à esquerda, frontal numa coluna à direita (com o carimbo embaixo).
+    const frontW = Math.min(300, Math.max(120, width * 0.3));
+    const mainW = width - frontW - MARGIN * 2;
+    const scale = Math.min((mainW - 150) / REF_LENGTH, (height - 160) / (REF_SPAN + 1.1));
+    const topY = MARGIN + 34 + (REF_SPAN * scale) / 2;
     const originX = MARGIN + 56 + 0.1 * scale;
-    this.drawTopView(geo, originX, topY, scale);
     const groundY = Math.min(height - MARGIN - 20, topY + (REF_SPAN * scale) / 2 + 40 + 0.8 * scale);
+    const frontScale = (frontW - 40) / REF_SPAN;
+    const frontX = width - MARGIN - frontW / 2;
+    const frontGroundY = MARGIN + 30 + 1.1 * frontScale * 1.6;
+
+    const geo = blueprintGeometry(this.shown);
+    if (this.reference) {
+      this.ghost = true;
+      const ref = blueprintGeometry(this.reference);
+      this.drawTopView(ref, originX, topY, scale);
+      this.drawSideView(ref, originX, groundY, scale);
+      this.drawFrontView(ref, frontX, frontGroundY, frontScale);
+      this.ghost = false;
+    }
+    this.drawTopView(geo, originX, topY, scale);
     this.drawSideView(geo, originX, groundY, scale);
+    this.drawFrontView(geo, frontX, frontGroundY, frontScale);
+    if (this.reference) this.text("TRAÇO APAGADO: PROJETO GRAVADO", MARGIN, height - MARGIN - 6, { color: palette.textMuted, size: "10px", origin: [0, 1] });
     if (width >= 760) this.drawTitleBlock(geo, width, height);
 
     for (let i = this.labelCursor; i < this.labels.length; i += 1) this.labels[i]!.setVisible(false);
@@ -126,15 +158,20 @@ export class BlueprintScene extends Phaser.Scene {
     g.lineStyle(LINE, palette.ink, 0.9).strokeRect(10, 10, width - 20, height - 20);
   }
 
+  /** Caneta: no modo fantasma (projeto gravado) o traço fica apagado e sem cor de alerta. */
+  private pen(width: number, color: number, alpha: number) {
+    return this.gfx.lineStyle(width, this.ghost ? palette.inkMuted : color, this.ghost ? alpha * 0.4 : alpha);
+  }
+
   private line(a: Point, b: Point, color: number = palette.ink, width = LINE, alpha = 1) {
-    this.gfx.lineStyle(width, color, alpha).lineBetween(a[0], a[1], b[0], b[1]);
+    this.pen(width, color, alpha).lineBetween(a[0], a[1], b[0], b[1]);
   }
 
   /** Contorno de polígono. `fillPoints` e `strokePoints` do Phaser 4.2 exigem Vector2[]. */
   private poly(points: Point[], fill = 0.0) {
     const vectors = vec(points.map(([x, y]) => ({ x, y })));
-    if (fill > 0) this.gfx.fillStyle(palette.ink, fill).fillPoints(vectors, true);
-    this.gfx.lineStyle(LINE, palette.ink, 1).strokePoints(vectors, true, true);
+    if (fill > 0 && !this.ghost) this.gfx.fillStyle(palette.ink, fill).fillPoints(vectors, true);
+    this.pen(LINE, palette.ink, 1).strokePoints(vectors, true, true);
   }
 
   private dashed(a: Point, b: Point, color: number = palette.ink, alpha = 0.7) {
@@ -149,6 +186,7 @@ export class BlueprintScene extends Phaser.Scene {
 
   /** Cota: linha com setas nas pontas e o valor no meio. */
   private dimension(a: Point, b: Point, label: string, color: number = palette.ink, side: 1 | -1 = 1) {
+    if (this.ghost) return;
     this.line(a, b, color, 1);
     const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
     for (const [tip, dir] of [[a, 1], [b, -1]] as const) {
@@ -200,7 +238,7 @@ export class BlueprintScene extends Phaser.Scene {
     const mh = geo.motor.diameter / 2;
     this.poly([[X(geo.motor.x), Y(-mh)], [X(geo.motor.x + geo.motor.length), Y(-mh)], [X(geo.motor.x + geo.motor.length), Y(mh)], [X(geo.motor.x), Y(mh)]], 0.15);
     this.line([X(geo.prop.x), Y(-geo.prop.diameter / 2)], [X(geo.prop.x), Y(geo.prop.diameter / 2)], palette.ink, 3);
-    this.gfx.lineStyle(1, palette.ink, 0.35).strokeCircle(X(geo.prop.x), Y(0), (geo.prop.diameter / 2) * s);
+    this.pen(1, palette.ink, 0.35).strokeCircle(X(geo.prop.x), Y(0), (geo.prop.diameter / 2) * s);
 
     // Rodas: principal em dois pontos, de nariz no eixo.
     const wheel = (x: number, y: number) =>
@@ -217,6 +255,13 @@ export class BlueprintScene extends Phaser.Scene {
     this.dimension([dx, Y(-wing.span / 2)], [dx, Y(wing.span / 2)], `b = ${fmt(geo.wingspan)} m`, palette.highlight);
     const dy = Y(Math.max(wing.span / 2, 0.4)) + 22;
     this.dimension([X(geo.prop.x), dy], [X(geo.length), dy], `${fmt(geo.length - geo.prop.x)} m`);
+
+    // Corda da ponta (acima da semi-asa), alongamento junto à cota da envergadura e volume de cauda.
+    const [leTip, teTip] = this.edges(wing, wing.span / 2);
+    this.dimension([X(leTip), Y(-wing.span / 2) - 12], [X(teTip), Y(-wing.span / 2) - 12], `c ${fmt(wing.chord)} m (raiz)`, palette.accent, 1);
+    this.text(`AR = ${fmt(geo.aspectRatio, 1)}`, dx + 8, Y(0) + 18, { color: palette.textMuted });
+    const tail = geo.surfaces.find((surface) => surface.role === "tail");
+    if (tail) this.text(`VH = ${fmt(geo.tailVolume)}`, X(tail.x + tail.chord) + 6, Y(-tail.span / 2) - 4, { color: palette.textMuted, origin: [0, 1] });
   }
 
   /** Posição do bordo de ataque e de fuga a uma distância |y| do eixo. */
@@ -238,7 +283,7 @@ export class BlueprintScene extends Phaser.Scene {
       [X(teTip), Y(half)],
       [X(leTip), Y(half)]
     ], 0.07);
-    this.gfx.lineStyle(1, palette.ink, 0.6);
+    this.pen(1, palette.ink, 0.6);
     const isWing = surface.role === "wing";
     const sparWidth = isWing ? geo.sparWidth : geo.sparWidth * 0.6;
     const hatch = isWing ? geo.hatch : "ribs";
@@ -282,7 +327,7 @@ export class BlueprintScene extends Phaser.Scene {
   private drawSideView(geo: BlueprintGeometry, ox: number, groundY: number, s: number) {
     const X = (x: number) => ox + x * s;
     const Z = (z: number) => groundY - z * s;
-    this.text("VISTA LATERAL", MARGIN, groundY - 0.78 * s - 12, { color: palette.textMuted });
+    this.text("VISTA LATERAL", MARGIN, groundY - 1.1 * s - 52, { color: palette.textMuted });
 
     // Solo com hachura.
     this.line([MARGIN + 20, Z(0)], [X(REF_LENGTH) + 20, Z(0)], palette.ink, 2);
@@ -333,7 +378,7 @@ export class BlueprintScene extends Phaser.Scene {
     const wheelR = geo.gear.wheelDiameter / 2;
     for (const x of [geo.gear.noseX, geo.gear.mainX]) {
       this.line([X(x), Z(f.z)], [X(x), Z(wheelR)], palette.ink, 2);
-      this.gfx.lineStyle(LINE, palette.ink, 1).strokeCircle(X(x), Z(wheelR), wheelR * s);
+      this.pen(LINE, palette.ink, 1).strokeCircle(X(x), Z(wheelR), wheelR * s);
     }
 
     // Cota da folga da hélice ao solo.
@@ -345,6 +390,93 @@ export class BlueprintScene extends Phaser.Scene {
       this.text(`HÉLICE NO SOLO (${fmt(clear * 100, 0)} cm)`, X(geo.prop.x) - 6, Z(0) + 14, { color: css(palette.danger), origin: [0, 0] });
     }
     this.dimension([X(geo.length) + 36, Z(0)], [X(geo.length) + 36, Z(f.z + f.height + geo.fin.height)], `${fmt(f.z + f.height + geo.fin.height)} m`, palette.ink);
+    this.drawStability(geo, X, Z, s);
+  }
+
+  /** CG e ponto neutro na lateral, com a margem estática entre eles na cor da faixa. */
+  private drawStability(geo: BlueprintGeometry, X: (x: number) => number, Z: (z: number) => number, s: number) {
+    const color = BAND_COLOR[marginBand(geo.marginPercentMac)];
+    const f = geo.fuselage;
+    const cx = X(geo.cg.x);
+    const nx = X(geo.neutral.x);
+    const y = Z(geo.cg.z);
+    const above = Z(f.z + f.height) - 34;
+    const r = 6;
+    // PN: losango vazado. CG: círculo em quartos (símbolo de centro de massa).
+    this.pen(2, color, 1).strokePoints(vec([{ x: nx, y: y - r }, { x: nx + r, y }, { x: nx, y: y + r }, { x: nx - r, y }]), true, true);
+    this.pen(2, palette.ink, 1).strokeCircle(cx, y, r);
+    if (!this.ghost) {
+      this.gfx.fillStyle(palette.ink, 1);
+      this.gfx.slice(cx, y, r, 0, Math.PI / 2, false).fillPath();
+      this.gfx.slice(cx, y, r, Math.PI, Math.PI * 1.5, false).fillPath();
+    }
+    this.line([cx, y - r], [cx, above], palette.ink, 1, 0.6);
+    this.line([nx, y - r], [nx, above], color, 1, 0.8);
+    const band = marginBand(geo.marginPercentMac);
+    if (Math.abs(nx - cx) > 14) this.dimension([Math.min(cx, nx), above], [Math.max(cx, nx), above], "", color);
+    this.text(`${BAND_LABEL[band]} ${fmt(geo.marginPercentMac, 1)}% CMA`, (cx + nx) / 2, above - 4, { origin: [0.5, 1], size: "10px", color: css(color) });
+    this.text(`CG ${fmt(geo.cg.percentMac, 0)}%`, Math.min(cx, nx) - 4, above + 4, { origin: [1, 0], size: "10px" });
+    this.text("PN", Math.max(cx, nx) + 4, above + 4, { origin: [0, 0], size: "10px", color: css(color) });
+    // CMA: barra fina sob a asa.
+    const zWing = Z(geo.surfaces[0]!.z) + 18;
+    this.line([X(geo.mac.x), zWing], [X(geo.mac.x + geo.mac.length), zWing], palette.accent, 2, 0.8);
+    this.text("CMA", X(geo.mac.x + geo.mac.length / 2), zWing + 3, { size: "9px", color: css(palette.accent), origin: [0.5, 0] });
+    void s;
+  }
+
+  // ------------------------------------------------------------------ vista frontal
+
+  private drawFrontView(geo: BlueprintGeometry, cx: number, groundY: number, s: number) {
+    const Y = (y: number) => cx + y * s;
+    const Z = (z: number) => groundY - z * s;
+    const fr = geo.front;
+    this.text("VISTA FRONTAL", cx - REF_SPAN * s / 2, Z(0) - 1.7 * s - 18, { color: palette.textMuted });
+    this.line([cx - (REF_SPAN * s) / 2, Z(0)], [cx + (REF_SPAN * s) / 2, Z(0)], palette.ink, 2);
+
+    // Fuselagem (seção): elipse achatada em polígono.
+    const f = geo.fuselage;
+    const hw = f.width / 2;
+    const section: Point[] = [];
+    for (let i = 0; i < 16; i += 1) {
+      const a = (i / 16) * Math.PI * 2;
+      section.push([Y(Math.cos(a) * hw), Z(f.z + f.height / 2 + Math.sin(a) * (f.height / 2))]);
+    }
+    this.poly(section, 0.1);
+
+    // Deriva (sobre o eixo) e empenagem horizontal.
+    const finTop = f.z + f.height * 0.9 + geo.fin.height;
+    this.line([Y(0), Z(f.z + f.height * 0.9)], [Y(0), Z(finTop)], palette.ink, 3);
+    if (fr.tailSpan > 0) this.line([Y(-fr.tailSpan / 2), Z(fr.tailZ)], [Y(fr.tailSpan / 2), Z(fr.tailZ)], palette.ink, 2, 0.8);
+
+    // Asa com diedro fixo: da raiz à ponta, sobe nos dois lados; posição alta ou baixa.
+    const half = geo.wingspan / 2;
+    const thick = geo.airfoilThickness;
+    this.poly([
+      [Y(-half), Z(fr.wingTipZ)],
+      [Y(0), Z(fr.wingRootZ)],
+      [Y(half), Z(fr.wingTipZ)],
+      [Y(half), Z(fr.wingTipZ) - Math.max(2, thick * 0.4 * s)],
+      [Y(0), Z(fr.wingRootZ) + thick * s * 0.5],
+      [Y(-half), Z(fr.wingTipZ) - Math.max(2, thick * 0.4 * s)]
+    ], 0.15);
+
+    // Motor/hélice de frente: disco da hélice e cubo.
+    const mz = geo.motor.z;
+    const bad = geo.propClearance < 0.02;
+    const propColor = bad ? palette.danger : palette.ink;
+    this.pen(1.5, propColor, 0.8).strokeCircle(Y(0), Z(mz), (fr.propDiameter / 2) * s);
+    this.line([Y(-fr.propDiameter / 2), Z(mz)], [Y(fr.propDiameter / 2), Z(mz)], propColor, 2, 0.5);
+    this.pen(2, palette.ink, 1).strokeCircle(Y(0), Z(mz), (geo.motor.diameter / 2) * s);
+
+    // Trem: bitola e rodas.
+    const wheelR = geo.gear.wheelDiameter / 2;
+    for (const side of [-1, 1]) {
+      this.line([Y(side * Math.min(hw, fr.track / 2) * 0.6), Z(f.z)], [Y(side * fr.track / 2), Z(wheelR)], palette.ink, 2);
+      this.poly([[Y(side * fr.track / 2) - wheelR * s * 0.3, Z(0)], [Y(side * fr.track / 2) + wheelR * s * 0.3, Z(0)], [Y(side * fr.track / 2) + wheelR * s * 0.3, Z(wheelR * 2)], [Y(side * fr.track / 2) - wheelR * s * 0.3, Z(wheelR * 2)]]);
+    }
+
+    // Cotas: diâmetro da hélice (polegadas) e posição da asa.
+    this.text(`ASA ${fr.wingPosition === "high" ? "ALTA" : "BAIXA"} · DIEDRO ${fr.dihedralDeg}° · HÉLICE ${fmt(fr.propDiameter / 0.0254, 0)}"`, cx, Z(0) + 14, { color: palette.textMuted, size: "10px", origin: [0.5, 0] });
   }
 
   // ------------------------------------------------------------------ carimbo

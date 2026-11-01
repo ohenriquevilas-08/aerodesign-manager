@@ -104,17 +104,39 @@ Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `test
 
 ### Blueprint da Prancheta: `BlueprintScene`
 
-`src/scenes/BlueprintScene.ts` (chave `"blueprint"`): vista de cima e lateral em traço branco sobre azul técnico (`palette.blueprint`, espelhado em `--blueprint`), cotas da envergadura (laranja) e da folga da hélice ao solo (vermelha quando a hélice bate no chão). Só desenha; a escala é fixa (cabe o maior avião), então o desenho cresce e encolhe com os controles. Envergadura e potência deslizam até o valor novo; o resto troca na hora.
+`src/scenes/BlueprintScene.ts` (chave `"blueprint"`): três vistas em traço branco sobre azul técnico (`palette.blueprint`, espelhado em `--blueprint`): superior e lateral à esquerda, frontal numa coluna à direita (com o carimbo embaixo no painel largo). Só desenha; a escala é fixa (cabe o maior avião), então o desenho cresce e encolhe com os controles. Envergadura e potência deslizam até o valor novo; o resto troca na hora.
 
-- Geometria pura em `src/scenes/blueprint/geometry.ts`, `blueprintGeometry(design)` (testada em `tests/scenes/blueprintGeometry.test.ts`), usa só `AircraftDesign` e `DESIGN_LIMITS`. Eixos: x do nariz para a cauda, y lateral, z altura. Devolve superfícies (`wing`/`canard`/`tail` com raiz, corda, enflechamento e afilamento), fuselagem, deriva, motor, hélice, trem, `propClearance`, `sparWidth`, `hatch` (`ribs` balsa, `weave` compósito, `mixed`) e `ribs`.
-- N = 1 vira asa voadora (enflechada), 2 convencional, 3 ganha canard. A filosofia muda corda e longarina; o trem alto sobe a fuselagem e dá folga à hélice; a potência escala motor e hélice.
+- Geometria pura em `src/scenes/blueprint/geometry.ts`, `blueprintGeometry(design, margin?)` (testada em `tests/scenes/blueprintGeometry.test.ts`). Eixos: x do nariz para a cauda, y lateral, z altura. Devolve superfícies (`wing`/`canard`/`tail` com raiz, corda, enflechamento e afilamento), fuselagem, deriva, motor, hélice, trem, `propClearance`, `sparWidth`, `hatch` e `ribs`, e (Fase 5) `mac`, `cg`, `neutral`, `marginPercentMac`, `aspectRatio`, `tailVolume` e `front` (diedro fixo de 3°, altura da asa na raiz e na ponta, envergadura da cauda, diâmetro da hélice, bitola).
+- N = 1 vira asa voadora (enflechada), 2 convencional, 3 ganha canard. A corda vem de `chordM` (alongamento = b² / S sai daí); asa alta ou baixa muda a altura da asa na fuselagem e na vista frontal; a envergadura da cauda sai de `tailVolume` pela relação VH = Sh · lt / (Sw · c); o diâmetro da hélice vem de `propDiameterIn` (trem baixo e hélice grande dão folga negativa, em vermelho).
+- Vista lateral: CG (círculo em quartos) em `cgPercentMac` da CMA e ponto neutro (losango) à distância da margem estática; a margem entre eles aparece na cor da faixa (`marginBand`: negativa = instável/vermelho, 5 a 20% = ok/verde, resto = risco/amarelo). Vista superior: corda, alongamento (AR) e VH. Vista frontal: asa alta ou baixa, diedro, disco da hélice, bitola do trem.
+- Modo comparação: `blueprintChannel.compare(design | null)` entrega o projeto gravado, desenhado em traço apagado (`ghost`) por baixo do rascunho nas três vistas, sem cotas nem textos.
 - Entrega: o rascunho ainda não é estado, então a Prancheta chama `blueprintChannel.show(design)` (`src/scenes/blueprint/channel.ts`, no molde do `flightReplay`) a cada mudança; a cena lê `blueprintChannel.current` ao criar. A tela monta `<PhaserStage scene={BlueprintScene} sceneKey="blueprint" />` no centro, entre as decisões e as estimativas.
 - O carimbo com o resumo do projeto só aparece com o painel largo (760 px ou mais).
+
+### Personagens isométricos: `scenes/people`
+
+- `people/avatar.ts`: `avatarShapes(look, pose, { facing, phase })` devolve polígonos (pontos em px com origem nos pés, cor numérica, `line` para traço) de trás para frente: pernas, tronco na cor da camiseta (`look.shirt`), cabeça, 5 estilos de cabelo, rosto, acessório (`glasses`, `cap`, `headband`) e braço de trabalho. Poses `stand`, `work` (a `phase` 0–1 balança o braço) e `nap` (tronco e cabeça encostados, olhos fechados). Puro e testado (`tests/scenes/avatar.test.ts`); `AVATAR_BOUNDS` é a caixa que contém qualquer pose.
+- O mesmo desenho em dois lugares: `people/draw.ts` (`drawAvatarShapes`) pinta num `Graphics` do Phaser (hangar e vinheta do ensaio) e `src/ui/components/Avatar.tsx` pinta os mesmos polígonos em SVG para retratos de carta (`<Avatar member={m} pose size facing />`). Tons de pele e de cabelo, calça e sapato vêm de `palette.skin`, `palette.hair`, `palette.pants` e `palette.shoe` (espelhados em `--skin-N`, `--hair-N`, `--avatar-pants`, `--avatar-shoe`).
+- `hangar/Worker.ts` desenha a partir do avatar; `WorkerView` ganhou `look`.
+
+### Stubs da Fase 5 (ponto de troca)
+
+A frente de Simulação (S1 e S3) ainda não integrou; as cenas declaram localmente o contrato em `src/scenes/phase5.ts`. Quando a simulação entrar, apagar o arquivo e trocar os imports pelos tipos de `../sim`:
+
+| Stub em `scenes/phase5.ts` | Vira (contrato S1/S3) |
+|---|---|
+| `DesignPhase5` (`chordM`, `wingPosition`, `tailVolume`, `cgPercentMac`, `propDiameterIn`) e `BlueprintDesign = AircraftDesign & Partial<DesignPhase5>` | campos novos de `AircraftDesign`; a geometria cai nos valores antigos (corda por filosofia, hélice por potência) enquanto o campo não existe |
+| `staticMarginStub(design)` e `StaticMargin` | `stabilityEstimate(design)` (valores centrais de ponto neutro e margem, % CMA); passar o resultado como 2º argumento de `blueprintGeometry` |
+| `MemberLook` e `DEFAULT_LOOK` | `Member.look` (S3); a forma assumida é índices para as tabelas da paleta e `shirt` como cor 0xRRGGBB |
+| `lookFor(member)` | usa `member.look` quando existe; senão deriva uma aparência estável do id (trocar por `member.look` direto) |
+| `FlightTestSession` | montada pela UI/simulação a partir do ensaio agendado (S2): `venueId`, `venueName`, `crew` (looks) e um `FlightPlayback` por carga planejada |
+| ids de local em `flight/scenery.ts` (`aeroclub`, `airstrip`, `farm`) | `content/testVenues.ts` (S2): mapear cada local para um cenário em `sceneryForVenue`; id desconhecido cai no aeroclube |
 
 ### Ensaios: voo e bancada
 
 Entrada em `src/scenes/tests/testEntry.ts`: `TestEntry = BenchTestEntry | FlightTestEntry`. A cena só anima; resultado, medida e texto chegam prontos. A UI deriva a entrada de `testHistory(state)` com `entryFromHistory(entry, teamName)` (`src/scenes/tests/fromHistory.ts`, testada): estrutural e motor viram `BenchTestEntry` com o texto da simulação; voo de ensaio vira um `FlightPlayback` com a carga e a Hρ medidas (válido, ou pouso com dano citando as peças); voo filmado não anima (`null`). O histórico guarda o resultado, não a animação, então a distância de rotação e a parada do replay são ilustrativas.
 
+- Ensaio de voo agendado (Fase 5, C3): `flightReplay.playSession(session)` (`FlightTestSession`) faz a `FlightScene` trocar para o cenário do local (`flight/scenery.ts`: céu, chão, pista e construções ao fundo; a competição segue em `COMPETITION_SCENERY`), tocar a vinheta de chegada (`flight/session.ts`, `arrivalFrame(t, crewSize)`: van estaciona, portas abrem, a equipe carrega o avião até a largada e recua para assistir, bonecos de `people/avatar.ts`) e depois uma decolagem por `FlightPlayback`, com `BETWEEN_FLIGHTS_S` de pausa depois do cartão de cada uma. Tocar qualquer outro replay (`flightReplay.play`) encerra a sessão e volta ao visual da competição. Em dev, `MOCK_TEST_SESSIONS` (`flight/mockPlaybacks.ts`) tem uma sessão por cenário e `window.__flightScene.seek(t)` pula o voo atual.
 - `playTest(entry)`: ensaio de voo chama `flightReplay.play(playback)` e reaproveita a `FlightScene`; ensaio de bancada vai para `benchTestChannel.run(entry)`, que o `HangarScene` assina.
 - Bancada (`BenchTestEntry`: `kind` `structural` · `thrust` · `scale`, `outcome`, `gauge` 0–1, `result`): estrutural na asa, tração na eletrônica, pesagem na fuselagem (`TEST_BENCH`). Um mostrador com ponteiro sobe sobre a bancada, a asa flexiona (e rompe com faíscas se `fail`), a hélice gira ou o prato pesa, e o texto de `result` aparece em `RESULT_AT` (2,6 s). Dura `BENCH_TEST_SECONDS` (5 s) em tempo real, como a abertura das caixas, mesmo com o relógio pausado.
 - Quadro puro em `src/scenes/hangar/benchTest.ts`, `benchTestFrame(entry, t)` (testado em `tests/scenes/benchTest.test.ts`).

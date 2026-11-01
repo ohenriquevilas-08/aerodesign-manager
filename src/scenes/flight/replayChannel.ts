@@ -2,6 +2,7 @@
 // A cena assina ao criar; quem chama `play` não precisa de referência ao Phaser.Game.
 // Quando a simulação guardar as baterias no GameState, a cena pode passar a ler do store.
 
+import type { FlightTestSession } from "../phase5";
 import type { FlightPlayback } from "./playback";
 
 export type ReplaySpeed = 0.5 | 1 | 2 | 4;
@@ -14,6 +15,7 @@ export interface ReplayRequest {
 
 type Listener = (request: ReplayRequest) => void;
 type SpeedListener = (speed: ReplaySpeed) => void;
+type SessionListener = (session: FlightTestSession) => void;
 
 function createReplayChannel() {
   let current: ReplayRequest | null = null;
@@ -21,12 +23,19 @@ function createReplayChannel() {
   let serial = 0;
   const listeners = new Set<Listener>();
   const speedListeners = new Set<SpeedListener>();
+  const sessionListeners = new Set<SessionListener>();
+  let session: FlightTestSession | null = null;
 
   return {
     play(playback: FlightPlayback) {
       serial += 1;
       current = { playback, serial };
       listeners.forEach((listener) => listener(current!));
+    },
+    /** Ensaio de voo: vinheta de chegada e as decolagens em sequência, no cenário do local. */
+    playSession(next: FlightTestSession) {
+      session = next;
+      sessionListeners.forEach((listener) => listener(next));
     },
     setSpeed(next: ReplaySpeed) {
       speed = next;
@@ -35,15 +44,20 @@ function createReplayChannel() {
     get current() {
       return current;
     },
+    get session() {
+      return session;
+    },
     get speed() {
       return speed;
     },
-    subscribe(listener: Listener, onSpeed?: SpeedListener): () => void {
+    subscribe(listener: Listener, onSpeed?: SpeedListener, onSession?: SessionListener): () => void {
       listeners.add(listener);
       if (onSpeed) speedListeners.add(onSpeed);
+      if (onSession) sessionListeners.add(onSession);
       return () => {
         listeners.delete(listener);
         if (onSpeed) speedListeners.delete(onSpeed);
+        if (onSession) sessionListeners.delete(onSession);
       };
     }
   };

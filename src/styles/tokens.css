@@ -34,6 +34,37 @@
   --night: #03070d; /* escuro da noite sobre a oficina e nas janelas */
   --lamp: #ffd98a; /* luz quente das luminárias acesas */
 
+  /* Cenários dos locais de ensaio de voo */
+  --venue-club-top: #1a4a6e;
+  --venue-club-bottom: #5a98b8;
+  --venue-strip-top: #244a5a;
+  --venue-strip-bottom: #7fa89a;
+  --venue-farm-top: #3a3550;
+  --venue-farm-bottom: #c98a5a;
+  --venue-grass: #1d4a3a;
+  --venue-soil: #4a3c2a;
+  --venue-wall: #6a7f8f;
+  --venue-roof: #3b4a58;
+  --venue-barn: #8a3a35;
+  --venue-trunk: #3a2a1c;
+  --venue-leaves: #1f5a3a;
+
+  /* Bonecos (MemberLook): tons de pele e de cabelo, calça e sapato */
+  --skin-0: #ffdcbd;
+  --skin-1: #f0b48a;
+  --skin-2: #d08b5b;
+  --skin-3: #a66a3f;
+  --skin-4: #7a4a2b;
+  --skin-5: #52301c;
+  --hair-0: #1c1410;
+  --hair-1: #4a2c17;
+  --hair-2: #8a5a2b;
+  --hair-3: #d2a45a;
+  --hair-4: #b5472b;
+  --hair-5: #9aa5ad;
+  --avatar-pants: #1f4762;
+  --avatar-shoe: #08121c;
+
   /* Moedas (design §8) */
   --cost-hours: #22c7e6;
   --cost-credits: #ffc23d;
