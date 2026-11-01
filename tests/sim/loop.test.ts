@@ -32,8 +32,18 @@ function withRookie(game: GameState): GameState {
   return { ...game, members: [...game.members, rookie] };
 }
 
+/** Escala cheia: todos sem aula, todo dia de manhã e à tarde, para as tarefas de oficina andarem. */
+function withFullSchedule(game: GameState): GameState {
+  const crew = game.members.filter((item) => item.role !== "president").map((item) => item.id);
+  const schedule: GameState["workshop"]["schedule"] = {};
+  for (let day = 0; day <= 6; day += 1) {
+    for (const shift of ["morning", "afternoon"] as const) schedule[`${day as 0}-${shift}`] = crew;
+  }
+  return { ...game, members: game.members.map((item) => ({ ...item, classSlots: [] })), workshop: { ...game.workshop, schedule } };
+}
+
 const newGame = (overrides: Partial<GameState> = {}): GameState => ({
-  ...withRookie(createGame({ seed: 42, teamName: "Teste" })),
+  ...withFullSchedule(withRookie(createGame({ seed: 42, teamName: "Teste" }))),
   ...overrides
 });
 

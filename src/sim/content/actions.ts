@@ -41,7 +41,9 @@ export type ActionEffect =
   | { kind: "test"; test: "structural" | "thrust" | "flight" | "video" }
   | { kind: "report-chapter" }
   | { kind: "drawings" }
-  | { kind: "oral-practice" };
+  | { kind: "oral-practice" }
+  /** Autorização de acesso noturno do departamento (design §5.5). */
+  | { kind: "night-access" };
 
 /** Alvo exigido no comando start-action. */
 export type ActionTarget = "part" | "waiting-task" | "discipline" | "selection-format";
@@ -76,6 +78,10 @@ export interface ActionDef {
   /** Consumíveis retirados do estoque ao iniciar. */
   requires?: Partial<Record<StockItem, number>>;
   target?: ActionTarget;
+  /** Tarefa de oficina: só anda nos turnos escalados, com chave e lotação (design §5.5). */
+  workshop?: boolean;
+  /** Exige duas pessoas no turno (resina, máquinas). */
+  needsPair?: boolean;
 }
 
 const cost = (hours: number, credits: number, leadDays = 0, risk: Cost["risk"] = "none"): Cost => ({
@@ -121,6 +127,7 @@ const defs: Omit<ActionDef, "category">[] = [
   { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), crew: crew(1, 1, 1), skill: "knowledge", effect: { kind: "document" }, target: "discipline" },
   { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), crew: crew(1, 3, 4), skill: "communication", effect: { kind: "credits", amount: 500 } },
   { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), crew: crew(1, 1, 2), skill: "communication", effect: { kind: "sponsor" } },
+  { id: "night-access-request", label: "Pedir acesso noturno ao departamento", cost: cost(2, 0, 7), crew: crew(1, 1, 1), skill: "communication", effect: { kind: "night-access" } },
   { id: "unload-drill", label: "Treino de retirada de carga", cost: cost(4, 0), crew: crew(1, 2, 2), skill: "agility", effect: { kind: "agility" } },
   // Horas + créditos
   {
@@ -129,7 +136,8 @@ const defs: Omit<ActionDef, "category">[] = [
     cost: cost(60, 180), crew: crew(1, 2, 3), skill: "fabrication",
     discipline: "structures",
     effect: { kind: "fabricate", part: "wing", label: "Asa (balsa)" },
-    requires: { balsa: 1 }
+    requires: { balsa: 1 },
+    workshop: true, needsPair: true
   },
   {
     id: "build-fuselage",
@@ -137,7 +145,8 @@ const defs: Omit<ActionDef, "category">[] = [
     cost: cost(40, 120), crew: crew(1, 2, 3), skill: "fabrication",
     discipline: "structures",
     effect: { kind: "fabricate", part: "fuselage", label: "Fuselagem" },
-    requires: { "balsa-hard": 1 }
+    requires: { "balsa-hard": 1 },
+    workshop: true, needsPair: true
   },
   {
     id: "build-tail",
@@ -145,7 +154,8 @@ const defs: Omit<ActionDef, "category">[] = [
     cost: cost(24, 60), crew: crew(1, 2, 2), skill: "fabrication",
     discipline: "stability",
     effect: { kind: "fabricate", part: "tail", label: "Empenagem" },
-    requires: { "balsa-light": 1 }
+    requires: { "balsa-light": 1 },
+    workshop: true
   },
   {
     id: "build-gear",
@@ -153,12 +163,13 @@ const defs: Omit<ActionDef, "category">[] = [
     cost: cost(16, 80), crew: crew(1, 1, 2), skill: "fabrication",
     discipline: "loads",
     effect: { kind: "fabricate", part: "landingGear", label: "Trem de pouso" },
-    requires: { "carbon-fiber": 1 }
+    requires: { "carbon-fiber": 1 },
+    workshop: true
   },
-  { id: "repair-part", label: "Reparar peça", cost: cost(10, 60), crew: crew(1, 1, 2), skill: "fabrication", effect: { kind: "repair", amount: 30 }, target: "part" },
+  { id: "repair-part", label: "Reparar peça", cost: cost(10, 60), crew: crew(1, 1, 2), skill: "fabrication", effect: { kind: "repair", amount: 30 }, target: "part", workshop: true },
   // Ensaios (design §7.3): exigem as peças no hangar (sim/aircraft.ts, testProblem).
-  { id: "test-structural", label: "Ensaio estrutural de bancada", cost: cost(8, 20, 0, "medium"), crew: crew(2, 2, 3), skill: "knowledge", discipline: "structures", effect: { kind: "test", test: "structural" } },
-  { id: "test-thrust", label: "Ensaio de motor e hélice", cost: cost(4, 10, 0, "low"), crew: crew(1, 2, 2), skill: "knowledge", discipline: "electrical", effect: { kind: "test", test: "thrust" } },
+  { id: "test-structural", label: "Ensaio estrutural de bancada", cost: cost(8, 20, 0, "medium"), crew: crew(2, 2, 3), skill: "knowledge", discipline: "structures", effect: { kind: "test", test: "structural" }, workshop: true, needsPair: true },
+  { id: "test-thrust", label: "Ensaio de motor e hélice", cost: cost(4, 10, 0, "low"), crew: crew(1, 2, 2), skill: "knowledge", discipline: "electrical", effect: { kind: "test", test: "thrust" }, workshop: true },
   { id: "test-flight", label: "Voo com carga incremental", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting", discipline: "performance", effect: { kind: "test", test: "flight" } },
   { id: "flight-video", label: "Voo filmado (vídeo oficial)", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting", effect: { kind: "test", test: "video" } }
 ];

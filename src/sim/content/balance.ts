@@ -250,6 +250,28 @@ export const BALANCE = {
     lateChangePenalty: 5
   },
 
+  /** Escala da oficina (design §5.5). */
+  workshop: {
+    capacity: 4,
+    /** Chance de ter aula em cada turno de dia útil (sorteada por pessoa). */
+    classChance: { morning: 0.6, afternoon: 0.5, evening: 0.15 } as Record<string, number>,
+    /** Teto de turnos por pessoa na escala sugerida pelo capitão. */
+    maxShiftsPerWeek: 5,
+    /** Motivação perdida por hora de madrugada; cada madrugada seguida soma este fator. */
+    overnightMotivationPerHour: 0.6,
+    overnightStreakExtra: 0.5,
+    /** Na semana de um prazo, a madrugada une a equipe: motivação ganha por hora. */
+    deadlineBoostPerHour: 0.4,
+    deadlineWindowDays: 7,
+    /** Qualidade perdida se todas as horas da tarefa fossem de madrugada (depois da 1h contam em dobro). */
+    overnightQualityPenalty: 15,
+    lateNightHour: 1,
+    /** Mentoria no turno: veterano (≥ veteranMin) ensina novato com pelo menos minGap de diferença. */
+    mentorPerHour: 0.3,
+    veteranMin: 40,
+    minGap: 20
+  },
+
   calendar: {
     /** Aviso de prazo próximo, em dias (design §4.1). */
     warnDays: 7

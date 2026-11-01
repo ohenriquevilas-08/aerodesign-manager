@@ -49,3 +49,5 @@ export { SELECTION_FORMATS, type SelectionFormat, type SelectionFormatDef } from
 export { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";
 export { OFFICIAL_CALENDAR, SEASON_START, type Deadline } from "./content/calendar2026";
 export { TEAM_POOL, type TeamSeed } from "./content/teams";
+export { currentShift, slotStatus, suggestSchedule, workshopNow, type SlotStatus } from "./workshop";
+export { findShift, parseSlot, SHIFTS, slotKey, WEEKDAYS, type ShiftDef, type WeekdayDef } from "./content/workshop";

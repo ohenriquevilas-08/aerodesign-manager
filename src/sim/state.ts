@@ -4,6 +4,7 @@ import { TEAM_POOL } from "./content/teams";
 import { createReport } from "./report";
 import { nextRandom } from "./rng";
 import { createShops } from "./shop";
+import { createWorkshop, drawClassSlots } from "./workshop";
 import type { Discipline, GameState, Member, RivalTeam } from "./types";
 
 export const DISCIPLINES: readonly Discipline[] = [
@@ -38,7 +39,8 @@ function founder(id: string, name: string, role: Member["role"], focus: Discipli
     hoursPerDay: role === "president" ? 0 : 3,
     graduation: "2027.2",
     taskId: null,
-    workStreakHours: 0
+    workStreakHours: 0,
+    classSlots: []
   };
 }
 
@@ -68,19 +70,26 @@ export function drawField(seed: number): { rivals: RivalTeam[]; rngState: number
 }
 
 export function createGame(options: { seed: number; teamName: string }): GameState {
-  const { rivals, rngState } = drawField(options.seed);
+  const { rivals, rngState: fieldRng } = drawField(options.seed);
+  let rngState = fieldRng;
+  const members = [
+    founder("president", "Você", "president", null),
+    founder("captain-aero", "Capitão de Aerodinâmica", "captain", "aerodynamics"),
+    founder("captain-struct", "Capitã de Estruturas", "captain", "structures")
+  ].map((member) => {
+    if (member.role === "president") return member;
+    const drawn = drawClassSlots(rngState);
+    rngState = drawn.rngState;
+    return { ...member, classSlots: drawn.slots };
+  });
   return {
-    version: 3,
+    version: 4,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },
     teamName: options.teamName,
     credits: 0,
-    members: [
-      founder("president", "Você", "president", null),
-      founder("captain-aero", "Capitão de Aerodinâmica", "captain", "aerodynamics"),
-      founder("captain-struct", "Capitã de Estruturas", "captain", "structures")
-    ],
+    members,
     documented: zeroKnowledge(),
     parts: [],
     stock: {},
@@ -106,6 +115,7 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
     report: createReport(),
     orders: [],
     shops: createShops(),
-    competition: null
+    competition: null,
+    workshop: createWorkshop(members)
   };
 }

@@ -12,6 +12,7 @@ import {
 } from "./content/selection";
 import { nextRandom } from "./rng";
 import { DISCIPLINES, zeroKnowledge } from "./state";
+import { drawClassSlots } from "./workshop";
 import { DISCIPLINE_LABELS } from "./team";
 import type { Candidate, Discipline, GameState, Member } from "./types";
 
@@ -55,6 +56,8 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
     const knowledge = zeroKnowledge();
     knowledge[focus] = between(format.focusKnowledge);
     const fabrication = between(format.fabrication);
+    const classes = drawClassSlots(rng);
+    rng = classes.rngState;
     drawn.push({
       id: `cand-${nextId}`,
       name,
@@ -67,7 +70,8 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
       motivation: between(format.motivation),
       hoursPerDay: between(CANDIDATE_HOURS_PER_DAY),
       graduation: pick(CANDIDATE_GRADUATIONS),
-      opinion: opinionFor(state, focus, knowledge[focus], fabrication)
+      opinion: opinionFor(state, focus, knowledge[focus], fabrication),
+      classSlots: classes.slots
     });
     nextId += 1;
   }
@@ -91,7 +95,8 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     hoursPerDay: candidate.hoursPerDay,
     graduation: candidate.graduation,
     taskId: null,
-    workStreakHours: 0
+    workStreakHours: 0,
+    classSlots: [...candidate.classSlots]
   };
   return {
     ...state,

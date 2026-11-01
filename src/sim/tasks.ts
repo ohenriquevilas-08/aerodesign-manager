@@ -92,6 +92,10 @@ export function startAction(
   const action = findAction(actionId);
   if (!action) return warn(state, "Ação desconhecida.");
 
+  if (action.effect?.kind === "night-access" && state.workshop.nightAccess !== "none") {
+    return warn(state, state.workshop.nightAccess === "granted" ? "O departamento já autorizou a madrugada." : "O pedido de acesso noturno já está no departamento.");
+  }
+
   const problem = targetProblem(state, action, targetId) ?? (action.effect?.kind === "test" ? testProblem(state, action.effect.test) : null);
   if (problem) return warn(state, problem);
 
@@ -137,6 +141,7 @@ export function startAction(
   };
   const next: GameState = {
     ...state,
+    workshop: action.effect?.kind === "night-access" ? { ...state.workshop, nightAccess: "requested" } : state.workshop,
     credits: state.credits - action.cost.credits,
     rngState,
     stock,
@@ -210,7 +215,11 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
   let body = "Tarefa concluída.";
 
   // Rendimento: qualidade de quem trabalhou (antes de aprender com a tarefa) e um sorteio.
-  const quality = clamp(crewQuality(state, action, task.targetId, task.contributions) + findDedication(task.dedication).qualityBonus);
+  // Madrugada: cansaço gera erro, proporcional à fatia do trabalho feita de madrugada (design §5.5).
+  const tired = task.hoursTotal > 0 ? Math.min(1, (task.overnightHours ?? 0) / task.hoursTotal) : 0;
+  const quality = clamp(
+    crewQuality(state, action, task.targetId, task.contributions) + findDedication(task.dedication).qualityBonus - BALANCE.workshop.overnightQualityPenalty * tired
+  );
   const rolled = rollMultiplier(next.rngState, quality);
   const multiplier = rolled.multiplier;
   if (action.effect && VARIABLE_EFFECTS.has(action.effect.kind)) next = { ...next, rngState: rolled.rngState };
@@ -323,6 +332,10 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       }
       break;
     }
+    case "night-access":
+      next = { ...next, workshop: { ...next.workshop, nightAccess: "granted" } };
+      body = "O departamento autorizou a equipe a ficar na oficina depois das 22h. A madrugada está liberada na escala.";
+      break;
     case "agility":
       body = "A equipe ficou mais rápida na retirada de carga.";
       break;

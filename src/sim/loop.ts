@@ -8,6 +8,7 @@ import { BALANCE } from "./content/balance";
 import { OFFICIAL_CALENDAR } from "./content/calendar2026";
 import { findAction } from "./content/actions";
 import { crewRates } from "./crew";
+import { overnightWeight, shiftEffects, workshopTaskRates } from "./workshop";
 import { reportEvents } from "./report";
 import { advanceShops } from "./shop";
 import { addMessage, completeTask } from "./tasks";
@@ -27,6 +28,9 @@ export function tick(state: GameState, realSeconds: number): GameState {
     let dt = Math.min(realLeft * hoursPerSecond, BALANCE.stepHours);
     // O ritmo pode mudar na virada da hora (início e fim das janelas de voo).
     if (pace.nextChange - next.clock.hours > EPSILON) dt = Math.min(dt, pace.nextChange - next.clock.hours);
+    // Os turnos da oficina começam e acabam em horas cheias: o passo não atravessa a virada.
+    const toHour = Math.floor(next.clock.hours + EPSILON) + 1 - next.clock.hours;
+    if (toHour > EPSILON) dt = Math.min(dt, toHour);
     next = step(next, dt);
     realLeft -= dt / hoursPerSecond;
   }
@@ -63,20 +67,27 @@ export function step(state: GameState, dt: number): GameState {
     ...next,
     tasks: next.tasks.map((task) => {
       if (task.status !== "active" || task.assignees.length === 0) return task;
-      const crew = findAction(task.actionId)!.crew;
+      const action = findAction(task.actionId)!;
       const team = task.assignees.map((id) => membersById.get(id)).filter((member): member is Member => !!member);
-      const rates = crewRates(team, crew, date);
+      // Tarefa de oficina rende por hora de turno; as demais, por horas livres do dia.
+      const rates = action.workshop ? workshopTaskRates(state, task, t0) : crewRates(team, action.crew, date);
       if (rates.size === 0) return task;
+      const perStep = action.workshop ? dt : dt / 24;
       const contributions = { ...task.contributions };
       let hoursDone = task.hoursDone;
       rates.forEach((rate, memberId) => {
-        const hours = (rate * dt) / 24;
+        const hours = rate * perStep;
         contributions[memberId] = (contributions[memberId] ?? 0) + hours;
         hoursDone += hours;
       });
-      return { ...task, hoursDone, contributions };
+      const weight = action.workshop ? overnightWeight(t0) : 0;
+      if (weight === 0) return { ...task, hoursDone, contributions };
+      return { ...task, hoursDone, contributions, overnightHours: (task.overnightHours ?? 0) + (hoursDone - task.hoursDone) * weight };
     })
   };
+
+  // 2a. Turno corrente: madrugada mexe na motivação; veterano ensina novato.
+  next = shiftEffects(next, t0, dt);
 
   // 2b. Alcance de divulgação esfria com o tempo.
   if (next.outreach > 0) next = { ...next, outreach: next.outreach * Math.pow(1 - BALANCE.outreach.decayPerDay, dt / 24) };

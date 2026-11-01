@@ -38,6 +38,30 @@ export interface Clock {
 
 export type Role = "president" | "captain" | "member";
 
+// ---------------------------------------------------------------------------
+// Escala da oficina (design §5.5).
+// ---------------------------------------------------------------------------
+
+/** Turnos: manhã 8–12, tarde 13–18, noite 19–22, madrugada 22–3 (pertence ao dia em que começa). */
+export type ShiftId = "morning" | "afternoon" | "evening" | "overnight";
+/** Dia da semana, 0 = domingo. */
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+/** Turno da grade semanal, ex.: "1-morning" (segunda de manhã). */
+export type SlotKey = `${Weekday}-${ShiftId}`;
+
+/** Acesso ao prédio depois das 22h: sem ele a madrugada fica bloqueada na grade. */
+export type NightAccess = "none" | "requested" | "granted";
+
+export interface WorkshopState {
+  /** Lugares na oficina por turno (4 no Ano 1). */
+  capacity: number;
+  /** Quem tem chave: a oficina só abre com um deles no turno. */
+  keyHolders: string[];
+  nightAccess: NightAccess;
+  /** Quem está escalado em cada turno da semana (ids de integrantes). */
+  schedule: Partial<Record<SlotKey, string[]>>;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -61,6 +85,8 @@ export interface Member {
    * a pessoa está sobrecarregada. Recupera quando fica parada.
    */
   workStreakHours: number;
+  /** Turnos com aula no semestre (fim de semana e madrugada nunca têm aula). */
+  classSlots: SlotKey[];
 }
 
 /** Candidato da seletiva (design §5.2): vira Member com role "member" ao ser convidado. */
@@ -80,6 +106,8 @@ export interface Candidate {
   graduation: string;
   /** Parecer de um capitão, em PT-BR. */
   opinion: string;
+  /** Turnos com aula no semestre; passa para o integrante ao contratar. */
+  classSlots: SlotKey[];
 }
 
 export type PartType = "wing" | "fuselage" | "tail" | "landingGear" | "powertrain" | "electronics";
@@ -131,6 +159,8 @@ export interface Task {
   doneAt: number | null;
   /** Rápido, normal ou caprichado: já aplicado em hoursTotal; vira bônus de qualidade na conclusão. */
   dedication: TaskDedication;
+  /** Horas-pessoa feitas de madrugada (depois da 1h contam em dobro); tiram qualidade na conclusão. */
+  overnightHours?: number;
 }
 
 export interface InboxMessage {
@@ -450,7 +480,7 @@ export interface Standing {
 }
 
 export interface GameState {
-  version: 3;
+  version: 4;
   seed: number;
   rngState: number;
   clock: Clock;
@@ -484,4 +514,6 @@ export interface GameState {
   shops: ShopsState;
   /** null até o dia da competição de voo. */
   competition: CompetitionState | null;
+  /** Oficina: lotação, chaves, acesso noturno e escala semanal (design §5.5). */
+  workshop: WorkshopState;
 }
