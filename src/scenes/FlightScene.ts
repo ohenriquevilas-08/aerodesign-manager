@@ -1,14 +1,17 @@
 // Cena do voo da competição (design §9.3, §9.4 e §11), vista lateral no espírito de Into Space.
-// Recebe um FlightPlayback já resolvido pela simulação (via flightReplay) e só anima:
+// Recebe um FlightPlayback já resolvido pela simulação e só anima. Toca sozinha o seu último voo
+// quando ele aparece em competition.results (flight/results.ts); qualquer outro chega via flightReplay:
 // corrida, rotação, obstáculo de 0,9 m aos 55 m, circuito resumido, pouso, parada e retirada de carga.
 // Nunca muda o estado do jogo. O replay tem velocidade própria, independente de clock.speed.
 
 import Phaser from "phaser";
 import type { GameStore } from "../app/store";
+import type { BatteryResult, GameState } from "../sim";
 import { AircraftSprite } from "./flight/AircraftSprite";
 import { ParticleField } from "./flight/particles";
 import { FLIGHT_RULES, OUTCOME_LABEL, type FlightPlayback } from "./flight/playback";
 import { flightReplay, type ReplayRequest } from "./flight/replayChannel";
+import { autoPlayLatest } from "./flight/results";
 import { buildFlightScript, playbackRate, type FlightEvent, type FlightPose, type FlightScript } from "./flight/script";
 import { css, fonts, palette } from "./palette";
 
@@ -89,13 +92,18 @@ export class FlightScene extends Phaser.Scene {
   private snapCamera = true;
   private elapsed = 0;
   private unsubscribe: (() => void) | null = null;
+  private unsubscribeStore: (() => void) | null = null;
+  private store!: GameStore;
+  private lastResults: BatteryResult[] | null = null;
 
   constructor() {
     super("flight");
   }
 
-  // O store chega como nas outras cenas; o voo não lê o relógio (replay tem velocidade própria).
-  init(_data: { store: GameStore }) {}
+  // O store chega como nas outras cenas; o voo não segue o relógio (replay tem velocidade própria).
+  init(data: { store: GameStore }) {
+    this.store = data.store;
+  }
 
   create() {
     this.bgLayer = this.add.layer();
@@ -138,18 +146,33 @@ export class FlightScene extends Phaser.Scene {
       (request) => this.start(request),
       () => this.updateSpeedLabel()
     );
+    // Seu voo novo toca sozinho; o relógio dispara a cada quadro, então só olha quando os resultados mudam.
+    this.unsubscribeStore = this.store.subscribe((state) => this.checkResults(state));
     // game.destroy() (ao trocar de tela) emite DESTROY, não SHUTDOWN: limpar nos dois.
     const cleanup = () => {
       this.unsubscribe?.();
       this.unsubscribe = null;
+      this.unsubscribeStore?.();
+      this.unsubscribeStore = null;
       this.scale.off("resize", this.layout, this);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
-    if (flightReplay.current) this.start(flightReplay.current);
-    else this.showIdle();
+    // Voo que aconteceu com outra tela aberta toca ao entrar; senão, o último replay pedido.
+    if (!this.checkResults(this.store.getState())) {
+      if (flightReplay.current) this.start(flightReplay.current);
+      else this.showIdle();
+    }
     // Atalho de depuração: window.__flightScene.seek(t) no console.
     if (import.meta.env.DEV) (window as unknown as { __flightScene?: FlightScene }).__flightScene = this;
+  }
+
+  /** Toca o seu voo se for novo. Devolve true se começou um replay. */
+  private checkResults(state: GameState): boolean {
+    const results = state.competition?.results ?? null;
+    if (results === this.lastResults) return false;
+    this.lastResults = results;
+    return autoPlayLatest(state);
   }
 
   /** Pula o replay para o instante t (s), disparando os eventos no caminho. Para depuração. */

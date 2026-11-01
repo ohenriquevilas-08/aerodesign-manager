@@ -76,7 +76,8 @@ Tipo em `src/sim/types.ts` (reexportado por `src/scenes/flight/playback.ts`). De
 Coerência esperada da simulação: `no-takeoff` → rotação, folga, parada e retirada `null`; `tape-break` → folga < 0; `crash` → sem parada nem retirada.
 
 - `script.ts` (puro, testado em `tests/scenes/`) converte o playback em poses e eventos. A cena posiciona a cabeceira para o desfecho ficar legível (parada dentro ou fora); não interpreta distâncias.
-- Entrega à cena: `flightReplay.play(playback)` (`src/scenes/flight/replayChannel.ts`). Na Fase 3 as baterias ficam em `GameState.competition.results[].playback`.
+- Entrega à cena: `flightReplay.play(playback)` (`src/scenes/flight/replayChannel.ts`).
+- Do store (`src/scenes/flight/results.ts`): a `FlightScene` toca sozinha o seu último `BatteryResult` com `playback` (`teamId === PLAYER_TEAM_ID`) quando ele aparece em `competition.results`, uma vez só (a chave do último tocado fica fora da cena, então trocar de tela não repete; um voo que aconteceu com outra tela aberta toca ao entrar na Competição). Para tocar sob demanda, a UI usa `playResult(result)` com um item de `rivalReplays(state)` (rivais de destaque com replay) ou de `competition.results`.
 - O replay tem velocidade própria (`flightReplay.setSpeed`), independente de `clock.speed`.
 - Em dev, a tela Competição tem um painel que toca cada desfecho com `MOCK_PLAYBACKS`, e `window.__flightScene.seek(t)` pula o replay.
 
