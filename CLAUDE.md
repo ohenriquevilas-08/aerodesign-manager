@@ -12,6 +12,6 @@ Regras rápidas:
 - `src/sim/` é puro: sem DOM, sem `Math.random`, sem `Date.now`. Toda regra nova tem teste em `tests/sim/`.
 - Estado só muda por `Command` via `store.dispatch`.
 - Fórmulas do regulamento citam a seção no comentário (Regulamento 2026 Rev01, Classe Regular).
-- Antes de concluir: `npm test`, `npm run typecheck` e `npm run build` passando.
+- Antes de concluir: `npm run check` (testes, typecheck e build; imprime só ok ou o erro).
 - Textos do jogo em PT-BR; código, arquivos e commits em inglês.
 - O protótipo antigo (`Desktop/Aero/Aerodesign-Simulation`) está congelado; serve só de referência.
