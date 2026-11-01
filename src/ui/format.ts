@@ -133,7 +133,8 @@ export const PAUSE_REASON_LABEL: Record<string, string> = {
   "deadline-passed": "Prazo hoje",
   order: "Pedido",
   flight: "Seu voo",
-  competition: "Competição"
+  competition: "Competição",
+  "flight-test": "Ensaio de voo"
 };
 
 export function pauseReasonLabel(reason: string): string {

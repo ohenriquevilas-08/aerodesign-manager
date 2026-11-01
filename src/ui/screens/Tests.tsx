@@ -1,21 +1,28 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import { FlightScene } from "../../scenes/FlightScene";
 import { HangarScene } from "../../scenes/HangarScene";
+import { flightReplay } from "../../scenes/flight/replayChannel";
 import { entryFromHistory } from "../../scenes/tests/fromHistory";
 import { playTest, type TestEntry } from "../../scenes/tests/testEntry";
 import {
   ACTIONS,
   clockToDate,
+  findVenue,
   formatDate,
   formatTime,
   predictedPayload,
   testHistory,
+  upcomingEvents,
+  type FlightTest,
+  type GameState,
   type PayloadLine,
   type TestHistory,
   type TestHistoryEntry
 } from "../../sim";
 import { ActionCard } from "../components/CostTag";
+import { FlightTestPlanner } from "./FlightTestPlanner";
 import { formatNumber } from "../format";
 import { useDerived } from "../hooks";
 import { navigate } from "../nav";
@@ -29,8 +36,32 @@ const TEST_ACTIONS = ACTIONS.filter((action) => action.effect?.kind === "test");
 
 type Stage = "bench" | "flight";
 
+// O último ensaio agendado que já tocou na cena; sobrevive à troca de tela (como o replay da competição).
+let watchedTestId: string | null = null;
+
+/** Sessão da cena C3 a partir de um ensaio agendado já realizado: local, tripulação e uma decolagem por carga. */
+function sessionOf(state: GameState, test: FlightTest) {
+  const venue = findVenue(test.venueId);
+  const ids = "hired" in test.pilot ? test.crew : [test.pilot.memberId, ...test.crew];
+  return {
+    venueId: test.venueId,
+    venueName: venue?.name ?? test.venueId,
+    crew: ids.flatMap((id) => state.members.find((member) => member.id === id)?.look ?? []),
+    flights: test.takeoffs.map((takeoff) => takeoff.playback)
+  };
+}
+
 export function Tests() {
   const history = useDerived((state) => testHistory(state), []);
+  const events = useDerived((state) => upcomingEvents(state), []);
+  const doneTests = useDerived(
+    (state) =>
+      state.flightTests
+        .filter((test) => test.status === "done")
+        .map((test) => ({ id: test.id, venueId: test.venueId, takeoffs: test.takeoffs.length })),
+    []
+  );
+  const [planning, setPlanning] = useState(false);
   const teamName = useGame((state) => state.teamName);
   const line = useGame((state) => state.report.payloadLine);
   const [stage, setStage] = useState<Stage>("bench");
@@ -46,9 +77,25 @@ export function Tests() {
   };
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
+  // Toca a cena do ensaio agendado: vinheta de chegada e uma decolagem por carga (C3).
+  const playFlightTest = (testId: string) => {
+    const test = store.getState().flightTests.find((item) => item.id === testId);
+    if (!test || test.takeoffs.length === 0) return;
+    watchedTestId = testId;
+    setStage("flight");
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => flightReplay.playSession(sessionOf(store.getState(), test)), stage === "flight" ? 120 : 900);
+  };
+  // Dia de ensaio que passou com outra tela aberta (ou com esta aberta): toca ao entrar e quando acontece.
+  const latestDone = doneTests[doneTests.length - 1]?.id ?? null;
+  useEffect(() => {
+    if (latestDone && latestDone !== watchedTestId) playFlightTest(latestDone);
+  }, [latestDone]);
+
   // Ensaio que acaba com a tela aberta toca sozinho.
   useEffect(() => {
-    if (history.entries.length > seen.current) {
+    // Voo de ensaio agendado toca como sessão inteira (acima), não por decolagem solta.
+    if (history.entries.length > seen.current && !history.entries[0]!.flightTestId) {
       const entry = entryFromHistory(history.entries[0]!, teamName);
       if (entry) play(entry);
     }
@@ -63,8 +110,46 @@ export function Tests() {
       </header>
       <div class="tests-grid">
         <div class="stack scroll-col">
+          {planning ? <FlightTestPlanner onClose={() => setPlanning(false)} /> : null}
           <section class="panel">
-            <h2 class="panel-title">Fazer um ensaio</h2>
+            <h2 class="panel-title">Próximos eventos</h2>
+            <div class="panel-body stack-tight">
+              {events.map((event) => (
+                <article key={event.id} class={`event-row${event.kind === "competition" ? " is-competition" : ""}`}>
+                  <div>
+                    <strong>{event.title}</strong>
+                    <span class="small muted">
+                      {formatDate(clockToDate(event.at))} · {event.daysLeft === 0 ? "hoje" : `em ${event.daysLeft} ${event.daysLeft === 1 ? "dia" : "dias"}`}
+                    </span>
+                  </div>
+                  {event.kind === "flight-test" ? (
+                    <button type="button" class="btn-ghost" onClick={() => store.dispatch({ type: "cancel-flight-test", testId: event.id })}>
+                      Cancelar
+                    </button>
+                  ) : null}
+                </article>
+              ))}
+              {doneTests.map((test) => (
+                <article key={test.id} class="event-row is-done">
+                  <div>
+                    <strong>Ensaio feito: {findVenue(test.venueId)?.name ?? test.venueId}</strong>
+                    <span class="small muted">
+                      {test.takeoffs} {test.takeoffs === 1 ? "decolagem" : "decolagens"}
+                    </span>
+                  </div>
+                  <button type="button" class="btn-ghost" onClick={() => playFlightTest(test.id)}>
+                    Rever voos
+                  </button>
+                </article>
+              ))}
+              <button type="button" class="btn-primary" disabled={planning} onClick={() => setPlanning(true)}>
+                Agendar ensaio de voo
+              </button>
+              <p class="muted small">Local, piloto e tripulação são pagos adiantados. No dia o relógio pausa e a equipe voa.</p>
+            </div>
+          </section>
+          <section class="panel">
+            <h2 class="panel-title">Ensaio de bancada</h2>
             <div class="panel-body stack-tight">
               {TEST_ACTIONS.map((action) => (
                 <ActionCard key={action.id} action={action} onSelect={() => navigate("actions", { actionId: action.id })} />

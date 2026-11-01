@@ -76,7 +76,7 @@
   margin: 0;
 }
 
-/* Escalação (U1) */
+/* Escalação: a faixa "Sem área" (o campo vive em phase5.css) */
 .formation {
   display: flex;
   flex-direction: column;
@@ -86,146 +86,12 @@
   overflow-y: auto;
 }
 
-.formation-top {
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
-}
-
-.formation-president {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--highlight);
-  border-radius: var(--radius);
-  background: var(--highlight-soft);
-}
-
-.pitch {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: repeating-linear-gradient(90deg, rgb(63 209 139 / 0.06) 0 56px, transparent 56px 112px), var(--panel);
-}
-
-.pitch-col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
 .pitch-col-title {
   margin: 0;
   font-family: var(--font-display);
   font-size: 17px;
   letter-spacing: 0.05em;
-  text-align: center;
   text-transform: uppercase;
-}
-
-.pitch-col.is-empty .pitch-col-title {
-  color: var(--warn);
-}
-
-.slot {
-  position: relative;
-  padding: var(--space-3) var(--space-1) var(--space-1);
-  border-radius: var(--radius-sm);
-}
-
-.slot-tag {
-  position: absolute;
-  top: -2px;
-  left: 6px;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--highlight);
-}
-
-.slot-captain .player {
-  border-color: var(--highlight);
-}
-
-.slot-members {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-height: 60px;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-}
-
-.slot.is-over,
-.slot-members.is-over,
-.bench-strip.is-over {
-  outline: 2px dashed var(--accent);
-  background: var(--accent-soft);
-}
-
-.slot-hole {
-  display: grid;
-  place-items: center;
-  min-height: 56px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--text-dim);
-  font-size: 12px;
-}
-
-.pitch-warning {
-  margin: 0;
-  font-size: 12px;
-  color: var(--warn);
-}
-
-.player {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-2) var(--space-2) var(--space-2) 44px;
-  min-height: 56px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--panel-raised);
-  cursor: grab;
-}
-
-.player.is-dragging {
-  opacity: 0.4;
-}
-
-.player-rating {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--bg);
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.player-name {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.player-meta {
-  font-size: 11px;
-  color: var(--text-muted);
 }
 
 .bench-strip {
@@ -237,14 +103,15 @@
   border-radius: var(--radius);
 }
 
+.bench-strip.is-over {
+  outline: 2px dashed var(--accent);
+  background: var(--accent-soft);
+}
+
 .bench-strip-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.bench-strip-cards .player {
-  width: 200px;
+  gap: var(--space-3);
 }
 
 /* Relatório como checklist (U3) */
