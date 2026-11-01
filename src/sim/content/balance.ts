@@ -200,6 +200,56 @@ export const BALANCE = {
     restockChancePerDay: 0.15
   },
 
+  /** Competição de voo (design §9). Valores provisórios; regras fixas em regulation2026.ts. */
+  competition: {
+    /** Durante as janelas de voo, 1 h de jogo dura isto em segundos reais em 1× (fora delas, o normal). */
+    realSecondsPerGameHour: 20,
+    /** Dia do marco: exposição e inspeção; voos nos dias seguintes. */
+    flightDays: 3,
+    windowStartHour: 7,
+    windowEndHour: 17,
+    /** Uma equipe decola a cada slotMinutes. */
+    slotMinutes: 12,
+    maxBatteries: 7,
+    /** Clima de São José dos Campos no fim de outubro (Apêndice 4 dá o Hρ). */
+    weather: {
+      pressureHpa: 945,
+      pressureSpread: 2,
+      minTempK: 289.15,
+      maxTempK: 302.15,
+      coldestHour: 6,
+      hottestHour: 15,
+      dailyTempSpread: 2,
+      windMean: 1.5,
+      windSpread: 2,
+      afternoonWind: 1
+    },
+    /** Subida depois da rotação: gradiente = base + ganho × (1 − corrida/55). */
+    climbBase: 0.08,
+    climbGain: 0.2,
+    rotationNoise: 0.05,
+    clearanceNoise: 0.1,
+    /** Parada desde o toque, m: base + por kg de massa − por m/s de vento de proa. */
+    stopBase: 20,
+    stopPerKg: 1.2,
+    stopPerHeadwind: 3,
+    stopNoise: 6,
+    /** Fim da área de pouso, m: parar depois disso é pouso fora da pista (sem BPO). */
+    landingZoneM: 60,
+    /** Retirada de carga (2 pessoas): base − ganho × agilidade média/100, ± ruído (s). */
+    unloadBase: 34,
+    unloadGain: 20,
+    unloadNoise: 3,
+    /** Chances-base de incidente, multiplicadas pelo risco (piloto, estabilidade, condição). */
+    crashChance: 0.02,
+    damageChance: 0.05,
+    landingOutChance: 0.08,
+    /** Acima da sustentação disponível o avião estola: chance de queda por fração de excesso de massa. */
+    stallPerExcess: 4,
+    /** Penalidade por alteração de projeto depois de 27/set (Apêndice 6). Provisório. */
+    lateChangePenalty: 5
+  },
+
   calendar: {
     /** Aviso de prazo próximo, em dias (design §4.1). */
     warnDays: 7

@@ -1,7 +1,9 @@
 // Loop de preparação: o que acontece enquanto o relógio corre (design §4).
 // O tick é quebrado em passos de até BALANCE.stepHours; um evento que pausa o relógio
 // interrompe o tick no passo em que aconteceu e o resto do tempo real é descartado.
+// Nas janelas de voo da competição o relógio anda mais devagar (competition.ts, clockPace).
 
+import { advanceCompetition, clockPace } from "./competition";
 import { BALANCE } from "./content/balance";
 import { OFFICIAL_CALENDAR } from "./content/calendar2026";
 import { findAction } from "./content/actions";
@@ -17,12 +19,16 @@ const EPSILON = 1e-9;
 
 export function tick(state: GameState, realSeconds: number): GameState {
   if (state.clock.speed === 0 || realSeconds <= 0) return state;
-  let remaining = gameHoursForRealSeconds(realSeconds, state.clock.speed);
   let next = state;
-  while (remaining > EPSILON && next.clock.speed !== 0) {
-    const dt = Math.min(remaining, BALANCE.stepHours);
+  let realLeft = realSeconds;
+  while (realLeft > EPSILON && next.clock.speed !== 0) {
+    const pace = clockPace(next);
+    const hoursPerSecond = gameHoursForRealSeconds(1, next.clock.speed) * pace.factor;
+    let dt = Math.min(realLeft * hoursPerSecond, BALANCE.stepHours);
+    // O ritmo pode mudar na virada da hora (início e fim das janelas de voo).
+    if (pace.nextChange - next.clock.hours > EPSILON) dt = Math.min(dt, pace.nextChange - next.clock.hours);
     next = step(next, dt);
-    remaining -= dt;
+    realLeft -= dt / hoursPerSecond;
   }
   return next;
 }
@@ -137,6 +143,11 @@ export function step(state: GameState, dt: number): GameState {
 
   // 5b. Relatório: envio automático no prazo e apresentação oral (os marcos acima já pausam).
   next = reportEvents(next, t0, t1);
+
+  // 5c. Competição: começa no marco, fila e baterias nas janelas de voo; seu voo pausa.
+  const competition = advanceCompetition(next, t0, t1);
+  next = competition.state;
+  pauses.push(...competition.pauses);
 
   // 6. Pausa automática: o relógio para e guarda o motivo do primeiro evento do passo.
   const first = pauses[0];

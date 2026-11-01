@@ -102,8 +102,8 @@ export function estimateReportScore(state: GameState): Estimate | null {
   return { value: expected, margin: expected * reportSpread(state) };
 }
 
-/** Envia no Portal da CT: congela previsões e sorteia NR (dentro da faixa de estimateReportScore). */
-function submit(state: GameState): GameState {
+/** Envia no Portal da CT: congela previsões e sorteia NR (dentro da faixa de estimateReportScore). Sem validar prazo. */
+export function deliverReport(state: GameState): GameState {
   const estimate = estimateReportScore(state)!;
   const roll = nextRandom(state.rngState);
   const score = clamp(estimate.value + estimate.margin * (2 * roll.value - 1), 0, REGULAR_2026.reportMax);
@@ -132,7 +132,7 @@ function submit(state: GameState): GameState {
 export function submitReport(state: GameState): GameState {
   if (state.report.submittedAt !== null) return warn(state, "O relatório já foi enviado.");
   if (state.clock.hours > REPORT_LATE_DEADLINE) return warn(state, "O prazo do relatório (23/ago) já passou.");
-  return submit(state);
+  return deliverReport(state);
 }
 
 /** Horas de uma tarefa concluída que entram no relatório ou na apresentação. */
@@ -180,7 +180,7 @@ export function reportEvents(state: GameState, t0: number, t1: number): GameStat
   const report = next.report;
   if (crossed(REPORT_DEADLINE) && report.submittedAt === null) {
     if (report.predictedEmptyWeightKg !== null && report.payloadLine !== null) {
-      next = submit(next);
+      next = deliverReport(next);
     } else {
       next = addMessage(next, {
         from: "Comissão Técnica",
@@ -189,7 +189,7 @@ export function reportEvents(state: GameState, t0: number, t1: number): GameStat
       }).state;
     }
   }
-  if (crossed(REPORT_LATE_DEADLINE) && next.report.submittedAt === null) next = submit(next);
+  if (crossed(REPORT_LATE_DEADLINE) && next.report.submittedAt === null) next = deliverReport(next);
   if (crossed(ORAL_DATE) && next.report.oralScore === null) {
     if (next.report.submittedAt === null) {
       next = { ...next, report: { ...next.report, oralScore: 0 } };
