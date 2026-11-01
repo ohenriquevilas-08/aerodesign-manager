@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AVATAR_BOUNDS, avatarShapes } from "../../src/scenes/people/avatar";
 import { palette } from "../../src/scenes/palette";
-import type { MemberLook } from "../../src/scenes/phase5";
+import type { MemberLook } from "../../src/sim";
 
 const look: MemberLook = { skin: 2, hair: 1, hairColor: 3, shirt: 0xff9f2e };
 

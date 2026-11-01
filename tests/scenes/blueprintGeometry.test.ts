@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { blueprintGeometry } from "../../src/scenes/blueprint/geometry";
-import { marginBand, type BlueprintDesign } from "../../src/scenes/phase5";
+import { marginBand } from "../../src/scenes/blueprint/margin";
+import type { AircraftDesign as BlueprintDesign } from "../../src/sim";
 import { DEFAULT_DESIGN, DESIGN_LIMITS } from "../../src/sim";
 
 const make = (patch: Partial<BlueprintDesign>): BlueprintDesign => ({ ...DEFAULT_DESIGN, ...patch });

@@ -2,8 +2,17 @@
 // A cena assina ao criar; quem chama `play` não precisa de referência ao Phaser.Game.
 // Quando a simulação guardar as baterias no GameState, a cena pode passar a ler do store.
 
-import type { FlightTestSession } from "../phase5";
+import type { MemberLook } from "../../sim";
 import type { FlightPlayback } from "./playback";
+
+/** Ensaio de voo agendado, pronto para tocar: `venueId` escolhe o cenário; `crew` são os bonecos da vinheta de chegada. */
+export interface FlightTestSession {
+  venueId: string;
+  venueName: string;
+  crew: MemberLook[];
+  /** Um por carga planejada. */
+  flights: FlightPlayback[];
+}
 
 export type ReplaySpeed = 0.5 | 1 | 2 | 4;
 

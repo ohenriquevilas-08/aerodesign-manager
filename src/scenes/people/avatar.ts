@@ -5,7 +5,9 @@
 // Mundo do boneco: x para a frente (rosto), y lateral, z altura; projeção isométrica 2:1.
 
 import { palette, shade } from "../palette";
-import { DEFAULT_LOOK, type MemberLook } from "../phase5";
+import type { MemberLook } from "../../sim";
+
+const DEFAULT_LOOK: MemberLook = { skin: 1, hair: 0, hairColor: 0, shirt: 0xff9f2e };
 
 export type AvatarPose = "stand" | "work" | "nap";
 export type Point = [number, number];

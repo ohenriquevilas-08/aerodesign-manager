@@ -119,18 +119,9 @@ Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `test
 - O mesmo desenho em dois lugares: `people/draw.ts` (`drawAvatarShapes`) pinta num `Graphics` do Phaser (hangar e vinheta do ensaio) e `src/ui/components/Avatar.tsx` pinta os mesmos polígonos em SVG para retratos de carta (`<Avatar member={m} pose size facing />`). Tons de pele e de cabelo, calça e sapato vêm de `palette.skin`, `palette.hair`, `palette.pants` e `palette.shoe` (espelhados em `--skin-N`, `--hair-N`, `--avatar-pants`, `--avatar-shoe`).
 - `hangar/Worker.ts` desenha a partir do avatar; `WorkerView` ganhou `look`.
 
-### Stubs da Fase 5 (ponto de troca)
+### Contrato da Fase 5 nas cenas
 
-A frente de Simulação (S1 e S3) ainda não integrou; as cenas declaram localmente o contrato em `src/scenes/phase5.ts`. Quando a simulação entrar, apagar o arquivo e trocar os imports pelos tipos de `../sim`:
-
-| Stub em `scenes/phase5.ts` | Vira (contrato S1/S3) |
-|---|---|
-| `DesignPhase5` (`chordM`, `wingPosition`, `tailVolume`, `cgPercentMac`, `propDiameterIn`) e `BlueprintDesign = AircraftDesign & Partial<DesignPhase5>` | campos novos de `AircraftDesign`; a geometria cai nos valores antigos (corda por filosofia, hélice por potência) enquanto o campo não existe |
-| `staticMarginStub(design)` e `StaticMargin` | `stabilityEstimate(design)` (valores centrais de ponto neutro e margem, % CMA); passar o resultado como 2º argumento de `blueprintGeometry` |
-| `MemberLook` e `DEFAULT_LOOK` | `Member.look` (S3); a forma assumida é índices para as tabelas da paleta e `shirt` como cor 0xRRGGBB |
-| `lookFor(member)` | usa `member.look` quando existe; senão deriva uma aparência estável do id (trocar por `member.look` direto) |
-| `FlightTestSession` | montada pela UI/simulação a partir do ensaio agendado (S2): `venueId`, `venueName`, `crew` (looks) e um `FlightPlayback` por carga planejada |
-| ids de local em `flight/scenery.ts` (`aeroclub`, `airstrip`, `farm`) | `content/testVenues.ts` (S2): mapear cada local para um cenário em `sceneryForVenue`; id desconhecido cai no aeroclube |
+Os stubs de `scenes/phase5.ts` foram trocados pelos tipos reais de `sim/`: `AircraftDesign` (campos novos), `Member.look` (`MemberLook`) e `stabilityEstimate` (a geometria do blueprint usa os valores centrais). `marginBand` vive em `scenes/blueprint/margin.ts`; `FlightTestSession` em `scenes/flight/replayChannel.ts`. `sceneryForVenue` lê `findVenue(id).scenery` (`model-field` usa o cenário `airstrip`).
 
 ### Ensaios: voo e bancada
 

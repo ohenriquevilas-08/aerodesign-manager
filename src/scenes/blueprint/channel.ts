@@ -3,22 +3,22 @@
 // Modo comparação: `compare(design)` entrega o projeto gravado, desenhado em traço apagado por baixo
 // do rascunho; `compare(null)` desliga.
 
-import type { BlueprintDesign } from "../phase5";
+import type { AircraftDesign } from "../../sim";
 
-type Listener = (design: BlueprintDesign) => void;
-type ReferenceListener = (reference: BlueprintDesign | null) => void;
+type Listener = (design: AircraftDesign) => void;
+type ReferenceListener = (reference: AircraftDesign | null) => void;
 
 function createBlueprintChannel() {
-  let current: BlueprintDesign | null = null;
-  let reference: BlueprintDesign | null = null;
+  let current: AircraftDesign | null = null;
+  let reference: AircraftDesign | null = null;
   const listeners = new Set<Listener>();
   const referenceListeners = new Set<ReferenceListener>();
   return {
-    show(design: BlueprintDesign) {
+    show(design: AircraftDesign) {
       current = design;
       listeners.forEach((listener) => listener(design));
     },
-    compare(design: BlueprintDesign | null) {
+    compare(design: AircraftDesign | null) {
       reference = design;
       referenceListeners.forEach((listener) => listener(design));
     },

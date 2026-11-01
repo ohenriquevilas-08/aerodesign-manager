@@ -7,7 +7,7 @@
 import Phaser from "phaser";
 import type { GameStore } from "../app/store";
 import type { BatteryResult, GameState } from "../sim";
-import type { FlightTestSession } from "./phase5";
+import type { FlightTestSession } from "./flight/replayChannel";
 import { avatarShapes } from "./people/avatar";
 import { drawAvatarShapes } from "./people/draw";
 import { AircraftSprite } from "./flight/AircraftSprite";

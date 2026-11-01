@@ -2,8 +2,18 @@
 // Eixos: x do nariz (0) para a cauda; y lateral (vista de cima, 0 = eixo da fuselagem); z altura sobre o solo (vista lateral).
 // A cena só escala e desenha; nenhuma regra do jogo mora aqui, só o aspecto do avião.
 
-import { DESIGN_LIMITS, type DesignMaterial } from "../../sim";
-import { PHASE5_DEFAULTS, staticMarginStub, type BlueprintDesign, type StaticMargin } from "../phase5";
+import { DESIGN_LIMITS, stabilityEstimate, type AircraftDesign, type DesignMaterial } from "../../sim";
+
+/** Margem estática e ponto neutro, % CMA (valores centrais de `stabilityEstimate`). */
+export interface StaticMargin {
+  neutralPointPercentMac: number;
+  marginPercentMac: number;
+}
+
+function centralMargin(design: AircraftDesign): StaticMargin {
+  const estimate = stabilityEstimate(design);
+  return { neutralPointPercentMac: estimate.neutralPointPercentMac.value, marginPercentMac: estimate.staticMarginPercentMac.value };
+}
 
 export interface Surface {
   role: "wing" | "canard" | "tail";
@@ -76,7 +86,6 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const unit = (value: number, min: number, max: number) => Math.min(1, Math.max(0, (value - min) / (max - min)));
 
 /** Corda média relativa à envergadura (alongamento) por filosofia: alta carga = asa larga, leve = asa esguia. */
-const CHORD_RATIO = { payload: 0.145, light: 0.105, stable: 0.125 } as const;
 /** Largura da longarina, m. */
 const SPAR_WIDTH = { payload: 0.032, light: 0.014, stable: 0.024 } as const;
 const HATCH: Record<DesignMaterial, Hatch> = { balsa: "ribs", composite: "weave", mixed: "mixed" };
@@ -96,14 +105,14 @@ function macOf(wing: Surface) {
   return { length, x: wing.x + wing.sweep * ((2 * yMac) / wing.span) };
 }
 
-export function blueprintGeometry(design: BlueprintDesign, margin: StaticMargin = staticMarginStub(design)): BlueprintGeometry {
+export function blueprintGeometry(design: AircraftDesign, margin: StaticMargin = centralMargin(design)): BlueprintGeometry {
   const { span, surfaces, powerW, philosophy, material, gear } = design;
   const flyingWing = surfaces === 1;
-  const tailVolume = design.tailVolume ?? PHASE5_DEFAULTS.tailVolume;
-  const cgPercent = design.cgPercentMac ?? PHASE5_DEFAULTS.cgPercentMac;
-  const wingPosition = design.wingPosition ?? PHASE5_DEFAULTS.wingPosition;
+  const tailVolume = design.tailVolume;
+  const cgPercent = design.cgPercentMac;
+  const wingPosition = design.wingPosition;
 
-  const wingChord = design.chordM ?? span * CHORD_RATIO[philosophy] * (flyingWing ? 1.3 : 1);
+  const wingChord = design.chordM;
   const fuselage = {
     length: flyingWing ? 0.55 + span * 0.12 : 0.8 + span * 0.3,
     width: 0.1 + span * 0.015,
@@ -113,7 +122,7 @@ export function blueprintGeometry(design: BlueprintDesign, margin: StaticMargin 
   const power = unit(powerW, POWER.min, POWER.max);
   const motorDiameter = lerp(0.03, 0.055, power);
   const motor = { x: -lerp(0.06, 0.1, power), length: lerp(0.07, 0.11, power), diameter: motorDiameter, z: fuselage.z + fuselage.height / 2 };
-  const prop = { x: motor.x - 0.02, diameter: design.propDiameterIn !== undefined ? design.propDiameterIn * IN : lerp(0.26, 0.46, power) };
+  const prop = { x: motor.x - 0.02, diameter: design.propDiameterIn * IN };
   const gearHeight = GEAR_HEIGHT[gear];
 
   const wingX = fuselage.length * (flyingWing ? 0.3 : 0.28);
