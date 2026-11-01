@@ -12,7 +12,7 @@ Escopo: save, as correções do playtest (madrugada, escalação, blueprint, rel
 |---|---|---|---|
 | Simulação | S1–S6 | nada | **pronto** (branch `claude/sim-phase4-1c342e`) |
 | Cenas | C1–C2 | só tipos que já existem (`AircraftDesign`) | em andamento |
-| UI | U1–U7 | contratos da Simulação | pendente |
+| UI | U1–U7 | contratos da Simulação | **pronto** (branch `claude/ui-phase4`) |
 
 Ordem sugerida: Simulação e Cenas juntas; UI depois que a Simulação for integrada.
 
@@ -117,6 +117,15 @@ Caixa, entradas e saídas por categoria e por mês, extrato (`ledger`), pedidos 
 ### U7. Save
 
 Na abertura: "Continuar" (se há save) ou "Novo jogo". No menu: "Novo jogo" com confirmação. Aviso quando um save antigo é descartado.
+
+### Notas da UI (U1–U7)
+
+- Abertura: `Root` mostra `StartScreen` (Continuar/Novo jogo, aviso de save descartado) antes do `App`; `app/session.ts` tem `continueGame`/`newGame` (o relógio fica parado ao entrar). Menu do topo: "Novo jogo" com confirmação. `startAutosave` liga em `main.tsx`; em dev, `window.__store` expõe o store no console.
+- Navegação entre telas pedida por outra tela: `ui/nav.ts` (`navigate(tela, { actionId, targetId })`); Relatório e Ensaios abrem a ação já preenchida em Ações.
+- Escalação: arrastar é HTML5 drag and drop (`ui/team/Formation.tsx`); só funciona com mouse (sem alternativa de teclado ainda).
+- Navegador: abas só de sites abertos (`ui/browser/sites.ts`: lojas, Portal Aero Notícias, Meus pedidos); estado das abas só em memória (não persiste ao recarregar).
+- Nenhuma leitura nova em `sim/` foi necessária.
+- Observação para a Simulação: o feed de notícias repete "Última unidade: …" dos mesmos itens a cada 72 h, e domina o Portal depois de meses de jogo. Vale agrupar ou espaçar mais.
 
 ## Verificação
 

@@ -113,13 +113,13 @@ Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `test
 
 ### Ensaios: voo e bancada
 
-Entrada tipada localmente em `src/scenes/tests/testEntry.ts`: `TestEntry = BenchTestEntry | FlightTestEntry`. A cena só anima; resultado, medida e texto chegam prontos. **Ponto de troca:** quando a Simulação entregar `testHistory(state)` (Fase 4, S6), a UI deriva as entradas de lá e a tipagem local some.
+Entrada em `src/scenes/tests/testEntry.ts`: `TestEntry = BenchTestEntry | FlightTestEntry`. A cena só anima; resultado, medida e texto chegam prontos. A UI deriva a entrada de `testHistory(state)` com `entryFromHistory(entry, teamName)` (`src/scenes/tests/fromHistory.ts`, testada): estrutural e motor viram `BenchTestEntry` com o texto da simulação; voo de ensaio vira um `FlightPlayback` com a carga e a Hρ medidas (válido, ou pouso com dano citando as peças); voo filmado não anima (`null`). O histórico guarda o resultado, não a animação, então a distância de rotação e a parada do replay são ilustrativas.
 
 - `playTest(entry)`: ensaio de voo chama `flightReplay.play(playback)` e reaproveita a `FlightScene`; ensaio de bancada vai para `benchTestChannel.run(entry)`, que o `HangarScene` assina.
 - Bancada (`BenchTestEntry`: `kind` `structural` · `thrust` · `scale`, `outcome`, `gauge` 0–1, `result`): estrutural na asa, tração na eletrônica, pesagem na fuselagem (`TEST_BENCH`). Um mostrador com ponteiro sobe sobre a bancada, a asa flexiona (e rompe com faíscas se `fail`), a hélice gira ou o prato pesa, e o texto de `result` aparece em `RESULT_AT` (2,6 s). Dura `BENCH_TEST_SECONDS` (5 s) em tempo real, como a abertura das caixas, mesmo com o relógio pausado.
 - Quadro puro em `src/scenes/hangar/benchTest.ts`, `benchTestFrame(entry, t)` (testado em `tests/scenes/benchTest.test.ts`).
 - Em dev, `window.__hangarScene.seekBenchTest(t)` pula a animação; `playTest` pode ser chamado do console com `await import('/src/scenes/tests/testEntry.ts')`.
-- Falta (UI, U5): a tela Ensaios que escolhe o ensaio e chama `playTest`; hoje nada na interface dispara a animação.
+- Tela Ensaios (`src/ui/screens/Tests.tsx`): escolhe o ensaio (abre a ação em Ações), mostra a cena (Bancada = `HangarScene`, Voo = `FlightScene`, trocadas por `PhaserStage`), o histórico com "Rever" e o gráfico Hρ × carga. Um ensaio que termina com a tela aberta toca sozinho.
 
 ## Convenções
 

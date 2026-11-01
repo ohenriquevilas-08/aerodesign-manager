@@ -7,3 +7,6 @@ import { Root } from "./ui/Root";
 render(<Root />, document.getElementById("app")!);
 startAutosave(store);
 startClock(store);
+
+// Depuração: window.__store no console (só em dev), como window.__flightScene.
+if (import.meta.env.DEV) (window as unknown as { __store?: typeof store }).__store = store;
