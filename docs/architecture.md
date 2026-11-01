@@ -76,13 +76,31 @@ Tipo em `src/sim/types.ts` (reexportado por `src/scenes/flight/playback.ts`). De
 Coerência esperada da simulação: `no-takeoff` → rotação, folga, parada e retirada `null`; `tape-break` → folga < 0; `crash` → sem parada nem retirada.
 
 - `script.ts` (puro, testado em `tests/scenes/`) converte o playback em poses e eventos. A cena posiciona a cabeceira para o desfecho ficar legível (parada dentro ou fora); não interpreta distâncias.
-- Entrega à cena: `flightReplay.play(playback)` (`src/scenes/flight/replayChannel.ts`). Na Fase 3 as baterias ficam em `GameState.competition.results[].playback`.
+- Entrega à cena: `flightReplay.play(playback)` (`src/scenes/flight/replayChannel.ts`).
+- Do store (`src/scenes/flight/results.ts`): a `FlightScene` toca sozinha o seu último `BatteryResult` com `playback` (`teamId === PLAYER_TEAM_ID`) quando ele aparece em `competition.results`, uma vez só (a chave do último tocado fica fora da cena, então trocar de tela não repete; um voo que aconteceu com outra tela aberta toca ao entrar na Competição). Para tocar sob demanda, a UI usa `playResult(result)` com um item de `rivalReplays(state)` (rivais de destaque com replay) ou de `competition.results`.
 - O replay tem velocidade própria (`flightReplay.setSpeed`), independente de `clock.speed`.
 - Em dev, a tela Competição tem um painel que toca cada desfecho com `MOCK_PLAYBACKS`, e `window.__flightScene.seek(t)` pula o replay.
 
+### Fila da competição: `QueueScene`
+
+`src/scenes/QueueScene.ts` (chave `"queue"`), vista de lado como o voo: a taxiway com as equipes esperando, a cabeceira com a próxima a voar, a sua destacada em laranja com uma seta, o sol no arco do céu pela hora do relógio (manhã fria → tarde quente) e a biruta pelo vento. Quando `queueIndex` avança, o avião que estava na cabeceira corre e sai voando (só animação; o voo de verdade é a `FlightScene`) e a fila taxia um lugar. Cabeçalho: bateria, hora, temperatura, pressão, Hρ (`currentDensityAltitude`), vento, quantas equipes já voaram e quantas estão à sua frente. Fase `inspection`, `finished` ou `competition` nulo: cenário sem fila e um aviso no meio.
+
+- A cena só anima; a UI monta, como as outras: `<PhaserStage scene={QueueScene} sceneKey="queue" />` (ela recebe `{ store }` em `init`). Cada `PhaserStage` é um `Phaser.Game` próprio, então fila e voo podem ficar lado a lado ou alternar na tela Competição.
+- Lógica pura em `src/scenes/queue/queueView.ts` (testada em `tests/scenes/queueView.test.ts`): `queueViewFromState(state, maxShown)` (cabeceira primeiro, `hidden` além da janela, `playerAhead`), `hourOfDay`, `sunElevation`, `sunProgress`, `windsock`.
+- Tweens seguem `clock.speed` (pausa junto); o céu é redesenhado a cada minuto de jogo.
+
 ### Hangar: `BenchView`
 
-Definido em `src/scenes/hangar/benchView.ts`. Cada bancada (asa, fuselagem, eletrônica, relatório) mostra uma tarefa com barra de progresso e as peças com estado (design §7.2). A cena lê `benchViewsFromState(state)`; hoje ela devolve dados simulados a partir do relógio. Quando a simulação tiver tarefas e peças por bancada, basta trocar o corpo dessa função. O avião no cavalete, no centro, segue o mesmo modelo: `aircraftViewFromState(state)` dá o estado de cada `PartType` (ou `null` se a peça não existe), e a cena pinta a peça (danificada em amarelo, quebrada em vermelho).
+Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `tests/scenes/benchView.test.ts`). Cada bancada (asa, fuselagem, eletrônica, relatório) mostra uma tarefa com barra de progresso e as peças com estado (design §7.2).
+
+- `benchForTask(state, task)`: relatório e ensaios de bancada pelo id (`ACTION_BENCH`); peça fabricada ou comprada pelo `effect.part` do catálogo; reparo pela peça alvo; por último o nome da ação (`wing` → asa; `fuselage`/`gear`/`tail` → fuselagem; `motor`/`servo`/`electronic` → eletrônica). O resto (estudo, rifa, divulgação, voos) não aparece em bancada.
+- `PART_BENCH`: asa → asa; fuselagem, empenagem e trem → fuselagem; motor e eletrônica → eletrônica.
+- `benchViewsFromState(state)`: por bancada, a primeira tarefa ativa (senão a primeira esperando) e quantas outras há (`queued`); até 4 peças e o resto em `moreParts`. Progresso = `hoursDone / hoursTotal`; na espera ⌛, tempo passado sobre o prazo **prometido**, travado em 99% (o `readyAt` real não vaza).
+- `aircraftViewFromState(state)`: o avião no cavalete usa a melhor peça de cada `PartType` (maior condição, depois qualidade); `null` se não existe. A cena pinta danificada em amarelo e quebrada em vermelho.
+- `workerViewsFromState(state)`: cada integrante vai para a bancada da tarefa em que está em `assignees`; trabalha se a tarefa está ativa, fica de pé se ela espera prazo. Presidente, quem está sem tarefa ou numa tarefa fora do hangar fica na área livre, na frente. Quem entra na equipe aparece; quem sai some.
+- Escala da oficina (`src/scenes/hangar/workshop.ts`, design §5.5): só quem está em `workshopNow(state).present` aparece no hangar; fora de turno ele fica vazio, escuro e com a placa "FECHADA". `lightingFor(slot, open, hora)`: manhã e tarde com luz do dia; noite com luminárias acesas (cor `lamp`) e janelas escuras (cor `night`); madrugada mais escura, com pizza e café no piso e o primeiro presente fora das bancadas cochilando no canto (`overnightNapper`). Com `blocked` preenchido, a placa no portão vira "OFICINA PARADA" com o motivo. **Stub:** enquanto a Simulação não exporta `currentShift` e `workshopNow`, o arquivo tem uma versão local com o mesmo tipo (turno pela hora; todos que trabalham presentes em qualquer turno); trocar pelo import de `sim/index.ts` quando chegar.
+- Ações novas: `build-fuselage`, `build-tail` e `build-gear` vão para a fuselagem; `drawings` e `oral-rehearsal`, para o relatório; `test-structural`, para a asa; `test-thrust`, para a eletrônica (`ACTION_BENCH`). Peça com `counterfeit` ganha um anel amarelo no ponto de estado do cartão.
+- Pacotes (`src/scenes/hangar/packages.ts`, design §8.4): `packagesAtDoor(state)` lista os pedidos `in-transit` e `held-customs`, que viram caixas ao lado do portão (até 6; retido ganha faixa amarela) com a legenda "N A CAMINHO · N RETIDO". `recentDeliveries(state)` lista os `delivered` com `deliveredAt` no último dia de jogo (`OPENING_WINDOW_HOURS`); a cena abre cada um uma vez ("Chegou: …"). A abertura anda em tempo real, mesmo com o relógio pausado, para não congelar se a entrega pausar o jogo.
 
 ## Convenções
 

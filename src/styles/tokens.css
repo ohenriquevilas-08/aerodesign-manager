@@ -26,6 +26,10 @@
   --warn: #ffc23d;
   --danger: #ff5a5f;
 
+  /* Luz da oficina no hangar (escala, design §5.5) */
+  --night: #03070d; /* escuro da noite sobre a oficina e nas janelas */
+  --lamp: #ffd98a; /* luz quente das luminárias acesas */
+
   /* Moedas (design §8) */
   --cost-hours: #22c7e6;
   --cost-credits: #ffc23d;

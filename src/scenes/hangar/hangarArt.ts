@@ -345,3 +345,104 @@ export function drawAircraft(g: Phaser.GameObjects.Graphics, view: AircraftView)
 export function aircraftAnchor() {
   return iso(AIRCRAFT.col, AIRCRAFT.row);
 }
+
+/** Lado e altura de uma caixa de pedido, em tiles e pixels. */
+export const CRATE = { size: 0.42, height: 13 };
+/**
+ * Caixas encostadas na parede, ao lado esquerdo do portão (o lado direito fica sob o cartão
+ * da fuselagem): três no piso e mais três empilhadas por cima.
+ */
+export const DOOR_CRATE_SLOTS: readonly { col: number; row: number; z: number }[] = [
+  { col: 3.75, row: -0.35, z: 0 },
+  { col: 3.25, row: -0.35, z: 0 },
+  { col: 3.55, row: 0.15, z: 0 },
+  { col: 3.75, row: -0.35, z: CRATE.height },
+  { col: 3.25, row: -0.35, z: CRATE.height },
+  { col: 3.55, row: 0.15, z: CRATE.height }
+];
+/** Onde a caixa entregue é aberta: na frente das outras, fora da zona de montagem. */
+export const UNPACK_SPOT = { col: 3.3, row: 0.6 };
+
+/** Papelão: o laranja da paleta escurecido. */
+const CARDBOARD = shade(palette.highlight, 0.35);
+
+/** Caixa de papelão com fita; retida na fiscalização ganha faixa de aviso. Sem tampa se `open`. */
+export function drawCrate(g: Phaser.GameObjects.Graphics, col: number, row: number, z: number, held: boolean, open = false) {
+  const c1 = col + CRATE.size;
+  const r1 = row + CRATE.size;
+  const h = CRATE.height;
+  isoBox(g, col, c1, row, r1, z, h, { top: open ? shade(CARDBOARD, 0.6) : CARDBOARD, left: shade(CARDBOARD, 0.2), right: shade(CARDBOARD, 0.4) });
+  if (!open) {
+    // Fita no meio da tampa.
+    const mid = col + CRATE.size / 2;
+    const a = iso(mid, row, z + h);
+    const b = iso(mid, r1, z + h);
+    g.lineStyle(2, palette.ink, 0.7);
+    g.lineBetween(a.x, a.y, b.x, b.y);
+  }
+  if (held) {
+    // Faixa de aviso nas duas faces visíveis.
+    g.fillStyle(palette.warn, 0.95);
+    g.fillPoints(vec([iso(col, r1, z + 4), iso(c1, r1, z + 4), iso(c1, r1, z + 8), iso(col, r1, z + 8)]), true);
+    g.fillPoints(vec([iso(c1, row, z + 4), iso(c1, r1, z + 4), iso(c1, r1, z + 8), iso(c1, row, z + 8)]), true);
+  }
+}
+
+/** Tampa solta da caixa (para a animação de abertura), centrada na origem do Graphics. */
+export function drawCrateLid(g: Phaser.GameObjects.Graphics) {
+  const half = CRATE.size / 2;
+  isoBox(g, -half, half, -half, half, 0, 2, { top: CARDBOARD, left: shade(CARDBOARD, 0.2), right: shade(CARDBOARD, 0.4) });
+  const a = iso(0, -half, 2);
+  const b = iso(0, half, 2);
+  g.lineStyle(2, palette.ink, 0.7);
+  g.lineBetween(a.x, a.y, b.x, b.y);
+}
+
+/** Janelas da parede esquerda (linhas inicial e final), para a luz de dentro e de fora. */
+const WINDOWS: readonly [number, number][] = [
+  [1.2, 2.8],
+  [4.2, 5.8]
+];
+/** Luminárias de parede, em coluna da parede do fundo. */
+export const WALL_LAMPS: readonly number[] = [3.4, 9];
+
+/** Noite lá fora: vidro escuro por cima das janelas. */
+export function drawNightWindows(g: Phaser.GameObjects.Graphics) {
+  WINDOWS.forEach(([r0, r1]) => {
+    g.fillStyle(palette.night, 0.85);
+    g.fillPoints(colWallQuad(-0.5, r0, r1, 44, 96), true);
+    // Reflexo fraco da luz de dentro no vidro.
+    g.fillStyle(palette.lamp, 0.06);
+    g.fillPoints(colWallQuad(-0.5, r0 + 0.1, r0 + 0.5, 50, 90), true);
+  });
+}
+
+/** Onde fica a pizza e o café de madrugada: na área livre, no piso. */
+export const SNACK_SPOT = { col: 5.9, row: 6.55 };
+/** Canto onde alguém cochila: borda direita do piso, entre a fuselagem e o relatório (fora dos cartões). */
+export const NAP_SPOT = { col: 9.25, row: 3.8 };
+
+/** Caixa de pizza aberta e garrafa de café com dois copos. */
+export function drawSnacks(g: Phaser.GameObjects.Graphics) {
+  const { col, row } = SNACK_SPOT;
+  const cardboard = shade(palette.highlight, 0.35);
+  // Caixa aberta: fundo, pizza com fatias faltando e a tampa em pé atrás.
+  isoBox(g, col, col + 0.6, row, row + 0.6, 0, 3, { top: shade(cardboard, 0.2), left: shade(cardboard, 0.35), right: shade(cardboard, 0.5) });
+  const center = iso(col + 0.3, row + 0.3, 3);
+  g.fillStyle(palette.warn, 1);
+  g.slice(center.x, center.y, 12, 0.6, Math.PI * 1.7, false);
+  g.fillPath();
+  g.fillStyle(palette.danger, 0.9);
+  [
+    [-4, -1],
+    [3, 2],
+    [-1, 3]
+  ].forEach(([dx, dy]) => g.fillCircle(center.x + dx!, center.y + dy!, 1.4));
+  g.fillStyle(cardboard, 1);
+  g.fillPoints(vec([iso(col, row, 3), iso(col + 0.6, row, 3), iso(col + 0.6, row, 22), iso(col, row, 22)]), true);
+  // Garrafa térmica e copos.
+  isoBox(g, col + 0.85, col + 1.0, row + 0.1, row + 0.25, 0, 16, { top: palette.ink, left: palette.inkMuted, right: palette.inkDim });
+  isoBox(g, col + 0.8, col + 0.9, row + 0.4, row + 0.5, 0, 6, { top: shade(palette.highlight, 0.6), left: palette.ink, right: palette.inkMuted });
+  isoBox(g, col + 1.0, col + 1.1, row + 0.45, row + 0.55, 0, 6, { top: shade(palette.highlight, 0.6), left: palette.ink, right: palette.inkMuted });
+}
+

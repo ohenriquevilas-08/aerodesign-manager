@@ -16,6 +16,8 @@ export const palette = {
   ok: 0x3fd18b, // --ok
   warn: 0xffc23d, // --warn
   danger: 0xff5a5f, // --danger
+  night: 0x03070d, // --night
+  lamp: 0xffd98a, // --lamp
   /** --text como número, para Graphics. */
   ink: 0xe4f0f7,
   /** --text-muted como número, para Graphics. */
