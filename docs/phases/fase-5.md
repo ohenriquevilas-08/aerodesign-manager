@@ -22,6 +22,8 @@ Ordem: Simulação e Cenas juntas; UI depois do merge das duas.
 
 ### S1. Projeto com engenharia de sistemas
 
+**Status: feito (branch `claude/sim-phase5`).** `massBudget(design, state?)` e `stabilityEstimate(design, state?)` aceitam o estado como opcional (sem ele, o nominal); `missionRequirements` e `compareDesigns` aceitam a carga-alvo como último argumento opcional. Extras exportados: `estimateDesign`, `designProblem`, `maxPropDiameterIn`, `staticMarginStatus`, `MASS_ITEMS`, `MASS_ITEM_LABELS`, `defaultTargetPayload`, `wingAreaM2`, `aspectRatio`.
+
 Atualizar o design §6 junto. Fórmulas de pontuação (b, N, P, FPV, EE) continuam as do regulamento; o que muda é como o projeto chega ao peso vazio, à carga e à corrida.
 
 - `AircraftDesign` ganha: `chordM` (corda média; alongamento = b / corda, derivado), `wingPosition: "high" | "low"`, `tailVolume` (volume de cauda horizontal, ~0,3–0,7), `cgPercentMac` (posição do CG em % da CMA), `propDiameterIn` (limitado pela altura do trem: trem baixo corta o máximo). Limites em `DESIGN_LIMITS`; `DEFAULT_DESIGN` com valores seguros.
@@ -32,6 +34,8 @@ Atualizar o design §6 junto. Fórmulas de pontuação (b, N, P, FPV, EE) contin
 - O `hidden` do avião ganha desvios para as massas e para a margem estática (sorteio no primeiro `set-design`, como hoje).
 
 ### S2. Ensaio de voo como evento
+
+**Status: feito.** `test-flight` e `flight-video` saíram do catálogo; entrou `pilot-training`. Estado novo: `flightTests: FlightTest[]`; pausa `"flight-test"`; `FlightPlayback.venueId`; `TestRecord.playback` e `flightTestId`. Cancelar: `{ type: "cancel-flight-test", testId }`. Leituras extras: `flightTestCost` (formato `Cost`), `scheduleProblem`, `venueDensityAltitude`.
 
 Atualizar o design §7.3 junto. Os ensaios de bancada continuam tarefas da oficina; só o voo (`test-flight` e o voo filmado) vira evento.
 
@@ -44,10 +48,14 @@ Atualizar o design §7.3 junto. Os ensaios de bancada continuam tarefas da ofici
 
 ### S3. Aparência dos integrantes
 
+**Status: feito.** `MemberLook` com `SkinTone`, `HairStyle`, `HairColor`, `ShirtStyle` (só o modelo; a cor é a da equipe), `Accessory?`; opções em `LOOK_OPTIONS`, sorteio em `drawLook`. O presidente também tem `look` (cabeçalho).
+
 - `Member.look: MemberLook` (`skin`, `hair`, `hairColor`, `shirt`, `accessory?`), sorteado pelo `rngState` ao criar o integrante (inicial e seletiva). Candidato também tem `look`.
 - Camiseta usa a cor da equipe.
 
 ### S4. Presidente fora das listas
+
+**Status: feito** (`rosterMembers`; `formationView` já usa). Trocar as telas para a leitura fica com U2.
 
 - Leitura `rosterMembers(state)`: integrantes sem o presidente. Elenco, escalação, escala da oficina e seletiva usam essa leitura; o presidente aparece só no cabeçalho como "Você".
 
