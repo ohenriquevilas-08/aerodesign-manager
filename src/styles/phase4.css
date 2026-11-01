@@ -548,3 +548,138 @@
   font-size: 11px;
   font-style: normal;
 }
+
+/* Ensaios (U5) */
+.tests-grid {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr) minmax(0, 0.9fr);
+  gap: var(--space-4);
+}
+
+.stage-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.stage-panel .stage {
+  flex: 1;
+  min-height: 0;
+}
+
+.tests-stage-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tests-stage-title .tabs {
+  margin: 0;
+}
+
+.test-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+}
+
+.test-row.is-fail {
+  border-left-color: var(--danger);
+}
+
+.test-row p {
+  margin: 0;
+}
+
+.check-state.state-fail {
+  color: var(--danger);
+}
+
+.check-missing-line {
+  color: var(--warn);
+  font-size: 12px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--highlight);
+}
+
+/* Finanças (U6) */
+.finance-grid {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--space-4);
+}
+
+.text-credits {
+  color: var(--cost-credits);
+}
+
+.text-in {
+  color: var(--ok);
+}
+
+.text-out {
+  color: var(--danger);
+}
+
+.flow-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.flow-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.flow-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 14px;
+}
+
+.flow-bar small {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.flow-fill {
+  display: block;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.flow-fill.is-in {
+  background: var(--ok);
+}
+
+.flow-fill.is-out {
+  background: var(--danger);
+}
+
+.finance-pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}

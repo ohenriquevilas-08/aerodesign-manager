@@ -7,9 +7,11 @@ import { Browser } from "./screens/Browser";
 import { Central } from "./screens/Central";
 import { Competition } from "./screens/Competition";
 import { Drafting } from "./screens/Drafting";
+import { Finance } from "./screens/Finance";
 import { Report } from "./screens/Report";
 import { Rules } from "./screens/Rules";
 import { Team } from "./screens/Team";
+import { Tests } from "./screens/Tests";
 import { onNavigate } from "./nav";
 import { TopBar } from "./TopBar";
 import { WarningToast } from "./WarningToast";
@@ -21,9 +23,9 @@ const SCREENS: readonly { id: string; label: string; key: string; view?: Functio
   { id: "actions", label: "Ações", key: "A", view: Actions },
   { id: "team", label: "Equipe", key: "E", view: Team },
   { id: "drafting", label: "Prancheta", key: "P", view: Drafting },
-  { id: "tests", label: "Ensaios", key: "S" },
+  { id: "tests", label: "Ensaios", key: "S", view: Tests },
   { id: "report", label: "Relatório", key: "R", view: Report },
-  { id: "finance", label: "Finanças", key: "F" },
+  { id: "finance", label: "Finanças", key: "F", view: Finance },
   { id: "browser", label: "Navegador", key: "N", view: Browser },
   { id: "rules", label: "Regulamento", key: "G", view: Rules },
   { id: "competition", label: "Competição", key: "M", view: Competition }
