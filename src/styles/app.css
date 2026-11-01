@@ -1,6 +1,7 @@
 @import "./tokens.css";
 @import "./screens.css";
 @import "./phase3.css";
+@import "./browser.css";
 
 *,
 *::before,

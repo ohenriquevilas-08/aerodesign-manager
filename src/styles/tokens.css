@@ -47,4 +47,76 @@
   --radius: 10px;
   --radius-sm: 6px;
   --glow: 0 0 0 1px var(--border), 0 0 18px rgb(34 199 230 / 0.08);
+
+  /* Lojas do navegador (design §8.4). Cada site tem identidade própria, fora da paleta do painel.
+     Só a UI usa: as cenas Phaser não desenham lojas, então não há espelho em palette.ts.
+     Por loja: bg (página), surface (cartões), text, muted, brand (marca), on-brand (texto sobre a marca),
+     cta (botão de compra) e on-cta. */
+  --shop-hobbykong-bg: #0f1b3d;
+  --shop-hobbykong-surface: #18295a;
+  --shop-hobbykong-text: #f2f5ff;
+  --shop-hobbykong-muted: #a6b3dc;
+  --shop-hobbykong-brand: #ffd23f;
+  --shop-hobbykong-on-brand: #0f1b3d;
+  --shop-hobbykong-cta: #ff3d6e;
+  --shop-hobbykong-on-cta: #ffffff;
+
+  --shop-aliexpresso-bg: #fff4ee;
+  --shop-aliexpresso-surface: #ffffff;
+  --shop-aliexpresso-text: #2b1a14;
+  --shop-aliexpresso-muted: #8a6d62;
+  --shop-aliexpresso-brand: #e8361c;
+  --shop-aliexpresso-on-brand: #ffffff;
+  --shop-aliexpresso-cta: #ff7a00;
+  --shop-aliexpresso-on-cta: #ffffff;
+
+  --shop-mercadosolto-bg: #eeeeee;
+  --shop-mercadosolto-surface: #ffffff;
+  --shop-mercadosolto-text: #333333;
+  --shop-mercadosolto-muted: #7a7a7a;
+  --shop-mercadosolto-brand: #ffe14d;
+  --shop-mercadosolto-on-brand: #2d3277;
+  --shop-mercadosolto-cta: #3483fa;
+  --shop-mercadosolto-on-cta: #ffffff;
+
+  --shop-hangar-aeromodelista-bg: #f3efe4;
+  --shop-hangar-aeromodelista-surface: #fbf9f3;
+  --shop-hangar-aeromodelista-text: #1f2a22;
+  --shop-hangar-aeromodelista-muted: #6b7266;
+  --shop-hangar-aeromodelista-brand: #1d4d36;
+  --shop-hangar-aeromodelista-on-brand: #f3efe4;
+  --shop-hangar-aeromodelista-cta: #b8862b;
+  --shop-hangar-aeromodelista-on-cta: #ffffff;
+
+  --shop-balsa-leve-bg: #f6ead6;
+  --shop-balsa-leve-surface: #fff8ec;
+  --shop-balsa-leve-text: #3d2a17;
+  --shop-balsa-leve-muted: #8c7356;
+  --shop-balsa-leve-brand: #9c5f28;
+  --shop-balsa-leve-on-brand: #fff8ec;
+  --shop-balsa-leve-cta: #5d7b3a;
+  --shop-balsa-leve-on-cta: #ffffff;
+
+  --shop-compositos-vale-bg: #121416;
+  --shop-compositos-vale-surface: #1d2124;
+  --shop-compositos-vale-text: #e9edef;
+  --shop-compositos-vale-muted: #8d979c;
+  --shop-compositos-vale-brand: #2a2f33;
+  --shop-compositos-vale-on-brand: #e9edef;
+  --shop-compositos-vale-cta: #3ee0c5;
+  --shop-compositos-vale-on-cta: #0c1214;
+
+  --shop-desapega-aero-bg: #f4f0fa;
+  --shop-desapega-aero-surface: #ffffff;
+  --shop-desapega-aero-text: #2e1f47;
+  --shop-desapega-aero-muted: #7d6e96;
+  --shop-desapega-aero-brand: #6e0ad6;
+  --shop-desapega-aero-on-brand: #ffffff;
+  --shop-desapega-aero-cta: #f28000;
+  --shop-desapega-aero-on-cta: #ffffff;
+
+  /* Estrelas das avaliações e preço riscado (comuns a todas as lojas) */
+  --shop-star: #ffb400;
+  --shop-sale: #e8361c;
+  --shop-sale-text: #ffffff;
 }

@@ -1,0 +1,1227 @@
+/* Navegador do jogo (design §8.4). A moldura e "Meus pedidos" usam a paleta do painel;
+   cada loja usa só as variáveis --s-*, preenchidas a partir dos tokens --shop-* por [data-shop]. */
+
+.browser {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--glow);
+  overflow: hidden;
+}
+
+.browser-tabs {
+  display: flex;
+  gap: 2px;
+  padding: var(--space-2) var(--space-2) 0;
+  background: var(--bg);
+  overflow-x: auto;
+}
+
+.browser-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 180px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.browser-tab:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.browser-tab[aria-selected="true"] {
+  border-color: var(--border-strong);
+  background: var(--panel-raised);
+  color: var(--text);
+}
+
+.browser-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--panel-raised);
+}
+
+.browser-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browser-tab-icon {
+  width: 16px;
+  text-align: center;
+  color: var(--accent);
+}
+
+.browser-tab-badge {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.browser-tab-badge.is-alert {
+  background: var(--highlight);
+}
+
+.browser-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-raised);
+}
+
+.browser-btn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.browser-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.browser-address {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.browser-lock {
+  fill: none;
+  stroke: var(--ok);
+  stroke-width: 1.4;
+}
+
+.browser-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Início do navegador */
+.browser-home {
+  padding: var(--space-6);
+}
+
+.browser-home-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.browser-home-head p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.browser-home-brand {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.browser-home-credits {
+  margin-left: auto;
+  color: var(--cost-credits);
+  font-family: var(--font-mono);
+}
+
+.browser-home-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.shop-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: 132px;
+  padding: var(--space-4);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--s-bg);
+  color: var(--s-text);
+  text-align: left;
+  transition: transform 120ms ease;
+}
+
+.shop-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 2px var(--s-cta);
+}
+
+.shop-tile-tagline {
+  font-size: 12px;
+  color: var(--s-muted);
+  line-height: 1.4;
+}
+
+.shop-tile-domain {
+  margin-top: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--s-muted);
+}
+
+.shop-tile.is-orders {
+  --s-muted: var(--text-muted);
+  --s-cta: var(--accent);
+  border: 1px dashed var(--border-strong);
+  background: var(--panel-raised);
+  color: var(--text);
+}
+
+.shop-tile.is-orders strong {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+}
+
+/* Variáveis por loja: os componentes usam só --s-*. */
+[data-shop="hobbykong"] {
+  --s-bg: var(--shop-hobbykong-bg);
+  --s-surface: var(--shop-hobbykong-surface);
+  --s-text: var(--shop-hobbykong-text);
+  --s-muted: var(--shop-hobbykong-muted);
+  --s-brand: var(--shop-hobbykong-brand);
+  --s-on-brand: var(--shop-hobbykong-on-brand);
+  --s-cta: var(--shop-hobbykong-cta);
+  --s-on-cta: var(--shop-hobbykong-on-cta);
+  --s-font: "Arial Black", "Arial", sans-serif;
+  --s-radius: 4px;
+}
+
+[data-shop="aliexpresso"] {
+  --s-bg: var(--shop-aliexpresso-bg);
+  --s-surface: var(--shop-aliexpresso-surface);
+  --s-text: var(--shop-aliexpresso-text);
+  --s-muted: var(--shop-aliexpresso-muted);
+  --s-brand: var(--shop-aliexpresso-brand);
+  --s-on-brand: var(--shop-aliexpresso-on-brand);
+  --s-cta: var(--shop-aliexpresso-cta);
+  --s-on-cta: var(--shop-aliexpresso-on-cta);
+  --s-font: "Trebuchet MS", "Inter", sans-serif;
+  --s-radius: 14px;
+}
+
+[data-shop="mercadosolto"] {
+  --s-bg: var(--shop-mercadosolto-bg);
+  --s-surface: var(--shop-mercadosolto-surface);
+  --s-text: var(--shop-mercadosolto-text);
+  --s-muted: var(--shop-mercadosolto-muted);
+  --s-brand: var(--shop-mercadosolto-brand);
+  --s-on-brand: var(--shop-mercadosolto-on-brand);
+  --s-cta: var(--shop-mercadosolto-cta);
+  --s-on-cta: var(--shop-mercadosolto-on-cta);
+  --s-font: "Verdana", "Inter", sans-serif;
+  --s-radius: 6px;
+}
+
+[data-shop="hangar-aeromodelista"] {
+  --s-bg: var(--shop-hangar-aeromodelista-bg);
+  --s-surface: var(--shop-hangar-aeromodelista-surface);
+  --s-text: var(--shop-hangar-aeromodelista-text);
+  --s-muted: var(--shop-hangar-aeromodelista-muted);
+  --s-brand: var(--shop-hangar-aeromodelista-brand);
+  --s-on-brand: var(--shop-hangar-aeromodelista-on-brand);
+  --s-cta: var(--shop-hangar-aeromodelista-cta);
+  --s-on-cta: var(--shop-hangar-aeromodelista-on-cta);
+  --s-font: "Georgia", "Times New Roman", serif;
+  --s-radius: 2px;
+}
+
+[data-shop="balsa-leve"] {
+  --s-bg: var(--shop-balsa-leve-bg);
+  --s-surface: var(--shop-balsa-leve-surface);
+  --s-text: var(--shop-balsa-leve-text);
+  --s-muted: var(--shop-balsa-leve-muted);
+  --s-brand: var(--shop-balsa-leve-brand);
+  --s-on-brand: var(--shop-balsa-leve-on-brand);
+  --s-cta: var(--shop-balsa-leve-cta);
+  --s-on-cta: var(--shop-balsa-leve-on-cta);
+  --s-font: "Georgia", serif;
+  --s-radius: 10px;
+}
+
+[data-shop="compositos-vale"] {
+  --s-bg: var(--shop-compositos-vale-bg);
+  --s-surface: var(--shop-compositos-vale-surface);
+  --s-text: var(--shop-compositos-vale-text);
+  --s-muted: var(--shop-compositos-vale-muted);
+  --s-brand: var(--shop-compositos-vale-brand);
+  --s-on-brand: var(--shop-compositos-vale-on-brand);
+  --s-cta: var(--shop-compositos-vale-cta);
+  --s-on-cta: var(--shop-compositos-vale-on-cta);
+  --s-font: var(--font-display);
+  --s-radius: 0;
+}
+
+[data-shop="desapega-aero"] {
+  --s-bg: var(--shop-desapega-aero-bg);
+  --s-surface: var(--shop-desapega-aero-surface);
+  --s-text: var(--shop-desapega-aero-text);
+  --s-muted: var(--shop-desapega-aero-muted);
+  --s-brand: var(--shop-desapega-aero-brand);
+  --s-on-brand: var(--shop-desapega-aero-on-brand);
+  --s-cta: var(--shop-desapega-aero-cta);
+  --s-on-cta: var(--shop-desapega-aero-on-cta);
+  --s-font: "Trebuchet MS", "Verdana", sans-serif;
+  --s-radius: 18px;
+}
+
+/* Logos */
+.shop-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.shop-mark {
+  flex-shrink: 0;
+}
+
+.mk-brand {
+  fill: var(--s-brand);
+}
+
+.mk-cta {
+  fill: var(--s-cta);
+}
+
+.mk-on-brand {
+  fill: var(--s-on-brand);
+}
+
+.mk-stroke-on-brand,
+.mk-stroke-cta {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mk-stroke-on-brand {
+  stroke: var(--s-on-brand);
+}
+
+.mk-stroke-cta {
+  stroke: var(--s-cta);
+}
+
+.mk-thin {
+  stroke-width: 1.4;
+}
+
+.mk-outline-cta {
+  stroke: var(--s-cta);
+  stroke-width: 1.5;
+}
+
+.mk-text {
+  font-family: "Arial Black", var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.wm {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1;
+  color: var(--s-text);
+}
+
+.wm-hobbykong {
+  flex-direction: row;
+  font-family: "Arial Black", sans-serif;
+  font-size: 22px;
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+
+.wm-hobbykong b {
+  color: var(--s-brand);
+}
+
+.wm-aliexpresso {
+  flex-direction: row;
+  font-family: "Trebuchet MS", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--s-brand);
+}
+
+.wm-aliexpresso b {
+  color: var(--s-cta);
+}
+
+.wm-mercadosolto {
+  font-family: "Verdana", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--s-on-brand);
+}
+
+.wm-mercadosolto b {
+  font-size: 18px;
+}
+
+.wm-hangar {
+  gap: 3px;
+  font-family: "Georgia", serif;
+}
+
+.wm-hangar b {
+  font-size: 19px;
+  color: var(--s-brand);
+}
+
+.wm-hangar small {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--s-cta);
+}
+
+.wm-balsa {
+  gap: 2px;
+  font-family: "Georgia", serif;
+}
+
+.wm-balsa b {
+  font-size: 21px;
+  font-style: italic;
+}
+
+.wm-balsa small {
+  font-family: var(--font-body);
+  font-size: 10px;
+  letter-spacing: 0.4em;
+  color: var(--s-brand);
+}
+
+.wm-compositos {
+  gap: 1px;
+  font-family: var(--font-display);
+}
+
+.wm-compositos b {
+  font-size: 22px;
+  letter-spacing: 0.18em;
+}
+
+.wm-compositos small {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5em;
+  color: var(--s-cta);
+}
+
+.wm-desapega {
+  flex-direction: row;
+  font-family: "Trebuchet MS", sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--s-brand);
+}
+
+.wm-desapega b {
+  color: var(--s-cta);
+}
+
+/* Página da loja */
+.shop {
+  min-height: 100%;
+  background: var(--s-bg);
+  color: var(--s-text);
+  font-family: var(--s-font);
+}
+
+.shop-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 3px solid var(--s-brand);
+  background: var(--s-surface);
+}
+
+.shop-search {
+  flex: 1;
+  max-width: 460px;
+  padding: 8px 14px;
+  border-radius: var(--s-radius);
+  background: var(--s-bg);
+  color: var(--s-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.shop-origin {
+  margin-left: auto;
+  padding: 3px 10px;
+  border: 1px solid var(--s-muted);
+  border-radius: 999px;
+  color: var(--s-muted);
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+.shop-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--s-brand);
+  color: var(--s-on-brand);
+}
+
+.shop-banner strong {
+  font-size: 15px;
+}
+
+.shop-banner span {
+  font-family: var(--font-body);
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.shop-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--space-3);
+}
+
+/* Assinaturas visuais por loja */
+[data-shop="hobbykong"] .shop-banner {
+  border: 6px solid transparent;
+  background:
+    linear-gradient(var(--s-bg), var(--s-bg)) padding-box,
+    repeating-linear-gradient(-45deg, var(--s-brand) 0 12px, var(--s-cta) 12px 24px) border-box;
+  color: var(--s-brand);
+}
+
+[data-shop="hobbykong"] .shop-banner span {
+  color: var(--s-text);
+}
+
+[data-shop="hobbykong"] .shop-banner strong {
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+[data-shop="aliexpresso"] .shop-header {
+  border-bottom: 0;
+  background: linear-gradient(90deg, var(--s-brand), var(--s-cta));
+}
+
+[data-shop="aliexpresso"] .shop-header .wm-aliexpresso,
+[data-shop="aliexpresso"] .shop-header .wm-aliexpresso b,
+[data-shop="aliexpresso"] .shop-header .shop-origin {
+  border-color: var(--s-on-brand);
+  color: var(--s-on-brand);
+}
+
+[data-shop="aliexpresso"] .shop-header .mk-brand {
+  fill: var(--s-on-brand);
+}
+
+[data-shop="aliexpresso"] .shop-header .mk-on-brand {
+  fill: var(--s-brand);
+}
+
+[data-shop="aliexpresso"] .shop-header .mk-stroke-on-brand {
+  stroke: var(--s-brand);
+}
+
+[data-shop="aliexpresso"] .shop-banner {
+  background: var(--s-surface);
+  color: var(--s-brand);
+}
+
+[data-shop="mercadosolto"] .shop-header {
+  border-bottom: 0;
+  background: var(--s-brand);
+}
+
+[data-shop="mercadosolto"] .shop-search {
+  background: var(--s-surface);
+}
+
+[data-shop="mercadosolto"] .shop-header .shop-origin {
+  border-color: var(--s-on-brand);
+  color: var(--s-on-brand);
+}
+
+[data-shop="mercadosolto"] .shop-header .mk-brand {
+  fill: var(--s-on-brand);
+}
+
+[data-shop="mercadosolto"] .shop-header .mk-on-brand {
+  fill: var(--s-brand);
+}
+
+[data-shop="mercadosolto"] .shop-header .mk-stroke-on-brand {
+  stroke: var(--s-brand);
+}
+
+[data-shop="mercadosolto"] .shop-banner {
+  background: var(--s-surface);
+  color: var(--s-text);
+}
+
+[data-shop="hangar-aeromodelista"] .shop-header {
+  border-bottom: 1px solid var(--s-brand);
+  box-shadow: 0 3px 0 var(--s-cta);
+}
+
+[data-shop="hangar-aeromodelista"] .shop-banner strong {
+  font-weight: 400;
+  font-style: italic;
+}
+
+[data-shop="balsa-leve"] .shop-banner {
+  background: repeating-linear-gradient(
+    100deg,
+    var(--s-brand) 0 22px,
+    var(--s-muted) 22px 24px,
+    var(--s-brand) 24px 50px,
+    var(--s-muted) 50px 51px
+  );
+}
+
+[data-shop="compositos-vale"] .shop-header {
+  border-bottom: 1px solid var(--s-cta);
+  background: var(--s-bg);
+}
+
+[data-shop="compositos-vale"] .shop-banner {
+  background: repeating-linear-gradient(45deg, var(--s-brand) 0 6px, var(--s-surface) 6px 12px);
+  color: var(--s-text);
+  letter-spacing: 0.2em;
+}
+
+[data-shop="desapega-aero"] .shop-header {
+  border-bottom: 0;
+}
+
+[data-shop="desapega-aero"] .shop-banner {
+  margin: var(--space-3) var(--space-5) 0;
+  border-radius: var(--s-radius);
+}
+
+/* Cartão de produto */
+.product {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--s-radius);
+  background: var(--s-surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+  overflow: hidden;
+}
+
+.product.is-sold-out {
+  opacity: 0.6;
+}
+
+.product-photo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96px;
+  background: var(--s-bg);
+}
+
+.product-icon {
+  width: 92px;
+  height: 76px;
+}
+
+.pi-body {
+  fill: var(--s-muted);
+}
+
+.pi-detail {
+  fill: var(--s-text);
+  opacity: 0.55;
+}
+
+.pi-accent {
+  fill: var(--s-cta);
+}
+
+.pi-line {
+  fill: none;
+  stroke: var(--s-surface);
+  stroke-width: 1.5;
+}
+
+.pi-thick {
+  stroke: var(--s-cta);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.product-flag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: var(--s-radius);
+  background: var(--shop-sale);
+  color: var(--shop-sale-text);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.product-flag.is-used {
+  left: auto;
+  right: 8px;
+  background: var(--s-brand);
+  color: var(--s-on-brand);
+}
+
+.product-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+}
+
+.product-name {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.product-spec,
+.product-stock,
+.product-lead,
+.product-sale {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--s-muted);
+}
+
+.product-sale {
+  color: var(--shop-sale);
+  font-weight: 600;
+}
+
+.product-lead {
+  color: var(--s-text);
+}
+
+.product-lead span {
+  color: var(--s-muted);
+}
+
+.product-price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.product-price strong {
+  font-family: var(--font-body);
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.product-price s {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--s-muted);
+}
+
+.stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--s-muted);
+}
+
+.stars-track {
+  position: relative;
+  display: inline-block;
+  letter-spacing: 1px;
+  color: var(--s-muted);
+}
+
+.stars-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--shop-star);
+}
+
+.stars-value {
+  font-weight: 600;
+  color: var(--s-text);
+}
+
+.product-risk {
+  padding: var(--space-2);
+  border-left: 3px solid var(--s-muted);
+  border-radius: 4px;
+  background: var(--s-bg);
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.product-risk ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.product-risk-level {
+  font-weight: 700;
+}
+
+.product-risk.risk-none {
+  border-left-color: var(--ok);
+}
+
+.product-risk.risk-low {
+  border-left-color: var(--warn);
+}
+
+.product-risk.risk-medium {
+  border-left-color: var(--highlight);
+}
+
+.product-risk.risk-high {
+  border-left-color: var(--danger);
+}
+
+.product-reviews {
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.product-reviews summary {
+  color: var(--s-muted);
+  cursor: pointer;
+}
+
+.product-reviews blockquote {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  border-radius: 4px;
+  background: var(--s-bg);
+}
+
+.product-reviews blockquote p {
+  margin: 4px 0;
+}
+
+.product-reviews cite {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--s-muted);
+}
+
+.shop-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: var(--s-cta);
+  color: var(--s-on-cta);
+  font-family: var(--s-font);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.shop-cta:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.shop-cta:disabled {
+  background: var(--s-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.shop-cta-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--s-on-cta);
+  color: var(--s-cta);
+  font-size: 12px;
+}
+
+/* Carrinho */
+.shop-cart {
+  position: sticky;
+  top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--s-radius);
+  background: var(--s-surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.shop-cart-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--s-font);
+  font-size: 18px;
+}
+
+.shop-cart-badge {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--s-cta);
+  color: var(--s-on-cta);
+  font-family: var(--font-body);
+  font-size: 12px;
+  text-align: center;
+}
+
+.shop-cart-empty {
+  margin: 0;
+  color: var(--s-muted);
+}
+
+.cart-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cart-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cart-qty button {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--s-muted);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--s-text);
+  line-height: 1;
+}
+
+.cart-qty button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cart-line-price {
+  min-width: 56px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.shipping-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-2) 0 0;
+  border: 0;
+  border-top: 1px solid var(--s-bg);
+}
+
+.shipping-options legend {
+  padding: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-muted);
+}
+
+.shipping-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-2);
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--s-bg);
+  cursor: pointer;
+}
+
+.shipping-option input {
+  grid-row: span 2;
+  accent-color: var(--s-cta);
+}
+
+.shipping-meta,
+.shipping-note {
+  font-size: 12px;
+  color: var(--s-muted);
+}
+
+.shipping-note {
+  margin: 0;
+}
+
+.cart-sum {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--s-bg);
+  color: var(--s-muted);
+}
+
+/* O total fala a língua do jogo (⏱ ◆ ⌛ ⚠), então usa a paleta do painel. */
+.cart-total {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cart-total .cost {
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.cart-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--s-muted);
+}
+
+.cart-short {
+  margin: 0;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.shop-checkout {
+  width: 100%;
+  font-size: 16px;
+}
+
+/* Meus pedidos */
+.orders-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 980px;
+  padding: var(--space-5) var(--space-6);
+}
+
+.orders-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.orders-head p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+}
+
+.orders-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-6);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.orders-empty strong {
+  color: var(--text);
+}
+
+.orders-group {
+  margin: var(--space-2) 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.order {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 220px;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+}
+
+.order-held-customs {
+  border-color: var(--highlight);
+}
+
+.order-delivered {
+  opacity: 0.7;
+}
+
+.order-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.order-status {
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-processing,
+.status-in-transit {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.status-held-customs {
+  background: var(--highlight-soft);
+  color: var(--highlight);
+}
+
+.status-delivered {
+  background: var(--bg);
+  color: var(--ok);
+}
+
+.order-items,
+.order-meta {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.order-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.order-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.order-when-label {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.order-when strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--cost-lead);
+}
+
+.order-when-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.order-pay {
+  margin-top: var(--space-2);
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--highlight);
+  color: var(--bg);
+  font-weight: 700;
+}
