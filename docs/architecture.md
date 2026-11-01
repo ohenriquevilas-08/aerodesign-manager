@@ -98,7 +98,7 @@ Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `test
 - `benchViewsFromState(state)`: por bancada, a primeira tarefa ativa (senão a primeira esperando) e quantas outras há (`queued`); até 4 peças e o resto em `moreParts`. Progresso = `hoursDone / hoursTotal`; na espera ⌛, tempo passado sobre o prazo **prometido**, travado em 99% (o `readyAt` real não vaza).
 - `aircraftViewFromState(state)`: o avião no cavalete usa a melhor peça de cada `PartType` (maior condição, depois qualidade); `null` se não existe. A cena pinta danificada em amarelo e quebrada em vermelho.
 - `workerViewsFromState(state)`: cada integrante vai para a bancada da tarefa em que está em `assignees`; trabalha se a tarefa está ativa, fica de pé se ela espera prazo. Presidente, quem está sem tarefa ou numa tarefa fora do hangar fica na área livre, na frente. Quem entra na equipe aparece; quem sai some.
-- Escala da oficina (`src/scenes/hangar/workshop.ts`, design §5.5): só quem está em `workshopNow(state).present` aparece no hangar; fora de turno ele fica vazio, escuro e com a placa "FECHADA". `lightingFor(slot, open, hora)`: manhã e tarde com luz do dia; noite com luminárias acesas (cor `lamp`) e janelas escuras (cor `night`); madrugada mais escura, com pizza e café no piso e o primeiro presente fora das bancadas cochilando no canto (`overnightNapper`). Com `blocked` preenchido, a placa no portão vira "OFICINA PARADA" com o motivo. **Stub:** enquanto a Simulação não exporta `currentShift` e `workshopNow`, o arquivo tem uma versão local com o mesmo tipo (turno pela hora; todos que trabalham presentes em qualquer turno); trocar pelo import de `sim/index.ts` quando chegar.
+- Escala da oficina (`src/scenes/hangar/workshop.ts`, design §5.5): só quem está em `workshopNow(state).present` aparece no hangar; fora de turno ele fica vazio, escuro e com a placa "FECHADA". `lightingFor(slot, open, hora)`: manhã e tarde com luz do dia; noite com luminárias acesas (cor `lamp`) e janelas escuras (cor `night`); madrugada mais escura, com pizza e café no piso e o primeiro presente fora das bancadas cochilando no canto (`overnightNapper`). Com `blocked` preenchido, a placa no portão vira "OFICINA PARADA" com o motivo.
 - Ações novas: `build-fuselage`, `build-tail` e `build-gear` vão para a fuselagem; `drawings` e `oral-rehearsal`, para o relatório; `test-structural`, para a asa; `test-thrust`, para a eletrônica (`ACTION_BENCH`). Peça com `counterfeit` ganha um anel amarelo no ponto de estado do cartão.
 - Pacotes (`src/scenes/hangar/packages.ts`, design §8.4): `packagesAtDoor(state)` lista os pedidos `in-transit` e `held-customs`, que viram caixas ao lado do portão (até 6; retido ganha faixa amarela) com a legenda "N A CAMINHO · N RETIDO". `recentDeliveries(state)` lista os `delivered` com `deliveredAt` no último dia de jogo (`OPENING_WINDOW_HOURS`); a cena abre cada um uma vez ("Chegou: …"). A abertura anda em tempo real, mesmo com o relógio pausado, para não congelar se a entrega pausar o jogo.
 
@@ -109,7 +109,7 @@ Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `test
 - Custos de ações sempre como `Cost { hours, credits, leadDays, risk }` e exibidos nessa ordem (design §8).
 - Toda fórmula do regulamento cita a seção ou equação no comentário e tem teste.
 - `useGame` deve selecionar valores pequenos (números, strings ou objetos que mudam pouco): o relógio dispara atualizações a cada quadro.
-- Save: ainda não existe. Quando existir, `GameState.version` sobe a cada mudança incompatível e saves antigos são descartados durante o protótipo (sem migrações).
+- Save: um slot em `localStorage` (Fase 4). `GameState.version` sobe a cada mudança incompatível e saves antigos são descartados durante o protótipo (sem migrações).
 
 ## Contratos por fase
 
@@ -117,6 +117,7 @@ Este arquivo é o núcleo. O contrato e as regras de cada fase vivem em `docs/ph
 
 - [`docs/phases/fase-2.md`](phases/fase-2.md): equipe, tarefas, peças, ensaios e loop de preparação.
 - [`docs/phases/fase-3.md`](phases/fase-3.md): avião, relatório, lojas, competição e escala da oficina.
+- [`docs/phases/fase-4.md`](phases/fase-4.md): save, correções do playtest (madrugada, escalação, blueprint, relatório, navegador), telas Ensaios e Finanças.
 
 ## Comandos
 
