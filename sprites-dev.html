@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Personagens (dev)</title>
+    <style>
+      html, body { margin: 0; background: #08121c; color: #e4f0f7; font: 12px Inter, sans-serif; }
+      .page { padding: 12px 16px; min-height: 100vh; }
+      .bg-dark { background: #08121c; }
+      .bg-floor { background: #0f2232; }
+      .bg-light { background: #c9d3da; color: #102233; }
+      header { display: flex; gap: 8px; align-items: center; }
+      h1 { font-size: 16px; margin: 0 12px 0 0; }
+      h2 { font-size: 13px; margin: 18px 0 8px; opacity: 0.8; }
+      button { background: #15304a; color: #e4f0f7; border: 1px solid #2b6585; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+      button.on { background: #2b6585; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 10px; }
+      .card { border: 1px solid #1f4762; border-radius: 6px; padding: 6px; }
+      .caption { opacity: 0.75; margin-bottom: 4px; }
+      .row { display: flex; gap: 4px; align-items: flex-end; }
+      .wrap { flex-wrap: wrap; gap: 14px; }
+      figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      figcaption { opacity: 0.7; max-width: 140px; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/dev/spriteGallery.tsx"></script>
+  </body>
+</html>

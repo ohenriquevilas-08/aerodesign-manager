@@ -46,6 +46,26 @@ export const palette = {
   /** Roupa e acabamento do boneco, espelhados em --avatar-pants e --avatar-shoe. */
   pants: 0x1f4762, // --avatar-pants (igual a --border)
   shoe: 0x08121c, // --avatar-shoe (igual a --bg)
+  /** Pixel art dos personagens (scenes/people/sprite), espelhados em --sprite-*. */
+  sprite: {
+    ink: 0x1d1622, // --sprite-ink (contorno, olhos)
+    white: 0xf4f1ea, // --sprite-white
+    mouth: 0x8e3b3b, // --sprite-mouth
+    lips: 0xc8566c, // --sprite-lips
+    blush: 0xe58a8a, // --sprite-blush
+    frame: 0x3b4252, // --sprite-frame (armação dos óculos)
+    wood: 0x9a6a3a, // --sprite-wood (caixote do cochilo)
+    /** Camisetas, moletons e regatas: --sprite-cloth-0..8. */
+    cloth: [0x2f6fb5, 0x3a8a5c, 0xc23b4a, 0x6b4fa0, 0x3a4250, 0xe8e4da, 0xd9a43a, 0x3f9ea3, 0xd77fa1],
+    /** Jaquetas: --sprite-jacket-0..4. */
+    jacket: [0x2a3550, 0x4d5a3a, 0x7a2f35, 0x26272e, 0x3d5f8f],
+    /** Jeans: --sprite-denim-0..1. */
+    denim: [0x35558a, 0x2b3f63],
+    /** Calças, bermudas e saias: --sprite-pants-0..3. */
+    pants: [0x2a2f3a, 0x8a7a5a, 0x5b6470, 0x4a3a5a],
+    /** Tênis: --sprite-shoe-0..4. */
+    shoe: [0xf0efe8, 0x26272e, 0xc23b4a, 0x3a6fb0, 0x8a8f96]
+  },
   text: "#e4f0f7", // --text
   textMuted: "#8ba7bb", // --text-muted
   textDim: "#5b7489" // --text-dim

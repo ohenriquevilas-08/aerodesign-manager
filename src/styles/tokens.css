@@ -65,6 +65,40 @@
   --avatar-pants: #1f4762;
   --avatar-shoe: #08121c;
 
+  /* Pixel art dos personagens (scenes/people/sprite): espelho de palette.sprite */
+  --sprite-ink: #1d1622;
+  --sprite-white: #f4f1ea;
+  --sprite-mouth: #8e3b3b;
+  --sprite-lips: #c8566c;
+  --sprite-blush: #e58a8a;
+  --sprite-frame: #3b4252;
+  --sprite-wood: #9a6a3a;
+  --sprite-cloth-0: #2f6fb5;
+  --sprite-cloth-1: #3a8a5c;
+  --sprite-cloth-2: #c23b4a;
+  --sprite-cloth-3: #6b4fa0;
+  --sprite-cloth-4: #3a4250;
+  --sprite-cloth-5: #e8e4da;
+  --sprite-cloth-6: #d9a43a;
+  --sprite-cloth-7: #3f9ea3;
+  --sprite-cloth-8: #d77fa1;
+  --sprite-jacket-0: #2a3550;
+  --sprite-jacket-1: #4d5a3a;
+  --sprite-jacket-2: #7a2f35;
+  --sprite-jacket-3: #26272e;
+  --sprite-jacket-4: #3d5f8f;
+  --sprite-denim-0: #35558a;
+  --sprite-denim-1: #2b3f63;
+  --sprite-pants-0: #2a2f3a;
+  --sprite-pants-1: #8a7a5a;
+  --sprite-pants-2: #5b6470;
+  --sprite-pants-3: #4a3a5a;
+  --sprite-shoe-0: #f0efe8;
+  --sprite-shoe-1: #26272e;
+  --sprite-shoe-2: #c23b4a;
+  --sprite-shoe-3: #3a6fb0;
+  --sprite-shoe-4: #8a8f96;
+
   /* Moedas (design §8) */
   --cost-hours: #22c7e6;
   --cost-credits: #ffc23d;
