@@ -19,7 +19,7 @@ Escopo: o jogador vira **professor orientador**, a temporada começa em **novemb
 |---|---|---|
 | Simulação | S1–S4 | nada |
 | Cenas | C1 | `MemberLook` (já existe) |
-| UI | U1–U4 | Simulação e Cenas integradas |
+| UI | U1–U5 | Simulação e Cenas integradas |
 
 Ordem: Simulação e Cenas juntas; UI depois do merge.
 
@@ -107,6 +107,18 @@ Atualizar o design §4 (tempo e calendário), §5 (equipe) e §13 (decisões) ju
 - Na Equipe, os trainees ficam numa faixa própria, com o progresso do treinamento.
 - A Prancheta mostra "Aguardando regulamento (9/fev)" até a publicação.
 - O cartão da tarefa "Leitura do regulamento" ganha destaque nessa data.
+
+### U5. Elenco como central do elenco (referência: Central do Elenco do modo carreira do FIFA)
+
+Refaz a aba Elenco. Hoje ela é uma grade de cartões grandes; passa a ser:
+
+- **Topo:** resumo da equipe, com a contagem por área e uma média geral num anel.
+- **Abas:** **Status** (motivação, tarefa atual, turno, sobrecarga), **Conhecimento** (as 7 disciplinas em colunas), **Disponibilidade** (h/dia, aulas no semestre, formatura) e **Desenvolvimento** (evolução recente; vai receber preferências e facilidades na Fase 7).
+- **Tabela à esquerda:** uma linha por aluno, com retrato pequeno (`Avatar.tsx`), nome, área e as colunas da aba. Ordenar clicando no cabeçalho. A linha selecionada fica destacada.
+- **Painel à direita:** ficha do selecionado, com o nome grande, a área, a "nota" geral, os números da aba e o boneco **de corpo inteiro e grande** (mesma geometria de `avatar.ts`, em escala maior).
+- Teclado: setas mudam a seleção.
+
+Usa `rosterMembers`. O conhecimento documentado sai desta aba e vai para a Central ou para o Relatório.
 
 ## Verificação
 
