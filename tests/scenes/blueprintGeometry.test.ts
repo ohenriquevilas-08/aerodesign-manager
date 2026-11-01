@@ -16,7 +16,7 @@ describe("geometria do blueprint", () => {
     const big = blueprintGeometry(make({ span: DESIGN_LIMITS.span.max }));
     expect(small.wingspan).toBe(DESIGN_LIMITS.span.min);
     expect(big.surfaces[0]!.span).toBe(DESIGN_LIMITS.span.max);
-    expect(big.surfaces[0]!.chord).toBeGreaterThan(small.surfaces[0]!.chord);
+    expect(big.aspectRatio).toBeGreaterThan(small.aspectRatio);
   });
 
   it("N escolhe as superfícies: voadora, convencional, canard", () => {
@@ -34,12 +34,11 @@ describe("geometria do blueprint", () => {
     const high = blueprintGeometry(make({ powerW: DESIGN_LIMITS.powerW.max }));
     expect(high.motor.diameter).toBeGreaterThan(low.motor.diameter);
     expect(high.motor.length).toBeGreaterThan(low.motor.length);
-    expect(high.prop.diameter).toBeGreaterThan(low.prop.diameter);
   });
 
   it("trem alto sobe o avião e dá folga à hélice; baixo com potência alta aperta", () => {
-    const low = blueprintGeometry(make({ gear: "low", powerW: 700 }));
-    const high = blueprintGeometry(make({ gear: "high", powerW: 700 }));
+    const low = blueprintGeometry(make({ gear: "low", propDiameterIn: 20 }));
+    const high = blueprintGeometry(make({ gear: "high", propDiameterIn: 20 }));
     expect(high.gear.height).toBeGreaterThan(low.gear.height);
     expect(high.propClearance).toBeGreaterThan(low.propClearance);
     expect(low.propClearance).toBeLessThan(0);
@@ -53,14 +52,12 @@ describe("geometria do blueprint", () => {
     expect(blueprintGeometry(make({ material: "balsa" })).ribs).toBeGreaterThan(blueprintGeometry(make({ material: "composite" })).ribs);
   });
 
-  it("a filosofia muda longarina e corda", () => {
+  it("a filosofia muda a longarina", () => {
     const payload = blueprintGeometry(make({ philosophy: "payload" }));
     const light = blueprintGeometry(make({ philosophy: "light" }));
     const stable = blueprintGeometry(make({ philosophy: "stable" }));
     expect(payload.sparWidth).toBeGreaterThan(stable.sparWidth);
     expect(stable.sparWidth).toBeGreaterThan(light.sparWidth);
-    expect(payload.surfaces[0]!.chord).toBeGreaterThan(stable.surfaces[0]!.chord);
-    expect(stable.surfaces[0]!.chord).toBeGreaterThan(light.surfaces[0]!.chord);
   });
 });
 
