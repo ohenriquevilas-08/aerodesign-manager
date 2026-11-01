@@ -178,7 +178,7 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 
 ## Fase 3: contrato (avião, relatório, lojas, competição)
 
-`GameState.version` = **3**. Tipos em `sim/types.ts`; cada assunto tem um módulo dono. O que está marcado **stub** existe com a assinatura final, mas devolve `null`, `[]` ou um `warning` "ainda não disponível" até a frente de Simulação implementar. UI e cenas programam contra a assinatura e mostram "—" ou estado vazio enquanto isso.
+`GameState.version` = **3**. Tipos em `sim/types.ts`; cada assunto tem um módulo dono. Todos os itens abaixo estão **prontos** (Fase 3, frente de Simulação).
 
 ### Campos novos no `GameState`
 
@@ -196,32 +196,46 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 
 | Comando | Efeito | Estado |
 |---|---|---|
-| `{ type: "set-design", design }` | Grava o projeto da prancheta. No primeiro, sorteia `aircraft.hidden`. Recusa envergadura ou potência fora de `DESIGN_LIMITS` | pronto (desvio provisório ±10%) |
+| `{ type: "set-design", design }` | Grava o projeto da prancheta. No primeiro, sorteia `aircraft.hidden` (material e filosofia). Mudar depois mantém `hidden`, perde metade dos ensaios e, depois de 27/set, soma `lateChanges`. Recusa envergadura ou potência fora de `DESIGN_LIMITS` | pronto |
 | `{ type: "set-predictions", emptyWeightKg?, payloadLine? }` | Rascunho das previsões. Recusa depois do envio | pronto |
-| `{ type: "submit-report" }` | Congela previsões e sorteia NR. Também automático em 16/ago (com penalidade até 23/ago) | stub |
-| `{ type: "place-order", shopId, lines, shipping }` | Checkout: debita ◆ (itens + frete), baixa estoque, cria `Order`. Recusa sem estoque, frete indisponível ou sem caixa | stub |
-| `{ type: "pay-customs", orderId }` | Paga o imposto de pedido retido; ele volta a andar | stub |
-| `{ type: "set-battery-payload", payloadKg }` | Carga da próxima decolagem. Recusa com menos de `MIN_TEAMS_AHEAD_TO_REVISE` (3) equipes à frente, R[10.1.5.3] | stub |
-| `{ type: "dev-start-competition" }` | Só em dev: pula para o dia da competição com equipe, avião, relatório e previsões prontos | stub |
+| `{ type: "submit-report" }` | Congela previsões e sorteia NR. Automático em 16/ago se as previsões estão completas; senão, manual com penalidade até 23/ago, quando é forçado. Recusa depois de enviado ou de 23/ago | pronto |
+| `{ type: "place-order", shopId, lines, shipping }` | Checkout: debita ◆ (itens + frete), baixa estoque, cria `Order`. Recusa sem estoque, frete indisponível, produto que a loja não vende, carrinho vazio ou sem caixa | pronto |
+| `{ type: "pay-customs", orderId }` | Paga o imposto de pedido retido; ele volta a andar (liberação de 2–5 dias). Grava `customsPaid` | pronto |
+| `{ type: "set-battery-payload", payloadKg }` | Carga da próxima decolagem (fica valendo nas seguintes). Recusa com menos de `MIN_TEAMS_AHEAD_TO_REVISE` (3) equipes à frente, R[10.1.5.3], ou fora de 0–20 kg. Sem escolha, voa com a reta de previsão | pronto |
+| `{ type: "dev-start-competition" }` | Só em dev: equipe, avião completo, vídeo, relatório enviado e oral prontos; relógio pausado 15 min antes da primeira decolagem | pronto |
 
 ### Leituras para UI e cenas
 
 | Função | Devolve | Estado |
 |---|---|---|
-| `estimatePerformance(state, Hρ)` | `PerformanceEstimate`: peso vazio, carga máxima, EE e corrida de decolagem, cada um `{ value, margin }` | stub |
-| `estimateReportScore(state)` | NR esperada `{ value, margin }` | stub |
+| `estimatePerformance(state, Hρ)` | `PerformanceEstimate`: peso vazio, carga máxima (sustentação), EE e corrida até a rotação com essa carga, cada um `{ value, margin }`. Corrida acima de ~47 m = não passa a fita | pronto |
+| `estimateReportScore(state)` | NR esperada `{ value, margin }` (com a penalidade se enviar agora); depois do envio, a nota com margem 0 | pronto |
 | `listingPrice` / `listingStock` | Preço da vitrine (com promoção) / unidades (`null` = sem limite) | pronto |
 | `currentDensityAltitude(state)` | Hρ da pista agora (Apêndice 4) | pronto |
-| `teamsAhead(state)` | Equipes à sua frente na fila | stub |
-| `standings(state)` | `Standing[]` ordenado: melhor bateria + BCF + projeto − penalidades | stub |
+| `installedParts(state)` / `missingParts(state)` / `PART_TYPE_LABELS` | Peça em uso por tipo (melhor condição não quebrada) / o que falta para voar | pronto |
+| `inspectionIssues(state)` / `COMPETITION_START` | Pendências da inspeção (§9.2) / início da competição (horas de jogo) | pronto |
+| `teamsAhead(state)` | Equipes à sua frente na fila; `null` fora da fila ou depois de voar na bateria | pronto |
+| `standings(state)` | `Standing[]` ordenado: melhor bateria + BCF + projeto − penalidades | pronto |
 
 Catálogo das lojas em `sim/content/shops.ts` (design §8.4): `SHOPS` (frete normal e expresso por loja, taxa de imposto), `PRODUCTS` (o que cada produto vira ao chegar: peça, estoque ou equipamento) e `LISTINGS` (preço, prazo prometido, qualidade de origem, chance de taxação e de falsificação, condição de usado, estoque inicial, avaliações). Novos consumíveis: `balsa-light`, `balsa` (média), `balsa-hard`, `carbon-fiber`, `resin`; novo equipamento: `thrust-stand`.
+
+### Campos opcionais e motivos de pausa (Fase 3)
+
+- `Part.counterfeit?`: veio fora da especificação (falsificado). Servo falsificado instalado reprova na inspeção; o relatório final lista as peças.
+- `Aircraft.evidence?` (ensaios acumulados), `Aircraft.flightVideoAt?` (vídeo válido; sem ele não voa), `AircraftHidden.bias?` (erro da opinião da equipe; nunca mostrar).
+- `ReportState.oralPracticeHours?`, `Order.customsPaid?`, `CompetitionState.suspended?` (equipe fora de uma bateria: rival que caiu, ou você abortando com trem alto).
+- `PauseReason` ganhou `"order"` (retido/entregue), `"flight"` (seu voo: tocar o replay) e `"competition"` (início, vez perdida, resultado final).
+
+### Catálogo de ações (Fase 3)
+
+- `report-chapter` exige `targetId` = disciplina. Novas: `drawings` (plantas), `oral-rehearsal`, `build-fuselage` (balsa dura), `build-tail` (balsa leve), `build-gear` (fibra de carbono), `test-structural` (precisa de asa), `test-thrust` (grupo motopropulsor; com `thrust-stand` rende mais), `test-flight` e `flight-video` (avião completo). Ensaios estreitam margens, citam o ensaio nos capítulos (`testsCited`) e desgastam ou danificam peças; voos ensinam pilotagem.
+- `buy-*` e `express-shipping` saíram: compras só pelo navegador (`place-order`). O tipo `"waiting-task"` continua no union de `ActionTarget`, sem ação que o use.
 
 ### Regras que a Simulação precisa respeitar
 
 - **Avião:** o desempenho real sai do projeto × `hidden` × peças. A margem de `estimatePerformance` encolhe com conhecimento (Aerodinâmica e Desempenho → carga; Estruturas → peso vazio) e, mais, com ensaios. Coerência: com margem zero, a estimativa é o real.
 - **Lojas:** prazo real sorteado a partir da faixa prometida (pode passar do máximo, como `BALANCE.lead`); expresso multiplica pelo `leadFactor` da loja. Importado pode ficar `held-customs` (inbox pede o imposto e pausa). Na entrega: peça com qualidade sorteada pela loja (usado: condição sorteada), estoque ou equipamento; falsificado marca a peça e reprova na inspeção (§9.2). As ações `buy-*` e `express-shipping` saem do catálogo quando o checkout estiver pronto.
-- **Competição:** começa sozinha no marco `competition` do calendário. O clima segue o relógio (manhã fria, tarde quente); as rivais voam pelas mesmas fórmulas de `scoring.ts`, a partir de um avião gerado pelo arquétipo; classificação para a 4ª bateria em diante pela Tabela 10.1 (`REGULAR_2026.batteryCutoffs`). Cada voo seu vira `BatteryResult` com `playback` coerente com o contrato da cena; voo seu pausa o relógio para o replay.
+- **Competição:** começa sozinha no marco `competition` do calendário (22/out: exposição e inspeção; voos de 23 a 25/out, 7h–17h, uma decolagem a cada 12 min). Nas janelas de voo 1 h de jogo dura 20 s reais em 1× (`BALANCE.competition`). O clima segue o relógio (manhã fria, tarde quente); as rivais voam pelas mesmas fórmulas de `scoring.ts`, a partir de um avião gerado pelo arquétipo; classificação para a 4ª bateria em diante pela Tabela 10.1 (`REGULAR_2026.batteryCutoffs`). Cada voo seu vira `BatteryResult` com `playback` coerente com o contrato da cena; voo seu pausa o relógio para o replay.
 
 ## Fase 3: frentes de trabalho em paralelo
 
