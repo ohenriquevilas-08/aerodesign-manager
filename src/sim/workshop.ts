@@ -16,6 +16,7 @@ import type { GameState, Member, ShiftId, SlotKey, Task, Weekday, WorkshopState 
 const W = BALANCE.workshop;
 
 export type SlotStatus = "free" | "class" | "exam" | "locked";
+// "locked" só para turno inválido: a madrugada é sempre livre (a oficina é da equipe, design §5.5).
 
 /** Grade de aulas do semestre, sorteada por pessoa: só dias úteis, nunca madrugada. */
 export function drawClassSlots(rngState: number): { slots: SlotKey[]; rngState: number } {
@@ -36,7 +37,6 @@ export function createWorkshop(members: readonly Member[]): WorkshopState {
   return {
     capacity: W.capacity,
     keyHolders: members.filter((member) => member.role === "captain").map((member) => member.id),
-    nightAccess: "none",
     schedule: {}
   };
 }
@@ -74,13 +74,12 @@ function statusAt(state: GameState, member: Member, slot: SlotKey, hours: number
   const vacation = period === "Férias";
   if (!vacation && member.classSlots.includes(slot)) return "class";
   if (period === "Provas" && parsed.shift !== "overnight" && parsed.day >= 1 && parsed.day <= 5) return "exam";
-  if (parsed.shift === "overnight" && state.workshop.nightAccess !== "granted") return "locked";
   return "free";
 }
 
 /**
- * Situação de um turno para um integrante agora: livre, aula, semana de provas ("exam") ou
- * madrugada sem autorização ("locked"). Nas férias de julho não há aula.
+ * Situação de um turno para um integrante agora: livre, aula ou semana de provas ("exam");
+ * "locked" só para integrante ou turno inválido. Nas férias de julho não há aula.
  */
 export function slotStatus(state: GameState, memberId: string, slot: SlotKey): SlotStatus {
   const member = state.members.find((item) => item.id === memberId);
@@ -102,7 +101,7 @@ function sleepConflict(schedule: WorkshopState["schedule"], memberId: string, sl
 
 /** Quem fez a madrugada de ontem está dormindo de manhã (design §5.5). */
 function sleeping(state: GameState, memberId: string, day: Weekday, shift: ShiftId): boolean {
-  if (shift !== "morning" || state.workshop.nightAccess !== "granted") return false;
+  if (shift !== "morning") return false;
   return (state.workshop.schedule[slotKey(previousDay(day), "overnight")] ?? []).includes(memberId);
 }
 
@@ -281,7 +280,7 @@ export function suggestSchedule(state: GameState): { schedule: Partial<Record<Sl
   const freeBySchedule = (id: string, slot: SlotKey) => {
     const member = state.members.find((item) => item.id === id);
     if (!member || !canWork(member) || sleepConflict(schedule, id, slot)) return false;
-    if (parseSlot(slot)!.shift === "overnight") return state.workshop.nightAccess === "granted";
+    if (parseSlot(slot)!.shift === "overnight") return true;
     return !member.classSlots.includes(slot);
   };
   const room = (slot: SlotKey) => state.workshop.capacity - (schedule[slot]?.length ?? 0);
@@ -322,10 +321,6 @@ export function suggestSchedule(state: GameState): { schedule: Partial<Record<Sl
     for (const slot of daySlots) if (place(task, slot)) placed += 1;
     const names = task.assignees.map((id) => memberName(state, id)).join(", ");
     if (placed > 0) continue;
-    if (state.workshop.nightAccess !== "granted") {
-      notes.push(`${task.label}: ${names} não coincidem em nenhum turno de dia. Peça autorização de acesso noturno.`);
-      continue;
-    }
     for (const day of WEEKDAYS) {
       if (place(task, slotKey(day.id, "overnight"))) placed += 1;
       if (placed >= 2) break;
@@ -361,7 +356,7 @@ export function setShift(state: GameState, memberId: string, slot: SlotKey, on: 
   if (current.includes(memberId)) return state;
   const status = slotStatus(state, memberId, slot);
   if (status === "class") return warn(state, `${member.name} tem aula nesse turno.`);
-  if (status === "locked") return warn(state, "A madrugada exige autorização de acesso noturno do departamento.");
+  if (status === "locked") return warn(state, "Turno inválido.");
   if (sleepConflict(state.workshop.schedule, memberId, slot)) {
     return warn(state, `${member.name} vai estar dormindo depois da madrugada.`);
   }

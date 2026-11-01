@@ -24,7 +24,7 @@ import {
 const STATUS_REASON: Record<Exclude<SlotStatus, "free">, string> = {
   class: "Aula neste turno",
   exam: "Semana de provas: sem turno livre",
-  locked: "Prédio fecha às 22h: a madrugada precisa de autorização do departamento"
+  locked: "Turno indisponível"
 };
 
 /** Nome curto para os chips: "Ana Souza" → "Ana"; "Capitão de Estruturas" → "Estruturas". */
@@ -70,9 +70,7 @@ export function WorkshopSchedule() {
               {now.blocked
                 ? now.blocked
                 : now.slot
-                  ? now.slot.endsWith("overnight") && workshop.nightAccess !== "granted"
-                    ? "Prédio fechado: madrugada sem autorização."
-                    : nowPeople.length > 0
+                  ? nowPeople.length > 0
                     ? `Oficina ${now.open ? "aberta" : "trancada"} com ${nowPeople.map(firstName).join(", ")}.`
                     : "Ninguém escalado."
                   : "Oficina fechada."}
@@ -195,7 +193,7 @@ export function WorkshopSchedule() {
           </div>
         </section>
 
-        <NightPanel workshop={workshop} />
+        <NightPanel />
       </div>
     </div>
   );
@@ -226,8 +224,7 @@ function ScheduleCell({
 }) {
   const ids = workshop.schedule[slot] ?? [];
   const full = ids.length >= workshop.capacity;
-  const locked = night && workshop.nightAccess !== "granted";
-  const status = selected ? slotStatus(state, selected, slot) : locked ? "locked" : "free";
+  const status = selected ? slotStatus(state, selected, slot) : "free";
   const unavailable = status !== "free";
   const hasKey = ids.some((id) => workshop.keyHolders.includes(id));
   const free = [...members.keys()].filter((id) => slotStatus(state, id, slot) === "free").length;
@@ -237,7 +234,7 @@ function ScheduleCell({
     ids.length > 0 ? `Escalados: ${ids.map((id) => members.get(id)?.name ?? id).join(", ")}` : null,
     ids.length > 0 && !hasKey ? "Ninguém com chave: oficina não abre" : null,
     ids.length === 1 ? "Uma pessoa só não lamina nem usa máquina" : null,
-    !selected && !locked ? `${free} ${free === 1 ? "pessoa livre" : "pessoas livres"} neste turno` : null
+    !selected ? `${free} ${free === 1 ? "pessoa livre" : "pessoas livres"} neste turno` : null
   ]
     .filter(Boolean)
     .join(" · ");
@@ -258,7 +255,7 @@ function ScheduleCell({
       title={title || undefined}
       onClick={selected && !(unavailable && !ids.includes(selected)) ? onClick : undefined}
       onDragOver={(event) => {
-        if (dropping && !locked && !full) event.preventDefault();
+        if (dropping && !full) event.preventDefault();
       }}
       onDrop={(event) => {
         event.preventDefault();
@@ -342,33 +339,19 @@ function SuggestionPreview({
   );
 }
 
-function NightPanel({ workshop }: { workshop: WorkshopState }) {
+function NightPanel() {
   return (
     <section class="panel night-panel">
       <h2 class="panel-title">Madrugada · 22h–3h</h2>
       <div class="panel-body stack-tight">
         <p class="small">
-          O único turno em que todo mundo está livre: é onde cabem a integração e as laminações grandes. Mas cobra:
+          O único turno em que todo mundo está livre: é onde cabem a integração e as laminações grandes. A oficina é da equipe e a chave está com vocês. Mas cobra:
         </p>
         <ul class="night-costs">
           <li>Quem vira a noite perde o turno da manhã seguinte.</li>
           <li>Motivação cai, mais ainda com madrugadas seguidas (na semana de prazo, une a equipe).</li>
           <li>Cansaço baixa a qualidade, pior depois da 1h. "Caprichado" compensa.</li>
         </ul>
-        {workshop.nightAccess === "granted" ? (
-          <p class="alert alert-info">Acesso noturno autorizado pelo departamento.</p>
-        ) : workshop.nightAccess === "requested" ? (
-          <>
-            <p class="alert alert-warn">Pedido de acesso enviado. Aguardando resposta do departamento.</p>
-          </>
-        ) : (
-          <>
-            <p class="alert alert-warn">O prédio fecha às 22h. Sem autorização, a madrugada fica bloqueada na grade.</p>
-            <button type="button" class="btn-primary" onClick={() => workshopCommand({ type: "night-access-request" })}>
-              Pedir autorização ao departamento
-            </button>
-          </>
-        )}
       </div>
     </section>
   );

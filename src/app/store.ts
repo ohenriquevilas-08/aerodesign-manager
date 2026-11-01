@@ -12,6 +12,8 @@ export interface GameStore {
   /** Pausa ou retoma na última velocidade usada. */
   togglePause(): void;
   setSpeed(speed: ClockSpeed): void;
+  /** Troca o jogo inteiro (carregar save, novo jogo). */
+  replace(state: GameState): void;
 }
 
 export function createStore(initial: GameState): GameStore {
@@ -35,6 +37,10 @@ export function createStore(initial: GameState): GameStore {
     },
     togglePause() {
       dispatch({ type: "set-speed", speed: state.clock.speed === 0 ? lastSpeed : 0 });
+    },
+    replace(next) {
+      state = next;
+      listeners.forEach((listener) => listener(state));
     },
     setSpeed(speed) {
       if (speed !== 0) lastSpeed = speed;

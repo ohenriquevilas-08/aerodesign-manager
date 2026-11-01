@@ -4,6 +4,7 @@ import { step } from "../../src/sim/loop";
 import {
   applyCommand,
   createGame,
+  DEFAULT_DESIGN,
   DISCIPLINES,
   estimateReportScore,
   REGULAR_2026,
@@ -18,6 +19,9 @@ function withChapters(state: GameState, hours: number, tests = 0, documented = 0
   const doc = Object.fromEntries(DISCIPLINES.map((d) => [d, documented])) as GameState["documented"];
   return { ...state, documented: doc, report: { ...state.report, chapters, drawingsHours: drawings } };
 }
+
+/** Projeto gravado na prancheta (o envio exige). */
+const designed = (state: GameState): GameState => applyCommand(state, { type: "set-design", design: DEFAULT_DESIGN });
 
 const at = (state: GameState, hours: number): GameState => ({ ...state, clock: { ...state.clock, hours } });
 
@@ -70,7 +74,7 @@ describe("nota do relatório (11.1)", () => {
 
 describe("envio no Portal da CT", () => {
   it("congela previsões e sorteia a NR dentro da faixa estimada", () => {
-    const ready = withChapters(game(), 40, 1, 40, 20);
+    const ready = designed(withChapters(game(), 40, 1, 40, 20));
     const estimate = estimateReportScore(ready)!;
     const sent = applyCommand(ready, { type: "submit-report" });
     expect(sent.report.submittedAt).toBe(0);
@@ -110,7 +114,7 @@ describe("envio no Portal da CT", () => {
 
 describe("apresentação oral (17/out)", () => {
   it("dá nota de 0 a 40 a quem enviou o relatório; ensaiar ajuda", () => {
-    const sent = applyCommand(withChapters(game(), 40, 0, 50), { type: "submit-report" });
+    const sent = applyCommand(designed(withChapters(game(), 40, 0, 50)), { type: "submit-report" });
     const oral = step(at(sent, ORAL_DATE - 0.5), 1).report.oralScore!;
     expect(oral).toBeGreaterThan(0);
     expect(oral).toBeLessThanOrEqual(REGULAR_2026.oralMax);

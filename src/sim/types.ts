@@ -49,15 +49,11 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 /** Turno da grade semanal, ex.: "1-morning" (segunda de manhã). */
 export type SlotKey = `${Weekday}-${ShiftId}`;
 
-/** Acesso ao prédio depois das 22h: sem ele a madrugada fica bloqueada na grade. */
-export type NightAccess = "none" | "requested" | "granted";
-
 export interface WorkshopState {
   /** Lugares na oficina por turno (4 no Ano 1). */
   capacity: number;
   /** Quem tem chave: a oficina só abre com um deles no turno. */
   keyHolders: string[];
-  nightAccess: NightAccess;
   /** Quem está escalado em cada turno da semana (ids de integrantes). */
   schedule: Partial<Record<SlotKey, string[]>>;
 }
@@ -87,6 +83,8 @@ export interface Member {
   workStreakHours: number;
   /** Turnos com aula no semestre (fim de semana e madrugada nunca têm aula). */
   classSlots: SlotKey[];
+  /** Área da formação (content/formations.ts); null = novato sem área ou presidente. */
+  area: Discipline | null;
 }
 
 /** Candidato da seletiva (design §5.2): vira Member com role "member" ao ser convidado. */
@@ -480,7 +478,7 @@ export interface Standing {
 }
 
 export interface GameState {
-  version: 4;
+  version: 5;
   seed: number;
   rngState: number;
   clock: Clock;
@@ -514,6 +512,59 @@ export interface GameState {
   shops: ShopsState;
   /** null até o dia da competição de voo. */
   competition: CompetitionState | null;
-  /** Oficina: lotação, chaves, acesso noturno e escala semanal (design §5.5). */
+  /** Oficina: lotação, chaves e escala semanal (design §5.5). */
   workshop: WorkshopState;
+  /** Notícias do Portal (Fase 4, S5), da mais antiga para a mais nova. */
+  news: NewsItem[];
+  /** Extrato de tudo que mexeu no caixa ◆ (Fase 4, S6), em ordem cronológica. */
+  ledger: LedgerEntry[];
+  /** Ensaios concluídos (Fase 4, S6), em ordem cronológica; a leitura é testHistory(). */
+  testLog: TestRecord[];
+}
+
+// ---------------------------------------------------------------------------
+// Fase 4: notícias, extrato e histórico de ensaios.
+// ---------------------------------------------------------------------------
+
+export type NewsKind = "promo" | "stock" | "deadline" | "rival";
+
+export interface NewsItem {
+  id: string;
+  /** Horas de jogo em que saiu. */
+  at: number;
+  kind: NewsKind;
+  title: string;
+  body: string;
+  /** Loja citada (promoção, estoque), se houver. */
+  shopId?: string;
+  /** Anúncio citado (`shopId:productId`), se houver. */
+  listingId?: string;
+}
+
+export type LedgerKind = "order" | "customs" | "raffle" | "sponsor" | "action" | "dev";
+
+export interface LedgerEntry {
+  /** Horas de jogo. */
+  at: number;
+  /** Positivo = entrada, negativo = saída. */
+  credits: number;
+  kind: LedgerKind;
+  label: string;
+}
+
+export type TestKind = "structural" | "thrust" | "flight" | "video";
+
+/** Ensaio concluído, guardado para o histórico (testHistory). */
+export interface TestRecord {
+  at: number;
+  test: TestKind;
+  /** Altitude densidade do dia (Apêndice 4), m. */
+  densityAltitudeM: number;
+  /** true = sem incidente. */
+  ok: boolean;
+  summary: string;
+  /** Rótulos das peças que perderam condição no ensaio. */
+  affectedParts: string[];
+  /** Carga medida no voo de ensaio, kg (só flight); alimenta a reta de previsão. */
+  payloadKg: number | null;
 }

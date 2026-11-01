@@ -40,7 +40,8 @@ function founder(id: string, name: string, role: Member["role"], focus: Discipli
     graduation: "2027.2",
     taskId: null,
     workStreakHours: 0,
-    classSlots: []
+    classSlots: [],
+    area: role === "president" ? null : focus
   };
 }
 
@@ -83,7 +84,7 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
     return { ...member, classSlots: drawn.slots };
   });
   return {
-    version: 4,
+    version: 5,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },
@@ -116,6 +117,9 @@ export function createGame(options: { seed: number; teamName: string }): GameSta
     orders: [],
     shops: createShops(),
     competition: null,
-    workshop: createWorkshop(members)
+    workshop: createWorkshop(members),
+    news: [],
+    ledger: [],
+    testLog: []
   };
 }

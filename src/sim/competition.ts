@@ -24,6 +24,8 @@ import { REGULAR_2026 } from "./content/regulation2026";
 import { GENERIC_RIVAL, RIVAL_ARCHETYPES, type Range } from "./content/rivals";
 import { partState, PART_STATE_LABELS } from "./parts";
 import { deliverReport, expectedOralScore, REPORT_DEADLINE } from "./report";
+import { recordLedger } from "./ledger";
+import { addNews } from "./news";
 import { nextRandom } from "./rng";
 import { densityAltitude, predictedPayload, reliabilityBonus, scoreBattery } from "./scoring";
 import { counterfeitParts } from "./shop";
@@ -47,6 +49,15 @@ import type {
 import { PLAYER_TEAM_ID } from "./types";
 
 const C = BALANCE.competition;
+
+const RIVAL_NEWS: Record<FlightOutcome, string> = {
+  valid: "voo válido",
+  "no-takeoff": "não decolou",
+  "tape-break": "rompeu a fita do obstáculo",
+  "landing-out": "pousou fora da pista",
+  damage: "pouso duro",
+  crash: "caiu"
+};
 const R = REGULAR_2026;
 
 /** Revisar a carga exige pelo menos este número de equipes à frente na fila (R[10.1.5.3]). */
@@ -92,7 +103,7 @@ function hashString(text: string): number {
 }
 
 /** Número em [0, 1) determinado por seed e chaves. */
-function noise(seed: number, ...keys: number[]): number {
+export function noise(seed: number, ...keys: number[]): number {
   let h = seed >>> 0;
   for (const key of keys) h = Math.imul(h ^ (key >>> 0), 2654435761) >>> 0;
   return nextRandom(nextRandom(h).state).value;
@@ -559,6 +570,13 @@ function flyRival(state: GameState, teamId: string, at: number, weather: FieldWe
     : null;
   let next: GameState = { ...state, rngState: resolved.rngState };
   next = record(next, { battery: competition.battery, teamId, payloadKg, densityAltitudeM: hrho, outcome: flight.outcome, points, playback, at });
+  if (team.archetype) {
+    next = addNews(next, {
+      kind: "rival",
+      title: `${team.name}: ${RIVAL_NEWS[flight.outcome]} na bateria ${competition.battery}`,
+      body: `${team.name} (${team.institution}) decolou com ${payloadKg.toFixed(1)} kg.${points ? ` Pontuou ${points.total.toFixed(1)}.` : ""}`
+    });
+  }
   if (flight.outcome === "crash") {
     // Quem cai passa a bateria seguinte no hangarete, consertando.
     const comp = next.competition!;
@@ -697,6 +715,7 @@ export function devStartCompetition(state: GameState): GameState {
     condition: 100
   }));
   const chapters = Object.fromEntries(DISCIPLINES.map((d) => [d, { hours: 40, testsCited: 2 }])) as GameState["report"]["chapters"];
+  const devGrant = Math.max(0, 1000 - next.credits);
   next = {
     ...next,
     credits: Math.max(next.credits, 1000),
@@ -710,6 +729,7 @@ export function devStartCompetition(state: GameState): GameState {
     report: { ...next.report, chapters, drawingsHours: 30, oralPracticeHours: 10 },
     clock: { ...next.clock, hours: COMPETITION_START - 1 }
   };
+  next = recordLedger(next, { credits: devGrant, kind: "dev", label: "Caixa de desenvolvimento" });
   // Previsões a partir das estimativas da equipe, como no Portal da CT (11.6).
   const cold = estimatePerformance(next, 700)!;
   const hot = estimatePerformance(next, 1300)!;

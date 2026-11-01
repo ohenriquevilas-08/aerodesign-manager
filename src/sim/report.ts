@@ -2,6 +2,7 @@
 // A nota de cada capítulo vem do acervo documentado, das horas de escrita e dos ensaios citados;
 // a CT sorteia a NR em torno da nota esperada no envio.
 
+import { TEST_CITES } from "./aircraft";
 import { BALANCE } from "./content/balance";
 import { OFFICIAL_CALENDAR } from "./content/calendar2026";
 import { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";
@@ -9,12 +10,15 @@ import { nextRandom } from "./rng";
 import { DISCIPLINES } from "./state";
 import { addMessage, warn } from "./tasks";
 import { canWork, clamp, DISCIPLINE_LABELS } from "./team";
-import { dateToHours } from "./time";
+import { dateToHours, formatCountdown } from "./time";
+import { TEST_LABELS } from "./testlog";
 import type { Discipline, Estimate, GameState, PayloadLine, ReportChapter, ReportState } from "./types";
 
 const R = BALANCE.report;
 
-const deadlineHours = (id: string) => dateToHours(OFFICIAL_CALENDAR.find((item) => item.id === id)!.date);
+const deadlineDate = (id: string) => OFFICIAL_CALENDAR.find((item) => item.id === id)!.date;
+const deadlineHours = (id: string) => dateToHours(deadlineDate(id));
+const REPORT_DEADLINE_DATE = deadlineDate("report");
 /** 16/ago: relatório, plantas e previsões. */
 export const REPORT_DEADLINE = deadlineHours("report");
 /** 23/ago: último dia, com penalidade. */
@@ -132,7 +136,94 @@ export function deliverReport(state: GameState): GameState {
 export function submitReport(state: GameState): GameState {
   if (state.report.submittedAt !== null) return warn(state, "O relatório já foi enviado.");
   if (state.clock.hours > REPORT_LATE_DEADLINE) return warn(state, "O prazo do relatório (23/ago) já passou.");
+  const blocker = submitBlocker(state);
+  if (blocker) return warn(state, blocker);
   return deliverReport(state);
+}
+
+/** Por que o envio manual não pode acontecer agora; null se pode. O envio automático de 16 e 23/ago não passa por aqui. */
+export function submitBlocker(state: GameState): string | null {
+  if (state.aircraft === null) return "Grave o projeto na prancheta antes de enviar o relatório.";
+  const written = DISCIPLINES.reduce((sum, discipline) => sum + state.report.chapters[discipline].hours, 0);
+  if (written < R.minWrittenHours) return "Escreva pelo menos 1 h em algum capítulo antes de enviar o relatório.";
+  return null;
+}
+
+export type ChapterState = "not-started" | "writing" | "ready";
+export type PredictionState = "missing" | "ready" | "sent";
+
+export interface ChapterChecklist {
+  discipline: Discipline;
+  state: ChapterState;
+  hours: number;
+  /** Horas de escrita em que o capítulo conta como pronto. */
+  readyHours: number;
+  testsCited: number;
+  /** Nota esperada do capítulo e o máximo (11.1), plantas incluídas. */
+  expectedScore: number;
+  maxScore: number;
+  /** O que falta, em PT-BR; vazio = nada. */
+  missing: string[];
+}
+
+export interface ReportChecklist {
+  chapters: ChapterChecklist[];
+  drawings: { hours: number; readyHours: number; state: ChapterState };
+  predictions: { emptyWeight: PredictionState; payloadLine: PredictionState };
+  /** 16/ago: horas de jogo do prazo, tempo que falta ("12d 04h") e se já passou (vale 23/ago com penalidade). */
+  deadline: { at: number; hoursLeft: number; countdown: string; passed: boolean; lateAt: number };
+  submitted: boolean;
+  /** Nota esperada do relatório agora (NR com margem); null não ocorre antes do envio. */
+  expected: Estimate | null;
+  /** Por que não dá para enviar agora (a UI desabilita o botão); null se dá. */
+  blocker: string | null;
+}
+
+/** Relatório como checklist de entrega (Fase 4, S4): um item por capítulo, plantas e as duas previsões. */
+export function reportChecklist(state: GameState): ReportChecklist {
+  const report = state.report;
+  const stateOf = (hours: number, readyHours: number): ChapterState =>
+    hours <= 0 ? "not-started" : hours >= readyHours ? "ready" : "writing";
+  const chapters = DISCIPLINES.map((discipline): ChapterChecklist => {
+    const chapter = report.chapters[discipline];
+    const missing: string[] = [];
+    if (chapter.hours < R.chapterHours) {
+      missing.push(chapter.hours <= 0 ? "Capítulo ainda não começou." : `Faltam ~${Math.ceil(R.chapterHours - chapter.hours)} h de escrita.`);
+    }
+    const kinds = (["structural", "thrust", "flight"] as const).filter((kind) => TEST_CITES[kind].includes(discipline));
+    if (kinds.length > 0 && chapter.testsCited === 0) {
+      missing.push(`Nenhum ensaio citado (${kinds.map((kind) => TEST_LABELS[kind].toLowerCase()).join(" ou ")}).`);
+    }
+    if (state.documented[discipline] < R.lowDocumented) missing.push("Acervo documentado baixo: documente a disciplina.");
+    if ((DRAWING_POINTS[discipline] ?? 0) > 0 && report.drawingsHours < R.drawingsHours) missing.push("Plantas incompletas.");
+    return {
+      discipline,
+      state: stateOf(chapter.hours, R.chapterHours),
+      hours: chapter.hours,
+      readyHours: R.chapterHours,
+      testsCited: chapter.testsCited,
+      expectedScore: chapterScore(state, discipline),
+      maxScore: REPORT_CHAPTERS[discipline],
+      missing
+    };
+  });
+  const sent = report.submittedAt !== null;
+  const prediction = (value: unknown): PredictionState => (sent ? "sent" : value === null ? "missing" : "ready");
+  return {
+    chapters,
+    drawings: { hours: report.drawingsHours, readyHours: R.drawingsHours, state: stateOf(report.drawingsHours, R.drawingsHours) },
+    predictions: { emptyWeight: prediction(report.predictedEmptyWeightKg), payloadLine: prediction(report.payloadLine) },
+    deadline: {
+      at: REPORT_DEADLINE,
+      hoursLeft: Math.max(0, REPORT_DEADLINE - state.clock.hours),
+      countdown: formatCountdown(state.clock.hours, REPORT_DEADLINE_DATE),
+      passed: state.clock.hours > REPORT_DEADLINE,
+      lateAt: REPORT_LATE_DEADLINE
+    },
+    submitted: sent,
+    expected: estimateReportScore(state),
+    blocker: sent ? "O relatório já foi enviado." : submitBlocker(state)
+  };
 }
 
 /** Horas de uma tarefa concluída que entram no relatório ou na apresentação. */
