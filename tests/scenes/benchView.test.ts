@@ -27,7 +27,12 @@ describe("bancadas do hangar", () => {
     const of = (actionId: string, targetId: string | null = null) => benchForTask(state, { actionId, targetId });
     expect(of("build-wing")).toBe("wing");
     expect(of("build-fuselage")).toBe("fuselage");
-    expect(of("build-landing-gear")).toBe("fuselage");
+    expect(of("build-tail")).toBe("fuselage");
+    expect(of("build-gear")).toBe("fuselage");
+    expect(of("test-structural")).toBe("wing");
+    expect(of("test-thrust")).toBe("electronics");
+    expect(of("drawings")).toBe("report");
+    expect(of("oral-rehearsal")).toBe("report");
     expect(of("buy-motor")).toBe("electronics");
     expect(of("buy-servos")).toBe("electronics");
     expect(of("report-chapter")).toBe("report");
@@ -43,9 +48,9 @@ describe("bancadas do hangar", () => {
   it("mostra a tarefa ativa da bancada com progresso por horas e conta as outras", () => {
     const state = baseState();
     state.tasks = [
-      task({ id: "t1", actionId: "buy-servos", status: "waiting", hoursTotal: 0, expectedReadyAt: 7 * 24 }),
+      task({ id: "t1", actionId: "test-thrust", status: "waiting", hoursTotal: 8 }),
       task({ id: "t2", actionId: "build-wing", label: "Fabricar asa", hoursTotal: 60, hoursDone: 15 }),
-      task({ id: "t3", actionId: "buy-motor", status: "done", doneAt: 5 })
+      task({ id: "t3", actionId: "test-thrust", status: "done", doneAt: 5 })
     ];
     expect(bench(state, "wing").task).toEqual({ id: "t2", label: "Fabricar asa", progress: 0.25, waiting: false });
     expect(bench(state, "wing").queued).toBe(0);
@@ -57,11 +62,11 @@ describe("bancadas do hangar", () => {
 
   it("espera ⌛ anda pelo prazo prometido e nunca chega a 100% antes de concluir", () => {
     const state = baseState();
-    // buy-servos promete 7 dias; iniciada na hora 0.
-    const waiting = task({ id: "t1", actionId: "buy-servos", status: "waiting", hoursTotal: 0, expectedReadyAt: 7 * 24, readyAt: 9 * 24 });
-    state.clock.hours = 3.5 * 24;
+    // sponsor-pitch promete 14 dias; iniciada na hora 0.
+    const waiting = task({ id: "t1", actionId: "sponsor-pitch", status: "waiting", expectedReadyAt: 14 * 24, readyAt: 18 * 24 });
+    state.clock.hours = 7 * 24;
     expect(taskProgress(state, waiting)).toBeCloseTo(0.5, 5);
-    state.clock.hours = 8 * 24;
+    state.clock.hours = 16 * 24;
     expect(taskProgress(state, waiting)).toBe(0.99);
   });
 
@@ -72,10 +77,16 @@ describe("bancadas do hangar", () => {
       part({ id: "p2", type: "tail", label: "Empenagem", condition: 60 }),
       ...Array.from({ length: MAX_BENCH_PARTS + 2 }, (_, i) => part({ id: `w${i}`, type: "wing", label: `Asa ${i}` }))
     ];
-    expect(bench(state, "electronics").parts).toEqual([{ label: "Motor 600 W", state: "broken" }]);
-    expect(bench(state, "fuselage").parts).toEqual([{ label: "Empenagem", state: "worn" }]);
+    expect(bench(state, "electronics").parts).toEqual([{ label: "Motor 600 W", state: "broken", counterfeit: false }]);
+    expect(bench(state, "fuselage").parts).toEqual([{ label: "Empenagem", state: "worn", counterfeit: false }]);
     expect(bench(state, "wing").parts).toHaveLength(MAX_BENCH_PARTS);
     expect(bench(state, "wing").moreParts).toBe(2);
+  });
+
+  it("peça fora da especificação ganha marca", () => {
+    const state = baseState();
+    state.parts = [{ ...part({ id: "s", type: "electronics", label: "Servos" }), counterfeit: true } as ReturnType<typeof part>];
+    expect(bench(state, "electronics").parts[0]!.counterfeit).toBe(true);
   });
 
   it("avião usa a melhor peça de cada tipo", () => {
@@ -99,7 +110,7 @@ describe("integrantes no hangar", () => {
     const [president, aero, struct] = state.members.map((member) => member.id);
     state.tasks = [
       task({ id: "t1", actionId: "build-wing", assignees: [aero!] }),
-      task({ id: "t2", actionId: "buy-motor", status: "waiting", assignees: [struct!], hoursTotal: 0 })
+      task({ id: "t2", actionId: "test-thrust", status: "waiting", assignees: [struct!] })
     ];
     const views = workerViewsFromState(state);
     expect(views.find((v) => v.memberId === president)).toMatchObject({ bench: null, working: false, slot: 0 });

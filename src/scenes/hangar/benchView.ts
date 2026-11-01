@@ -20,6 +20,8 @@ export interface BenchTaskView {
 export interface BenchPartView {
   label: string;
   state: PartState;
+  /** Fora da especificação (loja barata): o cartão mostra uma marca discreta. */
+  counterfeit: boolean;
 }
 
 export interface BenchView {
@@ -54,15 +56,24 @@ export const PART_BENCH: Record<PartType, BenchId> = {
   electronics: "electronics"
 };
 
-const REPORT_ACTIONS = new Set(["report-chapter", "document"]);
+/** Ações sem peça no efeito que acontecem numa bancada: relatório e ensaios de bancada. */
+const ACTION_BENCH: Record<string, BenchId> = {
+  "report-chapter": "report",
+  document: "report",
+  drawings: "report",
+  "oral-rehearsal": "report",
+  "test-structural": "wing",
+  "test-thrust": "electronics"
+};
 
 /**
  * Bancada da tarefa, ou null se ela não acontece no hangar (estudo, rifa, divulgação, voo).
- * Ordem: relatório pelo id; peça fabricada ou comprada pelo efeito do catálogo; reparo pela
+ * Ordem: relatório e ensaios de bancada pelo id (ACTION_BENCH); peça fabricada ou comprada pelo efeito do catálogo; reparo pela
  * peça alvo; por último o nome da ação, para ações de fabricação que o catálogo ainda não tem.
  */
 export function benchForTask(state: GameState, task: Pick<Task, "actionId" | "targetId">): BenchId | null {
-  if (REPORT_ACTIONS.has(task.actionId)) return "report";
+  const fixed = ACTION_BENCH[task.actionId];
+  if (fixed) return fixed;
   const effect = findAction(task.actionId)?.effect;
   if (effect && (effect.kind === "fabricate" || effect.kind === "purchase-part")) return PART_BENCH[effect.part];
   if (effect?.kind === "repair") {
@@ -106,7 +117,12 @@ export function benchViewsFromState(state: GameState): BenchView[] {
         waiting: shown.status === "waiting"
       },
       queued: Math.max(0, tasks.length - 1),
-      parts: parts.slice(0, MAX_BENCH_PARTS).map((part) => ({ label: part.label, state: partState(part.condition) })),
+      parts: parts.slice(0, MAX_BENCH_PARTS).map((part) => ({
+        label: part.label,
+        state: partState(part.condition),
+        // Part.counterfeit é opcional no contrato (vem das lojas).
+        counterfeit: (part as Part & { counterfeit?: boolean }).counterfeit === true
+      })),
       moreParts: Math.max(0, parts.length - MAX_BENCH_PARTS)
     };
   });

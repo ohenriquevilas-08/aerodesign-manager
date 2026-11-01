@@ -310,6 +310,8 @@ export class HangarScene extends Phaser.Scene {
 
     view.parts.forEach((part) => {
       const dot = this.add.circle(left + pad + 3, y + 6, 3, PART_COLOR[part.state]);
+      // Peça fora da especificação: anel amarelo em volta do ponto, sem texto.
+      if (part.counterfeit) dot.setStrokeStyle(1.5, palette.warn, 1).setRadius(3.5);
       const label = this.add
         .text(left + pad + 11, y + 1, part.label, { fontFamily: fonts.body, fontSize: "10px", color: css(palette.ink) })
         .setResolution(2);
