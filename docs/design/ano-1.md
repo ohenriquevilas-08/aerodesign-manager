@@ -152,6 +152,8 @@ O prazo do vídeo de voo é o grande divisor: **até o fim de setembro o avião 
 | Disponibilidade | h/dia | Base das horas |
 | Período / formatura | semestre | Define quando sai da equipe |
 
+**Formação por área (Fase 4):** a equipe se organiza por área, cada uma com 1 capitão e N integrantes; sem banco nem reserva. Classe Regular: Aerodinâmica (2 vagas de integrante), Estruturas (3), Elétrica (2), Desempenho (1), Estabilidade e controle (1) e Cargas (1), ou seja, 6 capitães + 10 integrantes (valores provisórios, `content/formations.ts`). Projeto conceitual é do presidente e não é área. Novato chega sem área; o presidente fica fora da formação. Trocar um integrante de uma área para outra custa **8 pontos de motivação** (`BALANCE.formation.changeAreaMotivation`); o conhecimento tácito fica na disciplina antiga. Área vazia mostra o que para sem ela. Os dois capitães do início já começam nas suas áreas.
+
 **Disciplinas** = as do relatório 2026: Projeto conceitual e preliminar · Aerodinâmica · Desempenho · Estabilidade e controle · Cargas e aeroelasticidade · Estruturas e ensaios estruturais · Projeto elétrico e safety assessment. Usar as disciplinas reais amarra equipe, projeto e nota do relatório num único eixo.
 
 **Piloto:** piloto próprio (treina nos ensaios, conhece o avião) ou piloto da CT (nível fixo, não conhece o avião), como na regra real. O cadastro vence em 27/set.
@@ -190,11 +192,11 @@ Toda equipe real tem uma planilha de escala: quem está na oficina em cada turno
 | Manhã | 8h–12h | Disputa com aula |
 | Tarde | 13h–18h | Disputa com aula |
 | Noite | 19h–22h | Disputa com aula noturna em alguns semestres |
-| Madrugada | 22h–3h | **O único turno em que todos estão livres.** Exige autorização de acesso; cobra sono |
+| Madrugada | 22h–3h | **O único turno em que todos estão livres.** Sempre disponível na grade; cobra sono |
 
 **Madrugada:** na engenharia, cada semestre tem uma grade diferente. Juntar Aerodinâmica, Estruturas e Elétrica no mesmo turno quase sempre só é possível de madrugada. É ali que acontecem a integração do avião e as laminações grandes, que precisam de muita gente ao mesmo tempo.
 
-- **Autorização de acesso:** o prédio fecha às 22h. Para ficar depois disso, a equipe pede autorização ao departamento uma vez (só horas e ⌛ de resposta, como um patrocínio). Sem ela, a madrugada fica bloqueada na grade.
+- **Sem autorização:** a oficina é da equipe, fora do bloco de aulas, e a equipe tem a chave (quem pode abrir a oficina continua sendo decisão do presidente: a chave). A madrugada está sempre disponível na grade; o que a limita são os custos abaixo, não um pedido ao departamento (decidido no playtest de 01/11/2026).
 - **Sono cobra a conta:** quem fez madrugada perde o turno da manhã seguinte (está dormindo ou em aula, sem render) e tem queda de motivação, que aumenta com madrugadas seguidas.
 - **Cansaço gera erro:** trabalho de madrugada sai com qualidade menor (como uma dedicação "rápida" involuntária), maior depois da 1h. Dá para compensar com a dedicação "caprichado".
 - **Virada antes de prazo:** na semana de um prazo (relatório, vídeo de voo), a madrugada rende mais motivação em vez de tirar. A equipe se une na reta final, e qualquer um que já virou noite na oficina reconhece isso. Fora dessas semanas, ela desgasta.

@@ -11,6 +11,7 @@ import { crewRates } from "./crew";
 import { overnightWeight, shiftEffects, workshopTaskRates } from "./workshop";
 import { reportEvents } from "./report";
 import { advanceShops } from "./shop";
+import { addNews } from "./news";
 import { addMessage, completeTask } from "./tasks";
 import { canWork, clamp, isOverloaded } from "./team";
 import { clockToDate, dateToHours, gameHoursForRealSeconds } from "./time";
@@ -138,7 +139,11 @@ export function step(state: GameState, dt: number): GameState {
         title: `Faltam ${BALANCE.calendar.warnDays} dias: ${deadline.title}`,
         body: "O prazo está chegando. Confira o que ainda falta."
       });
-      next = added.state;
+      next = addNews(added.state, {
+        kind: "deadline",
+        title: `Faltam ${BALANCE.calendar.warnDays} dias: ${deadline.title}`,
+        body: "A Comissão Técnica lembra as equipes do marco que se aproxima."
+      });
       pauses.push({ reason: "deadline-soon", messageId: added.id });
     }
     if (t0 < at && at <= t1) {

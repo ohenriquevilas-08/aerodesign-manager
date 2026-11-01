@@ -147,7 +147,7 @@ export const BALANCE = {
   tests: {
     structural: { evidence: 1, breakChance: 0.25, breakDamage: 45, wear: 5 },
     thrust: { evidence: 0.7, standEvidence: 2, wear: 3 },
-    flight: { payloadEvidence: 1, takeoffEvidence: 0.5, incidentChance: 0.15, wear: 4, damage: [30, 70] as const },
+    flight: { payloadEvidence: 1, takeoffEvidence: 0.5, incidentChance: 0.15, wear: 4, damage: [30, 70] as const, measureSpread: 0.04 },
     video: { payloadEvidence: 0.3, incidentChance: 0.12, wear: 4, damage: [30, 70] as const },
     /** Piloto da CT (design §5.1): nível fixo para quem não tem piloto próprio. */
     ctPilot: 55,
@@ -162,6 +162,10 @@ export const BALANCE = {
     /** Horas para chegar a ~63% do esforço possível num capítulo (1 − e^(−h/H)). */
     chapterHours: 25,
     drawingsHours: 20,
+    /** Horas escritas (somando os capítulos) para o envio manual ser aceito (Fase 4, S4). */
+    minWrittenHours: 1,
+    /** Acervo documentado abaixo disto vira aviso no checklist do relatório. */
+    lowDocumented: 30,
     contentBase: 0.35,
     contentKnowledge: 0.45,
     contentTests: 0.2,
@@ -248,6 +252,20 @@ export const BALANCE = {
     stallPerExcess: 4,
     /** Penalidade por alteração de projeto depois de 27/set (Apêndice 6). Provisório. */
     lateChangePenalty: 5
+  },
+
+  /** Formação por área (Fase 4, S3; design §5.1). */
+  formation: {
+    /** Motivação perdida ao trocar de uma área para outra (sair do "sem área" é grátis). */
+    changeAreaMotivation: 8
+  },
+
+  /** Notícias do Portal (Fase 4, S5). */
+  news: {
+    /** Máximo guardado no estado (as mais antigas saem). */
+    max: 60,
+    /** Não repete a mesma notícia do mesmo anúncio dentro desta janela, horas de jogo. */
+    dedupeHours: 72
   },
 
   /** Escala da oficina (design §5.5). */

@@ -7,6 +7,8 @@ import { BALANCE } from "./content/balance";
 import { findDedication, type Dedication } from "./content/dedication";
 import { crewQuality, documentGain, fabricatedQuality, rollApplicants, rollMultiplier, sponsorChance } from "./outcome";
 import { addReportHours } from "./report";
+import { recordTest } from "./testlog";
+import { recordLedger } from "./ledger";
 import { nextRandom } from "./rng";
 import { drawCandidates, expectedApplicants, findSelectionFormat } from "./selection";
 import { DISCIPLINES } from "./state";
@@ -92,10 +94,6 @@ export function startAction(
   const action = findAction(actionId);
   if (!action) return warn(state, "Ação desconhecida.");
 
-  if (action.effect?.kind === "night-access" && state.workshop.nightAccess !== "none") {
-    return warn(state, state.workshop.nightAccess === "granted" ? "O departamento já autorizou a madrugada." : "O pedido de acesso noturno já está no departamento.");
-  }
-
   const problem = targetProblem(state, action, targetId) ?? (action.effect?.kind === "test" ? testProblem(state, action.effect.test) : null);
   if (problem) return warn(state, problem);
 
@@ -139,15 +137,17 @@ export function startAction(
     dedication: action.cost.hours > 0 ? dedication : "normal",
     doneAt: null
   };
-  const next: GameState = {
-    ...state,
-    workshop: action.effect?.kind === "night-access" ? { ...state.workshop, nightAccess: "requested" } : state.workshop,
-    credits: state.credits - action.cost.credits,
-    rngState,
-    stock,
-    tasks: [...state.tasks, task],
-    nextId: state.nextId + 1
-  };
+  const next: GameState = recordLedger(
+    {
+      ...state,
+      credits: state.credits - action.cost.credits,
+      rngState,
+      stock,
+      tasks: [...state.tasks, task],
+      nextId: state.nextId + 1
+    },
+    { credits: -action.cost.credits, kind: "action", label: task.label }
+  );
 
   // Sem horas e sem prazo (ex.: frete expresso): conclui na hora, sem pausar o relógio.
   if (!waits && action.cost.hours === 0) return completeTask(next, task.id).state;
@@ -257,7 +257,7 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       break;
     case "credits": {
       const amount = Math.round(effect.amount * multiplier);
-      next = { ...next, credits: next.credits + amount };
+      next = recordLedger({ ...next, credits: next.credits + amount }, { credits: amount, kind: "raffle", label: task.label });
       body = `Entraram ◆ ${amount} no caixa.`;
       break;
     }
@@ -266,7 +266,7 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       next = { ...next, rngState: roll.state };
       if (roll.value < sponsorChance(quality)) {
         const amount = Math.round(BALANCE.sponsor.amount * multiplier);
-        next = { ...next, credits: next.credits + amount };
+        next = recordLedger({ ...next, credits: next.credits + amount }, { credits: amount, kind: "sponsor", label: task.label });
         body = `O patrocinador topou: ◆ ${amount} no caixa.`;
       } else {
         body = "O patrocinador agradeceu, mas não vai apoiar nesta temporada.";
@@ -332,10 +332,6 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       }
       break;
     }
-    case "night-access":
-      next = { ...next, workshop: { ...next.workshop, nightAccess: "granted" } };
-      body = "O departamento autorizou a equipe a ficar na oficina depois das 22h. A madrugada está liberada na escala.";
-      break;
     case "agility":
       body = "A equipe ficou mais rápida na retirada de carga.";
       break;
@@ -350,7 +346,7 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
     }
     case "test": {
       const tested = applyTest(next, effect.test, quality, multiplier);
-      next = tested.state;
+      next = tested.incident === null ? tested.state : recordTest(next, tested.state, effect.test, tested.body, !tested.incident);
       body = tested.body;
       break;
     }

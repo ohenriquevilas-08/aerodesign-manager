@@ -4,6 +4,8 @@
 
 import { BALANCE } from "./content/balance";
 import { findListing, findProduct, findShop, LISTINGS, listingId, SHOPS, type Listing } from "./content/shops";
+import { recordLedger } from "./ledger";
+import { addNews } from "./news";
 import { nextRandom } from "./rng";
 import { addMessage, warn } from "./tasks";
 import { clamp } from "./team";
@@ -118,14 +120,17 @@ export function placeOrder(state: GameState, request: OrderRequest): GameState {
     customsDue: null,
     deliveredAt: null
   };
-  return {
-    ...state,
-    rngState: rng.state,
-    credits: state.credits - total,
-    shops: { ...state.shops, stock },
-    orders: [...state.orders, order],
-    nextId: state.nextId + 1
-  };
+  return recordLedger(
+    {
+      ...state,
+      rngState: rng.state,
+      credits: state.credits - total,
+      shops: { ...state.shops, stock },
+      orders: [...state.orders, order],
+      nextId: state.nextId + 1
+    },
+    { credits: -total, kind: "order", label: `Pedido ${order.id} (${shop.name})` }
+  );
 }
 
 /** Paga o imposto de um pedido retido; ele volta a andar depois da liberação. */
@@ -145,12 +150,15 @@ export function payCustoms(state: GameState, orderId: string): GameState {
     arrivesAt: Math.max(order.arrivesAt, now + release),
     expectedAt: Math.max(order.expectedAt, now + S.customsReleaseDays[1] * 24)
   };
-  return {
-    ...state,
-    rngState: roll.state,
-    credits: state.credits - order.customsDue,
-    orders: state.orders.map((item) => (item.id === orderId ? paid : item))
-  };
+  return recordLedger(
+    {
+      ...state,
+      rngState: roll.state,
+      credits: state.credits - order.customsDue,
+      orders: state.orders.map((item) => (item.id === orderId ? paid : item))
+    },
+    { credits: -order.customsDue, kind: "customs", label: `Imposto do pedido ${order.id}` }
+  );
 }
 
 /** Entrega: cada unidade vira peça (qualidade sorteada pela loja), estoque ou equipamento. */
@@ -255,7 +263,7 @@ function dailyShops(state: GameState, now: number): GameState {
   const rng = roller(state.rngState);
   const sales = Object.fromEntries(Object.entries(state.shops.sales).filter(([, sale]) => sale.until > now));
   const stock = { ...state.shops.stock };
-  const announcements: { shop: string; text: string }[] = [];
+  const announcements: { shop: string; shopId: string; listingId: string; text: string }[] = [];
 
   for (const shopId of S.sale.shops) {
     if (rng.next() >= S.sale.chancePerDay) continue;
@@ -266,7 +274,7 @@ function dailyShops(state: GameState, now: number): GameState {
     const price = Math.round(item.price * (1 - (low + (high - low) * rng.next())));
     sales[listingId(item.shopId, item.productId)] = { price, until: now + S.sale.days * 24 };
     const shop = SHOPS.find((entry) => entry.id === shopId)!;
-    announcements.push({ shop: shop.name, text: `${findProduct(item.productId)!.label} por ◆ ${price} (era ◆ ${item.price}), só por ${S.sale.days} dias.` });
+    announcements.push({ shop: shop.name, shopId, listingId: listingId(item.shopId, item.productId), text: `${findProduct(item.productId)!.label} por ◆ ${price} (era ◆ ${item.price}), só por ${S.sale.days} dias.` });
   }
 
   for (const item of LISTINGS) {
@@ -278,6 +286,23 @@ function dailyShops(state: GameState, now: number): GameState {
   let next: GameState = { ...state, rngState: rng.state, shops: { stock, sales } };
   for (const sale of announcements) {
     next = addMessage(next, { from: sale.shop, title: `Promoção relâmpago na ${sale.shop}`, body: sale.text }).state;
+    next = addNews(next, { kind: "promo", title: `Promoção relâmpago na ${sale.shop}`, body: sale.text, shopId: sale.shopId, listingId: sale.listingId });
+  }
+  // Estoque acabando: a última unidade ou esgotado, num anúncio de estoque limitado.
+  for (const item of LISTINGS) {
+    if (item.initialStock === null) continue;
+    const id = listingId(item.shopId, item.productId);
+    const left = stock[id] ?? 0;
+    if (left > 1) continue;
+    const shop = findShop(item.shopId)!;
+    const label = findProduct(item.productId)!.label;
+    next = addNews(next, {
+      kind: "stock",
+      title: left === 0 ? `${label} esgotado na ${shop.name}` : `Última unidade: ${label} na ${shop.name}`,
+      body: left === 0 ? `A ${shop.name} sem estoque de ${label}. Reposição sem data.` : `Resta só 1 de ${label} na ${shop.name}.`,
+      shopId: item.shopId,
+      listingId: id
+    });
   }
   return next;
 }

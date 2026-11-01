@@ -96,7 +96,8 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     graduation: candidate.graduation,
     taskId: null,
     workStreakHours: 0,
-    classSlots: [...candidate.classSlots]
+    classSlots: [...candidate.classSlots],
+    area: null
   };
   return {
     ...state,

@@ -12,7 +12,6 @@ import {
   WEEKDAYS,
   workshopNow,
   type Member,
-  type NightAccess,
   type ShiftId,
   type SlotKey,
   type SlotStatus,
@@ -21,7 +20,7 @@ import {
 } from "../../sim";
 
 export { currentShift, slotKey, slotStatus, suggestSchedule, SHIFTS, WEEKDAYS };
-export type { NightAccess, ShiftId, SlotKey, SlotStatus, Weekday, WorkshopState };
+export type { ShiftId, SlotKey, SlotStatus, Weekday, WorkshopState };
 
 export interface SuggestedSchedule {
   schedule: Partial<Record<SlotKey, string[]>>;
@@ -33,15 +32,13 @@ export type WorkshopNowView = ReturnType<typeof workshopNow>;
 export type WorkshopCommand =
   | { type: "set-shift"; memberId: string; slot: SlotKey; on: boolean }
   | { type: "apply-suggested-schedule" }
-  | { type: "grant-key"; memberId: string }
-  | { type: "night-access-request" };
+  | { type: "grant-key"; memberId: string };
 
 /** Grade de aulas do semestre da pessoa. */
 export const classSlotsOf = (member: Member): SlotKey[] => member.classSlots;
 
 export function workshopCommand(command: WorkshopCommand): void {
-  if (command.type === "night-access-request") store.dispatch({ type: "start-action", actionId: "night-access-request" });
-  else store.dispatch(command);
+  store.dispatch(command);
 }
 
 /** Escala atual + turno em andamento, re-renderizando quando a escala, a hora ou as tarefas mudam. */

@@ -8,11 +8,11 @@ Escopo: save, as correções do playtest (madrugada, escalação, blueprint, rel
 
 ## Frentes
 
-| Frente | Itens | Depende de |
-|---|---|---|
-| Simulação | S1–S6 | nada |
-| Cenas | C1–C2 | só tipos que já existem (`AircraftDesign`) |
-| UI | U1–U7 | contratos da Simulação |
+| Frente | Itens | Depende de | Status |
+|---|---|---|---|
+| Simulação | S1–S6 | nada | **pronto** (branch `claude/sim-phase4-1c342e`) |
+| Cenas | C1–C2 | só tipos que já existem (`AircraftDesign`) | em andamento |
+| UI | U1–U7 | contratos da Simulação | pendente |
 
 Ordem sugerida: Simulação e Cenas juntas; UI depois que a Simulação for integrada.
 
@@ -58,6 +58,19 @@ Equipe de aerodesign se organiza por área, com capitão e membros. Nada de banc
 
 - `testHistory(state)`: ensaios feitos com data, Hρ do dia, resultado e peças afetadas; pontos (Hρ, carga) para a reta de previsão.
 - `ledger: LedgerEntry[]` no estado (`{ at, credits, kind: "order" | "customs" | "raffle" | "sponsor" | ..., label }`), preenchido por todo comando ou evento que mexe em ◆. Leitura `financeSummary(state)`: caixa, entradas e saídas por categoria e por mês.
+
+### Contratos entregues pela Simulação (S1–S6)
+
+Tudo exportado por `src/sim/index.ts`. `GameState` ganhou `news`, `ledger` e `testLog`; `Member` ganhou `area`.
+
+| Item | Contrato | Valores escolhidos |
+|---|---|---|
+| S1 | `serializeState`, `deserializeState`, `SAVE_VERSION`; em `app/save.ts`: `loadSave()` → `{ state, discarded }`, `writeSave`, `clearSave`, `hasSave`, `startAutosave(store)`; `store.replace(state)` para carregar ou começar de novo | Chave `aerodesign-manager:save`. `discarded: true` quando havia save antigo ou corrompido (já apagado): a UI avisa |
+| S2 | Sem `NightAccess`, `workshop.nightAccess`, efeito `night-access` nem ação `night-access-request`. `slotStatus` só devolve `locked` para turno ou integrante inválido | Custos da madrugada inalterados |
+| S3 | `Member.area`, `FORMATIONS`, `set-area`, `formationView(state)` → `{ areas[{ discipline, label, captainId, memberIds, openSlots, captainOpen, warning }], unassigned, presidentId }` | Vagas de integrante: Aerodinâmica 2, Estruturas 3, Elétrica 2, Desempenho 1, Estabilidade 1, Cargas 1 (Projeto conceitual não é área). Trocar de área: −8 de motivação (`BALANCE.formation.changeAreaMotivation`); novato sem área → área é grátis. `set-area` sem `captain` vira integrante (tirar o capitão de uma área o rebaixa). `area: null` tira da formação. Capitão não perde a chave ao mudar |
+| S4 | `submit-report` exige `aircraft !== null` e ≥ 1 h de escrita somada (`BALANCE.report.minWrittenHours`); `submitBlocker(state)`; `reportChecklist(state)` → capítulos (`not-started`/`writing`/`ready`, horas, ensaios citados, nota esperada, `missing[]`), plantas, previsões (`missing`/`ready`/`sent`), `deadline` (contagem até 16/ago), `expected`, `blocker` | Capítulo "pronto" com ≥ 25 h (`BALANCE.report.chapterHours`); aviso de acervo baixo abaixo de 30. O envio automático de 16 e 23/ago não passa pela regra nova |
+| S5 | `state.news`, `newsFeed(state)`, `promoEndsAt(state, shopId, productId)` (horas de jogo ou `null`), `sellerReview(shopId)` / `SELLER_REVIEWS` | Notícias de: promoção (diária), estoque (última unidade ou esgotado, anúncios limitados), prazo (7 dias antes de cada marco), rival de destaque voando. Guarda as últimas 60; não repete a mesma por 72 h. Notas: Hangar 4,8 · Compósitos 4,7 · Balsa Leve 4,6 · Mercado Solto 4,1 · Desapega 3,7 · HobbyKong 3,5 · AliExpresso 2,6 (testado: mais risco nunca tem nota maior) |
+| S6 | `state.ledger`, `LedgerEntry { at, credits, kind, label }` com `kind` `order`/`customs`/`raffle`/`sponsor`/`action`/`dev`; `financeSummary(state)` → `{ cash, income, expense, byKind, byMonth[{ month: "2026-03", … }] }`; `state.testLog`, `testHistory(state)` → `{ entries, points }` (`entries` do mais recente ao mais antigo, com `label`, `densityAltitudeM`, `ok`, `summary`, `affectedParts`, `payloadKg`) | Hρ do dia vem de `weatherAt(seed, hora)`. O ponto de carga do voo de ensaio é a carga real (`maxPayloadKg`) naquele Hρ ± 4% (`BALANCE.tests.flight.measureSpread`), sem consumir `rngState`. Só voos de ensaio (`flight`) geram ponto |
 
 ## Cenas
 

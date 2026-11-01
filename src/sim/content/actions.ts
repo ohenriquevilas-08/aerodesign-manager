@@ -41,9 +41,7 @@ export type ActionEffect =
   | { kind: "test"; test: "structural" | "thrust" | "flight" | "video" }
   | { kind: "report-chapter" }
   | { kind: "drawings" }
-  | { kind: "oral-practice" }
-  /** Autorização de acesso noturno do departamento (design §5.5). */
-  | { kind: "night-access" };
+  | { kind: "oral-practice" };
 
 /** Alvo exigido no comando start-action. */
 export type ActionTarget = "part" | "waiting-task" | "discipline" | "selection-format";
@@ -127,7 +125,6 @@ const defs: Omit<ActionDef, "category">[] = [
   { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), crew: crew(1, 1, 1), skill: "knowledge", effect: { kind: "document" }, target: "discipline" },
   { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), crew: crew(1, 3, 4), skill: "communication", effect: { kind: "credits", amount: 500 } },
   { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), crew: crew(1, 1, 2), skill: "communication", effect: { kind: "sponsor" } },
-  { id: "night-access-request", label: "Pedir acesso noturno ao departamento", cost: cost(2, 0, 7), crew: crew(1, 1, 1), skill: "communication", effect: { kind: "night-access" } },
   { id: "unload-drill", label: "Treino de retirada de carga", cost: cost(4, 0), crew: crew(1, 2, 2), skill: "agility", effect: { kind: "agility" } },
   // Horas + créditos
   {

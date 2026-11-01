@@ -13,27 +13,25 @@ const game = (): GameState => {
 describe("workshop schedule", () => {
   it("starts with captains holding keys and an empty schedule", () => {
     const state = base();
-    expect(state.version).toBe(4);
+    expect(state.version).toBe(5);
     expect(state.workshop.capacity).toBe(4);
     expect(state.workshop.keyHolders).toEqual(["captain-aero", "captain-struct"]);
     expect(state.workshop.schedule).toEqual({});
     expect(state.members.every((member) => member.classSlots.every((slot) => !slot.startsWith("0-") && !slot.startsWith("6-") && !slot.endsWith("overnight")))).toBe(true);
   });
 
-  it("refuses overnight without access and respects capacity", () => {
+  it("overnight is always available and respects capacity", () => {
     let state = game();
-    expect(slotStatus(state, "captain-aero", "1-overnight")).toBe("locked");
-    const warned = applyCommand(state, { type: "set-shift", memberId: "captain-aero", slot: "1-overnight", on: true });
-    expect(warned.workshop.schedule["1-overnight"]).toBeUndefined();
-    expect(warned.warning).not.toBeNull();
-    state = { ...state, workshop: { ...state.workshop, nightAccess: "granted" } };
+    expect(slotStatus(state, "captain-aero", "1-overnight")).toBe("free");
+    expect("nightAccess" in state.workshop).toBe(false);
+    state = applyCommand(state, { type: "set-shift", memberId: "captain-aero", slot: "1-overnight", on: true });
+    expect(state.workshop.schedule["1-overnight"]).toEqual(["captain-aero"]);
     for (const id of ["captain-aero", "captain-struct"]) state = applyCommand(state, { type: "set-shift", memberId: id, slot: "6-overnight", on: true });
     expect(state.workshop.schedule["6-overnight"]).toEqual(["captain-aero", "captain-struct"]);
   });
 
   it("refuses the morning after an overnight, and the inverse", () => {
     let state = game();
-    state = { ...state, workshop: { ...state.workshop, nightAccess: "granted" } };
     state = applyCommand(state, { type: "set-shift", memberId: "captain-aero", slot: "2-overnight", on: true });
     const morning = applyCommand(state, { type: "set-shift", memberId: "captain-aero", slot: "3-morning", on: true });
     expect(morning.workshop.schedule["3-morning"]).toBeUndefined();
@@ -55,19 +53,15 @@ describe("workshop schedule", () => {
     expect(workshopNow(state).open).toBe(false);
   });
 
-  it("night-access-request goes requested then granted", () => {
-    let state = applyCommand({ ...game(), clock: { hours: 0, speed: 0 } }, { type: "start-action", actionId: "night-access-request" });
-    expect(state.workshop.nightAccess).toBe("requested");
-    const task = state.tasks[0]!;
-    state = applyCommand(state, { type: "assign-member", memberId: "captain-aero", taskId: task.id });
-    state = { ...state, tasks: state.tasks.map((t) => ({ ...t, readyAt: 1, status: "active" as const })) };
-    state = applyCommand({ ...state, clock: { hours: 8 * 24, speed: 4 } }, { type: "tick", realSeconds: 600 });
-    expect(state.workshop.nightAccess).toBe("granted");
+  it("night-access-request no longer exists", () => {
+    const state = applyCommand({ ...game(), clock: { hours: 0, speed: 0 } }, { type: "start-action", actionId: "night-access-request" });
+    expect(state.tasks).toHaveLength(0);
+    expect(state.warning).not.toBeNull();
   });
 
   it("suggested schedule avoids sleep conflicts", () => {
     let state = game();
-    state = { ...state, credits: 9999, stock: { "carbon-fiber": 1 }, workshop: { ...state.workshop, nightAccess: "granted" } };
+    state = { ...state, credits: 9999, stock: { "carbon-fiber": 1 }, };
     state = applyCommand(state, { type: "start-action", actionId: "build-gear" });
     state = applyCommand(state, { type: "assign-member", memberId: "captain-aero", taskId: state.tasks[0]!.id });
     const { schedule } = suggestSchedule(state);

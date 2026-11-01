@@ -18,7 +18,8 @@ import type {
   GameState,
   Part,
   PartType,
-  PerformanceEstimate
+  PerformanceEstimate,
+  TestKind
 } from "./types";
 
 const A = BALANCE.aircraft;
@@ -342,8 +343,6 @@ export function estimatePerformance(state: GameState, densityAltitudeM: number):
 // Ensaios (design §7.3)
 // ---------------------------------------------------------------------------
 
-export type TestKind = "structural" | "thrust" | "flight" | "video";
-
 /** O que o ensaio precisa ter no hangar; null se pode começar. */
 export function testProblem(state: GameState, kind: TestKind): string | null {
   if (!state.aircraft) return "Defina o projeto na prancheta antes de ensaiar.";
@@ -371,10 +370,10 @@ function damageParts(state: GameState, ids: Set<string>, amount: (part: Part) =>
  * opinião da equipe, cita o ensaio nos capítulos e desgasta ou danifica as peças usadas.
  * `quality` é a qualidade de quem conduziu (0–100). Devolve o texto da inbox.
  */
-export function applyTest(state: GameState, kind: TestKind, quality: number, multiplier: number): { state: GameState; body: string } {
+export function applyTest(state: GameState, kind: TestKind, quality: number, multiplier: number): { state: GameState; body: string; incident: boolean | null } {
   const aircraft = state.aircraft;
   const problem = testProblem(state, kind);
-  if (!aircraft || problem) return { state, body: `O ensaio não aconteceu: ${problem ?? "sem avião"}` };
+  if (!aircraft || problem) return { state, body: `O ensaio não aconteceu: ${problem ?? "sem avião"}`, incident: null };
   const T = BALANCE.tests;
   const installed = installedParts(state);
   let rngState = state.rngState;
@@ -457,6 +456,6 @@ export function applyTest(state: GameState, kind: TestKind, quality: number, mul
     report: { ...next.report, chapters },
     aircraft: { ...next.aircraft!, evidence, hidden: { ...next.aircraft!.hidden, bias } }
   };
-  return { state: next, body };
+  return { state: next, body, incident };
 }
 

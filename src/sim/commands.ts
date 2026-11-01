@@ -2,6 +2,7 @@
 // applyCommand é puro (estado novo, sem mutar o anterior).
 
 import { setDesign } from "./aircraft";
+import { setArea } from "./formation";
 import { devStartCompetition, setBatteryPayload } from "./competition";
 import { tick } from "./loop";
 import { setPredictions, submitReport } from "./report";
@@ -9,7 +10,7 @@ import { payCustoms, placeOrder, type OrderRequest } from "./shop";
 import { hireCandidate } from "./selection";
 import { applySuggestedSchedule, grantKey, setShift } from "./workshop";
 import { assignMember, cancelTask, startAction, unassignMember, warn } from "./tasks";
-import type { AircraftDesign, ClockSpeed, GameState, PayloadLine, SlotKey, TaskDedication } from "./types";
+import type { AircraftDesign, ClockSpeed, Discipline, GameState, PayloadLine, SlotKey, TaskDedication } from "./types";
 
 export type Command =
   | { type: "tick"; realSeconds: number }
@@ -33,10 +34,13 @@ export type Command =
   | ({ type: "place-order" } & OrderRequest)
   | { type: "pay-customs"; orderId: string }
   | { type: "set-battery-payload"; payloadKg: number }
-  // Escala da oficina (design §5.5); o acesso noturno é a ação "night-access-request" via start-action.
+  // Escala da oficina (design §5.5);
   | { type: "set-shift"; memberId: string; slot: SlotKey; on: boolean }
   | { type: "apply-suggested-schedule" }
   | { type: "grant-key"; memberId: string }
+  // Fase 4 (docs/phases/fase-4.md)
+  /** area null = sem área; captain true ocupa a vaga de capitão da área. */
+  | { type: "set-area"; memberId: string; area: Discipline | null; captain?: boolean }
   /** Só em dev: pula para o dia da competição com tudo pronto. */
   | { type: "dev-start-competition" };
 
@@ -84,6 +88,8 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return setShift(state, command.memberId, command.slot, command.on);
     case "apply-suggested-schedule":
       return applySuggestedSchedule(state);
+    case "set-area":
+      return setArea(state, command.memberId, command.area, command.captain ?? false);
     case "grant-key":
       return grantKey(state, command.memberId);
     case "dev-start-competition":
