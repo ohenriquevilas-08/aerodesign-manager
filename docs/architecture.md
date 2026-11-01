@@ -119,6 +119,14 @@ Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `test
 - O mesmo desenho em dois lugares: `people/draw.ts` (`drawAvatarShapes`) pinta num `Graphics` do Phaser (hangar e vinheta do ensaio) e `src/ui/components/Avatar.tsx` pinta os mesmos polígonos em SVG para retratos de carta (`<Avatar member={m} pose size facing />`). Tons de pele e de cabelo, calça e sapato vêm de `palette.skin`, `palette.hair`, `palette.pants` e `palette.shoe` (espelhados em `--skin-N`, `--hair-N`, `--avatar-pants`, `--avatar-shoe`).
 - `hangar/Worker.ts` desenha a partir do avatar; `WorkerView` ganhou `look`.
 
+### Abertura: `IntroScene`
+
+`src/scenes/IntroScene.ts` (chave `"intro"`, Fase 6 C1): a sala do professor orientador em isométrico, no estilo do hangar (piso em xadrez, tapete, porta na parede esquerda, estante com livros e um aviãozinho, janela com o campus, quadro branco, mesa do orientador no primeiro plano; a câmera é o ponto de vista dele). Os fundadores entram pela porta, andam até a fileira em frente à mesa e viram para ela; quem fala ganha mancha de luz no piso, um pulinho e um balão com o nome e pontinhos animados, e os outros escurecem. Bonecos de `people/avatar.ts` (escala 1,6). Só anima, em tempo real (não segue `clock.speed`: o relógio está pausado na abertura).
+
+- Entrega: `introChannel` (`src/scenes/intro/channel.ts`, no molde do `blueprintChannel`): `show(founders)` com `IntroFounder { id, name, look }` refaz a entrada do zero; `speak(index | null)` escolhe quem fala (índice em `show`). A cena lê o canal ao criar. A UI (U2) monta `<PhaserStage scene={IntroScene} sceneKey="intro" />`. O balão ainda não leva texto: o texto da conversa é da UI.
+- Lógica pura em `src/scenes/intro/staging.ts` (testada em `tests/scenes/introStaging.test.ts`): `standSlots(n)` (fileiras de até 4, centralizadas na mesa), `entranceOrder(n)` (quem para mais fundo entra primeiro, ninguém se cruza), `founderFrame(i, n, t)` (posição, `walking`, `facing`, `visible`), `entranceDuration`, `speakerView`, `balloonDots`.
+- Em dev: `/intro-dev.html` (`src/dev/introPreview.ts`) monta a cena com 4 fundadores de mentira e botões para quem fala; `window.__introScene.seek(t)` pula a entrada.
+
 ### Contrato da Fase 5 nas cenas
 
 Os stubs de `scenes/phase5.ts` foram trocados pelos tipos reais de `sim/`: `AircraftDesign` (campos novos), `Member.look` (`MemberLook`) e `stabilityEstimate` (a geometria do blueprint usa os valores centrais). `marginBand` vive em `scenes/blueprint/margin.ts`; `FlightTestSession` em `scenes/flight/replayChannel.ts`. `sceneryForVenue` lê `findVenue(id).scenery` (`model-field` usa o cenário `airstrip`).
