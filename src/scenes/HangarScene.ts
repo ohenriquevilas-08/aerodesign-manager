@@ -39,12 +39,14 @@ import {
   UNPACK_SPOT,
   WALL_H
 } from "./hangar/hangarArt";
+import { BENCH_TEST_SECONDS, benchTestFrame, TEST_BENCH } from "./hangar/benchTest";
 import { packagesAtDoor, recentDeliveries, type PackageView } from "./hangar/packages";
 import { lightingFor, overnightNapper, shiftOfSlot, workshopNow, type WorkshopLighting, type WorkshopNow } from "./hangar/workshop";
 import { hourOfDay } from "./queue/queueView";
-import { iso } from "./hangar/iso";
+import { iso, vec } from "./hangar/iso";
 import { Worker } from "./hangar/Worker";
 import { css, fonts, palette } from "./palette";
+import { benchTestChannel, type BenchTestEntry } from "./tests/testEntry";
 
 /** Área livre na frente do hangar, entre as bancadas de baixo: quem não está numa bancada fica aqui. */
 const FREE_AREA = { col: 3.7, row: 5.4, perRow: 4 };
@@ -114,6 +116,16 @@ interface Opening {
 
 const OPENING_SECONDS = 2.2;
 
+/** Ensaio de bancada em andamento (C2): mostrador sobre a bancada e o resultado no fim. */
+interface BenchTestRun {
+  entry: BenchTestEntry;
+  bench: Bench;
+  t: number;
+  g: Phaser.GameObjects.Graphics;
+  label: Phaser.GameObjects.Text;
+  broke: boolean;
+}
+
 interface BenchCard {
   container: Phaser.GameObjects.Container;
   bar: Phaser.GameObjects.Graphics;
@@ -146,6 +158,7 @@ export class HangarScene extends Phaser.Scene {
   private snacks!: Phaser.GameObjects.Graphics;
   private sign!: Phaser.GameObjects.Text;
   private lightKey = "";
+  private benchTest: BenchTestRun | null = null;
 
   constructor() {
     super("hangar");
@@ -196,13 +209,22 @@ export class HangarScene extends Phaser.Scene {
       this.refresh(state);
     });
     // game.destroy() (ao trocar de tela) emite DESTROY, não SHUTDOWN: limpar nos dois.
+    const unsubscribeTest = benchTestChannel.subscribe((entry) => this.startBenchTest(entry));
     const cleanup = () => {
       this.unsubscribe?.();
       this.unsubscribe = null;
+      unsubscribeTest();
       this.scale.off("resize", this.layout, this);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
+    // Atalho de depuração: window.__hangarScene.seekBenchTest(t) pula a animação do ensaio de bancada.
+    if (import.meta.env.DEV) (window as unknown as { __hangarScene?: HangarScene }).__hangarScene = this;
+  }
+
+  /** Só para depuração: leva o ensaio de bancada em andamento ao instante t (s). */
+  seekBenchTest(t: number) {
+    if (this.benchTest) this.benchTest.t = t;
   }
 
   private layout() {
@@ -420,9 +442,87 @@ export class HangarScene extends Phaser.Scene {
     this.openings.push(opening);
   }
 
+  /** Ensaio de bancada: anima em tempo real, como a abertura das caixas, e só mostra o resultado que veio pronto. */
+  private startBenchTest(entry: BenchTestEntry) {
+    this.endBenchTest();
+    const bench = BENCHES.find((b) => b.id === TEST_BENCH[entry.kind])!;
+    const g = this.add.graphics().setDepth(CARD_DEPTH + 1);
+    const label = this.add
+      .text(0, 0, entry.result, {
+        fontFamily: fonts.body,
+        fontSize: "10px",
+        color: css(entry.outcome === "pass" ? palette.ok : palette.danger),
+        backgroundColor: css(palette.panel),
+        padding: { x: 6, y: 3 }
+      })
+      .setOrigin(0.5, 1)
+      .setResolution(2)
+      .setDepth(CARD_DEPTH + 2)
+      .setVisible(false);
+    this.benchTest = { entry, bench, t: 0, g, label, broke: false };
+  }
+
+  private endBenchTest() {
+    this.benchTest?.g.destroy();
+    this.benchTest?.label.destroy();
+    this.benchTest = null;
+  }
+
+  private updateBenchTest(dt: number) {
+    const run = this.benchTest;
+    if (!run) return;
+    run.t += dt;
+    if (run.t >= BENCH_TEST_SECONDS) {
+      this.endBenchTest();
+      return;
+    }
+    const frame = benchTestFrame(run.entry, run.t);
+    const spot = benchHotspot(run.bench.id, run.bench.col, run.bench.row);
+    const c = { x: spot.x + frame.shake * 1.5, y: spot.y - 22 };
+    const g = run.g;
+    g.clear();
+    // Mostrador: ponteiro de 135° a 405°; vermelho quando a asa rompe.
+    const radius = 15;
+    g.fillStyle(palette.panel, 0.95).fillCircle(c.x, c.y, radius + 3);
+    g.lineStyle(2, palette.borderStrong, 1).strokeCircle(c.x, c.y, radius + 3);
+    for (let i = 0; i <= 6; i += 1) {
+      const a = Math.PI * (0.75 + (1.5 * i) / 6);
+      g.lineStyle(1, palette.inkDim, 1).lineBetween(c.x + Math.cos(a) * (radius - 3), c.y + Math.sin(a) * (radius - 3), c.x + Math.cos(a) * radius, c.y + Math.sin(a) * radius);
+    }
+    const a = Math.PI * (0.75 + 1.5 * frame.gauge);
+    g.lineStyle(2, frame.broken ? palette.danger : palette.highlight, 1).lineBetween(c.x, c.y, c.x + Math.cos(a) * (radius - 2), c.y + Math.sin(a) * (radius - 2));
+
+    // Instrumento na bancada: asa flexionando, hélice girando ou pesagem no prato.
+    const base = { x: spot.x + frame.shake * 1.5, y: spot.y };
+    if (run.entry.kind === "structural") {
+      const sag = frame.gauge * 9;
+      const pts = [-20, -10, 0, 10, 20].map((dx) => ({ x: base.x + dx, y: base.y - 2 + sag * (1 - (dx / 20) ** 2) }));
+      g.lineStyle(3, frame.broken ? palette.danger : palette.ink, 1);
+      if (frame.broken) {
+        g.lineBetween(pts[0]!.x, pts[0]!.y, base.x - 3, base.y - 3).lineBetween(base.x + 3, base.y + 4, pts[4]!.x, pts[4]!.y + 6);
+      } else {
+        g.strokePoints(vec(pts), false);
+      }
+    } else if (run.entry.kind === "thrust") {
+      const dx = Math.cos(frame.spin) * 11;
+      g.lineStyle(3, palette.ink, 1).lineBetween(base.x - dx, base.y - 3 - Math.sin(frame.spin) * 4, base.x + dx, base.y - 3 + Math.sin(frame.spin) * 4);
+      g.fillStyle(palette.accent, 1).fillCircle(base.x, base.y - 3, 2);
+    } else {
+      g.fillStyle(palette.inkMuted, 1).fillRect(base.x - 12, base.y - 2, 24, 3);
+      g.fillStyle(palette.ink, 1).fillRect(base.x - 8, base.y - 3 - frame.gauge * 2, 16, 2);
+    }
+
+    if (frame.broken && !run.broke) {
+      run.broke = true;
+      this.burst(base.x, base.y - 4, CARD_DEPTH + 1, true);
+    }
+    run.label.setPosition(c.x, c.y - radius - 8).setVisible(frame.showResult);
+  }
+
   update(_time: number, deltaMs: number) {
-    if (this.openings.length === 0) return;
     const dt = Math.min(0.05, deltaMs / 1000);
+    this.updateBenchTest(dt);
+    if (this.openings.length === 0) return;
     this.openings = this.openings.filter((o) => {
       o.t += dt;
       if (o.t < 0) return true;
