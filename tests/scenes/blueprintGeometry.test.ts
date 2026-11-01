@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { blueprintGeometry } from "../../src/scenes/blueprint/geometry";
-import { DEFAULT_DESIGN, DESIGN_LIMITS, type AircraftDesign } from "../../src/sim";
+import { marginBand, type BlueprintDesign } from "../../src/scenes/phase5";
+import { DEFAULT_DESIGN, DESIGN_LIMITS } from "../../src/sim";
 
-const make = (patch: Partial<AircraftDesign>): AircraftDesign => ({ ...DEFAULT_DESIGN, ...patch });
-const roles = (design: AircraftDesign) => blueprintGeometry(design).surfaces.map((s) => s.role);
+const make = (patch: Partial<BlueprintDesign>): BlueprintDesign => ({ ...DEFAULT_DESIGN, ...patch });
+const roles = (design: BlueprintDesign) => blueprintGeometry(design).surfaces.map((s) => s.role);
 
 describe("geometria do blueprint", () => {
   it("é determinística", () => {
@@ -60,5 +61,51 @@ describe("geometria do blueprint", () => {
     expect(stable.sparWidth).toBeGreaterThan(light.sparWidth);
     expect(payload.surfaces[0]!.chord).toBeGreaterThan(stable.surfaces[0]!.chord);
     expect(stable.surfaces[0]!.chord).toBeGreaterThan(light.surfaces[0]!.chord);
+  });
+});
+
+describe("geometria do blueprint (Fase 5)", () => {
+  it("a corda vem de chordM e define o alongamento", () => {
+    const narrow = blueprintGeometry(make({ chordM: 0.2 }));
+    const wide = blueprintGeometry(make({ chordM: 0.4 }));
+    expect(wide.surfaces[0]!.chord).toBeCloseTo(0.4);
+    expect(narrow.aspectRatio).toBeGreaterThan(wide.aspectRatio);
+  });
+
+  it("asa alta fica acima da baixa na vista frontal", () => {
+    const high = blueprintGeometry(make({ wingPosition: "high" }));
+    const low = blueprintGeometry(make({ wingPosition: "low" }));
+    expect(high.front.wingRootZ).toBeGreaterThan(low.front.wingRootZ);
+    expect(high.front.wingTipZ).toBeGreaterThan(high.front.wingRootZ);
+  });
+
+  it("a cauda escala com tailVolume", () => {
+    const tail = (tailVolume: number) => blueprintGeometry(make({ tailVolume })).surfaces.find((s) => s.role === "tail")!;
+    expect(tail(0.7).span).toBeGreaterThan(tail(0.3).span);
+  });
+
+  it("o CG anda com cgPercentMac e o ponto neutro fica margem à frente ou atrás dele", () => {
+    const forward = blueprintGeometry(make({ cgPercentMac: 15 }));
+    const aft = blueprintGeometry(make({ cgPercentMac: 35 }));
+    expect(aft.cg.x).toBeGreaterThan(forward.cg.x);
+    expect(aft.marginPercentMac).toBeLessThan(forward.marginPercentMac);
+    const g = blueprintGeometry(make({}), { neutralPointPercentMac: 40, marginPercentMac: 10 });
+    expect(g.neutral.x - g.cg.x).toBeCloseTo(0.1 * g.mac.length);
+    const unstable = blueprintGeometry(make({}), { neutralPointPercentMac: 20, marginPercentMac: -5 });
+    expect(unstable.neutral.x).toBeLessThan(unstable.cg.x);
+  });
+
+  it("o diâmetro da hélice vem de propDiameterIn e a folga acompanha", () => {
+    const small = blueprintGeometry(make({ propDiameterIn: 10, gear: "low" }));
+    const big = blueprintGeometry(make({ propDiameterIn: 20, gear: "low" }));
+    expect(big.front.propDiameter).toBeCloseTo(0.508);
+    expect(small.propClearance).toBeGreaterThan(big.propClearance);
+  });
+
+  it("a faixa da margem: negativa instável, baixa ou alta em risco", () => {
+    expect(marginBand(-1)).toBe("unstable");
+    expect(marginBand(2)).toBe("risk");
+    expect(marginBand(10)).toBe("ok");
+    expect(marginBand(30)).toBe("risk");
   });
 });
