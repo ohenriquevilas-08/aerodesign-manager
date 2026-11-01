@@ -38,7 +38,7 @@ export type ActionEffect =
   | { kind: "agility" }
   | { kind: "selection" }
   | { kind: "outreach"; amount: number }
-  | { kind: "test"; test: "structural" | "thrust" | "flight" | "video" }
+  | { kind: "test"; test: "structural" | "thrust" }
   | { kind: "report-chapter" }
   | { kind: "drawings" }
   | { kind: "oral-practice" };
@@ -167,8 +167,9 @@ const defs: Omit<ActionDef, "category">[] = [
   // Ensaios (design §7.3): exigem as peças no hangar (sim/aircraft.ts, testProblem).
   { id: "test-structural", label: "Ensaio estrutural de bancada", cost: cost(8, 20, 0, "medium"), crew: crew(2, 2, 3), skill: "knowledge", discipline: "structures", effect: { kind: "test", test: "structural" }, workshop: true, needsPair: true },
   { id: "test-thrust", label: "Ensaio de motor e hélice", cost: cost(4, 10, 0, "low"), crew: crew(1, 2, 2), skill: "knowledge", discipline: "electrical", effect: { kind: "test", test: "thrust" }, workshop: true },
-  { id: "test-flight", label: "Voo com carga incremental", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting", discipline: "performance", effect: { kind: "test", test: "flight" } },
-  { id: "flight-video", label: "Voo filmado (vídeo oficial)", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting", effect: { kind: "test", test: "video" } }
+  // Voo de ensaio e voo filmado viraram evento agendado (Fase 5, S2: schedule-flight-test).
+  // Treino de pilotagem: simulador e aeromodelo-escola, para um integrante chegar a pilotar o ensaio.
+  { id: "pilot-training", label: "Treino de pilotagem (simulador e aeromodelo-escola)", cost: cost(10, 20, 0, "low"), crew: crew(1, 1, 2), skill: "piloting" }
 ];
 
 export const ACTIONS: readonly ActionDef[] = defs.map((def) => ({ ...def, category: categoryOf(def.cost) }));

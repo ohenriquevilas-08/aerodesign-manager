@@ -13,7 +13,7 @@ const game = (): GameState => {
 describe("workshop schedule", () => {
   it("starts with captains holding keys and an empty schedule", () => {
     const state = base();
-    expect(state.version).toBe(5);
+    expect(state.version).toBe(6);
     expect(state.workshop.capacity).toBe(4);
     expect(state.workshop.keyHolders).toEqual(["captain-aero", "captain-struct"]);
     expect(state.workshop.schedule).toEqual({});

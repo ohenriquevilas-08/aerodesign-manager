@@ -4,6 +4,7 @@
 import { setDesign } from "./aircraft";
 import { setArea } from "./formation";
 import { devStartCompetition, setBatteryPayload } from "./competition";
+import { cancelFlightTest, scheduleFlightTest, type ScheduleFlightTestRequest } from "./flightTests";
 import { tick } from "./loop";
 import { setPredictions, submitReport } from "./report";
 import { payCustoms, placeOrder, type OrderRequest } from "./shop";
@@ -42,7 +43,11 @@ export type Command =
   /** area null = sem área; captain true ocupa a vaga de capitão da área. */
   | { type: "set-area"; memberId: string; area: Discipline | null; captain?: boolean }
   /** Só em dev: pula para o dia da competição com tudo pronto. */
-  | { type: "dev-start-competition" };
+  | { type: "dev-start-competition" }
+  // Fase 5 (docs/phases/fase-5.md, S2): ensaio de voo como evento.
+  /** day = dia de jogo (Math.floor(horas / 24)); pilot = integrante ou contratado. */
+  | ({ type: "schedule-flight-test" } & ScheduleFlightTestRequest)
+  | { type: "cancel-flight-test"; testId: string };
 
 export function applyCommand(state: GameState, command: Command): GameState {
   switch (command.type) {
@@ -94,5 +99,9 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return grantKey(state, command.memberId);
     case "dev-start-competition":
       return devStartCompetition(state);
+    case "schedule-flight-test":
+      return scheduleFlightTest(state, command);
+    case "cancel-flight-test":
+      return cancelFlightTest(state, command.testId);
   }
 }

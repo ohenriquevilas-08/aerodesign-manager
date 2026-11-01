@@ -4,7 +4,7 @@
 import type { GameState } from "./types";
 
 /** Versão do formato; sobe a cada mudança incompatível do GameState. */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 export function serializeState(state: GameState): string {
   return JSON.stringify(state);
@@ -32,6 +32,7 @@ export function deserializeState(json: string): GameState | null {
     Array.isArray(state.ledger) &&
     Array.isArray(state.news) &&
     Array.isArray(state.testLog) &&
+    Array.isArray(state.flightTests) &&
     typeof state.workshop === "object" &&
     state.workshop !== null &&
     typeof state.report === "object" &&

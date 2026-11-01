@@ -27,6 +27,14 @@ export function canWork(member: Member): boolean {
   return member.role !== "president";
 }
 
+/**
+ * Integrantes sem o presidente (Fase 5, S4): elenco, escalação, escala da oficina e seletiva
+ * listam só eles; o presidente aparece no cabeçalho como "Você".
+ */
+export function rosterMembers(state: { members: readonly Member[] }): Member[] {
+  return state.members.filter(canWork);
+}
+
 /** Horas por dia = disponibilidade × calendário acadêmico × motivação (design §8.1). Presidente: 0. */
 export function memberHoursPerDay(member: Member, date: number): number {
   if (!canWork(member)) return 0;

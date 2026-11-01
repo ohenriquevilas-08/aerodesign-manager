@@ -231,7 +231,14 @@ Toda equipe real tem uma planilha de escala: quem está na oficina em cada turno
 | Potência (P) | 300 a 600 W | Decolagem antes dos 55 m ↔ bateria e peso |
 | Filosofia | Alta carga · Leve · Estável | Equivalente aos "conceitos" do jogo atual |
 | Materiais | Balsa · Compósito · Misto | Peso vazio ↔ custo ↔ dificuldade de fabricação |
-| Altura do trem | Baixo · Alto | Altura livre em 2026, mas avião alto rompe a fita se abortar a decolagem |
+| Altura do trem | Baixo · Alto | Altura livre em 2026, mas avião alto rompe a fita se abortar a decolagem. Também limita a hélice (baixo ≤ 15", alto ≤ 20") |
+| Corda média (c) | 0,25 a 0,60 m | Área S = b × c e alongamento AR = b / c. Mais corda = mais sustentação e longarina mais leve; mais AR = menos perda de asa finita (AR/(AR+2)), longarina mais pesada |
+| Posição da asa | Alta · Baixa | Alta: +0,03 de estabilidade (efeito pêndulo). Baixa: efeito solo (corrida ÷1,04) e −0,03 de estabilidade |
+| Volume de cauda (VH) | 0,30 a 0,70 | Cauda maior = ponto neutro mais atrás (mais estável) e empenagem mais pesada. Ignorado na asa voadora |
+| CG | 10 a 45 % da CMA | CG atrás = margem estática menor = mais carga e mais risco (seção 6.5) |
+| Hélice | 10 a 20 pol. | Tração estática ∝ D^(2/3) com a mesma potência (teoria do momento); hélice maior pesa um pouco mais |
+
+Padrão seguro: b 2,8 m · c 0,40 m (AR 7) · N 2 · 550 W · hélice 14" · leve · balsa · trem baixo · asa alta · VH 0,45 · CG 30 % (margem ~11 %).
 
 A prancheta mostra ao vivo o **multiplicador de pontuação** da configuração e a estimativa de desempenho. Com 2026 pontuando **eficiência estrutural (carga ÷ peso vazio)**, avião leve vale tanto quanto avião que carrega muito.
 
@@ -254,6 +261,54 @@ Eficiência estrutural estimada:                  3,5   ± 0,7
 ### 6.3 Fases físicas do avião
 
 Protótipo (barato, pode ser incompleto) → avião oficial (o que compete) → reparos e alterações. Alterações comunicadas até 27/set têm penalidade menor; depois disso, maior (regra real).
+
+### 6.4 Orçamento de massa **[PROPOSTA, Fase 5]**
+
+O peso vazio é a soma de sete subsistemas (`massBudget`), cada um com a sua margem; a soma é o peso vazio da estimativa de desempenho. A estrutura (asa, fuselagem, empenagem, trem) é multiplicada pela filosofia (alta carga ×1,08 · estável ×1,00 · leve ×0,90); motor, bateria e eletrônica são comprados prontos.
+
+| Subsistema | Fórmula (kg) | Padrão |
+|---|---|---|
+| Asa | casca × S + longarina × b² × (0,40 / c); asa voadora ×1,1. Casca: balsa 0,90 · misto 0,80 · compósito 0,72 kg/m². Longarina: 0,090 · 0,080 · 0,065 | 1,54 |
+| Fuselagem | 0,40 + 0,24 × braço de cauda (lh = 2,5 c; asa voadora sem cone) | 0,58 |
+| Empenagem | (1,05 × Sh + 0,04) × material (balsa 1 · misto 0,92 · compósito 0,85), Sh = VH × S / 2,5; N=3 soma o canard (15 % de S) | 0,23 |
+| Trem de pouso | baixo 0,25 · alto 0,35 | 0,23 |
+| Motor e hélice | 0,10 + 0,0003 × P + 0,035 × (D / 14)² | 0,30 |
+| Bateria | 0,12 + 0,0004 × P (LiPo para ~2 min a 600 W) | 0,34 |
+| Eletrônica | 0,20 (+0,03 com canard) | 0,20 |
+| **Peso vazio** | | **3,41** |
+
+Origem: asas de balsa entelada de aerodesign ficam em 0,8–1,2 kg/m² com longarina; o momento fletor cresce com b e a altura da longarina com c, daí o termo b²/c. Sustentação ao nível do mar = 18,9 × S × AR/(AR+2) × N × filosofia × trimagem (18,9 ≈ ½ ρ0 V² CLmax / g com V ≈ 13 m/s e CLmax ≈ 1,9 de perfil de alta sustentação; AR/(AR+2) é a perda da asa finita). A corrida usa S / 0,40 no lugar de b, então o avião de corda 0,40 m corre igual ao modelo da Fase 3. O padrão leva ~10,9 kg a Hρ 1000 m.
+
+Escondido: cada subsistema tem um desvio sorteado no primeiro projeto (feito em casa ±6 %, comprado ±2 %), além do desvio do material sobre a estrutura.
+
+### 6.5 Estabilidade: ponto neutro e margem estática **[PROPOSTA, Fase 5]**
+
+`stabilityEstimate`: ponto neutro (% CMA) = 25 + 100 × 0,9 × VH × (at/aw) × (1 − dε/dα) − 3, com aw ∝ AR/(AR+2), cauda de AR 4 e downwash dε/dα ≈ 4/(AR+2). Asa voadora: 33 % (reflexo e enflechamento); canard (N=3): −8 %. Margem estática = ponto neutro − CG. Padrão: ponto neutro 41 %, margem 11 %.
+
+| Faixa | Margem (% CMA) | Efeito |
+|---|---|---|
+| Ok | 5 a 20 | — |
+| Risco | 0 a 5 (pouco estável) ou 20 a 30 (rígido) | Pouca margem: mais carga, mais chance de queda. Muita: corrida +1,5 % por ponto acima de 20 |
+| Falha | < 0 (instável) ou > 30 | Instável: estabilidade do voo cai para 0,2 ou menos (risco alto) |
+
+- Carga: margem abaixo de 12 % dá +0,4 % de sustentação por ponto (a cauda carrega menos para baixo), entre ×0,92 e ×1,06.
+- Estabilidade 0–1 do voo: 0,15 + 0,04 × margem até 10 %, depois +0,02 por ponto até 20 %; + filosofia estável 0,10, asa alta +0,03 / baixa −0,03, asa voadora −0,10.
+- A estimativa tem ±5 % CMA sem conhecimento nem ensaio; encolhe com Estabilidade e com voos. A margem real tem desvio escondido de ±3 % (onde o CG cai de fato).
+
+### 6.6 Requisitos da missão e comparação **[PROPOSTA, Fase 5]**
+
+`missionRequirements(state, design, Hρ, carga-alvo)`: cada requisito com valor ± margem e status. **Ok** = passa até no pior caso da margem; **risco** = passa no valor central; **falha** = não passa.
+
+| Requisito | Alvo |
+|---|---|
+| Corrida com a carga-alvo | ≤ 55 m |
+| Folga sobre a fita aos 55 m | ≥ 0 m (a mesma subida da competição, sem ruído) |
+| Margem estática | 5–20 % CMA |
+| Envergadura | ≤ 4,0 m (sem PD) |
+| Potência de pico | ≤ 600 W (sem PP) |
+| Peso vazio | ≤ min(sustentação estimada, 20 kg) − carga-alvo |
+
+Carga-alvo padrão: a da reta de previsão, senão a carga máxima estimada. `compareDesigns` devolve, para dois projetos (gravado × rascunho), requisitos, orçamento de massa, estabilidade, multiplicador (7.5) e a nota estimada de uma bateria com a carga-alvo e previsões certeiras. Um rascunho diferente do gravado conta só metade dos ensaios na margem.
 
 ---
 
@@ -288,6 +343,20 @@ Internamente, condição de 0 a 100. Na tela:
 | Voo com carga incremental | Carga máxima (pontos da reta de previsão) | Dano / queda, cresce com a carga |
 | Treino de retirada de carga | Tempo de retirada | Nenhum |
 | Voo filmado (vídeo oficial) | — | Obrigatório até 27/set |
+
+**Ensaio de voo como evento [PROPOSTA, Fase 5].** Bancada continua tarefa da oficina; o voo (com carga ou filmado) é agendado (`schedule-flight-test`): local, dia, piloto, tripulação e cargas planejadas (1 a 5 decolagens, 0 a 20 kg). Local e piloto contratado são pagos ao marcar.
+
+| Local | ◆ | Antecedência | Dias | Estrada | Hρ típica às 8h |
+|---|---|---|---|---|---|
+| Aeroclube de Vila Serena | 120 | 7 dias | sáb e dom | 25 km | ~760 m |
+| Pista do Clube Asas do Planalto | 60 | 3 dias | qua, sáb e dom | 12 km | ~860 m |
+| Fazenda Boa Esperança (do Juca, ex-integrante) | 30 | 1 dia | todos | 60 km | ~670 m |
+
+- **Piloto:** integrante com pilotagem ≥ 30 (treina pilotagem no ensaio) ou piloto contratado (◆ 150, pilotagem 80, não deixa conhecimento). Para um integrante chegar a 30 há a ação "Treino de pilotagem" (10 h, ◆ 20).
+- **Recusa:** avião incompleto, caixa curto, dia fora da semana do local, antecedência curta, tripulação vazia ou acima de 6, alguém já em outro ensaio no mesmo dia, data depois da competição.
+- **Cancelar:** devolve 50 % do pago.
+- **No dia (8h):** o relógio pausa e avisa. Transporte: 0,2 % por km de chance de danificar uma peça (10–25 de condição). O clima é o da região com a pressão do campo (Apêndice 4 dá a Hρ). Cada carga, a cada 30 min, é uma decolagem do motor da competição (`resolveFlight`) com `FlightPlayback`; pouso duro e queda danificam como na competição, queda encerra o dia, toda decolagem desgasta 3 pontos de cada peça. Voo que sai do chão vira ponto (Hρ, carga) da reta. Evidência por decolagem: voo (carga 0,4 · decolagem 0,3 · estabilidade 0,5) ou no limite, sem decolar ou rompendo a fita (0,6 · 0,5 · 0,2). A tripulação ganha 6 h de Desempenho (meia taxa em Aerodinâmica e Estabilidade). Filmado com um voo limpo até 27/set vale como vídeo oficial.
+- `upcomingEvents`: ensaios agendados e a competição, do mais próximo ao mais distante.
 
 Cada ensaio gera **conhecimento tácito** para quem participou, desgasta as peças usadas e pode danificá-las ou quebrá-las. Ensaios em dias diferentes (frio/calor) dão pontos em altitudes densidade diferentes e melhoram a reta de previsão. Equipamentos (balança, bancada, telemetria) aumentam o aprendizado e reduzem o risco.
 

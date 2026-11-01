@@ -6,7 +6,7 @@ export * from "./time";
 export { applyCommand, type Command } from "./commands";
 export { deserializeState, SAVE_VERSION, serializeState } from "./save";
 export { createGame, drawField, DISCIPLINES, FIELD_SIZE } from "./state";
-export { canWork, DISCIPLINE_LABELS, effectiveKnowledge, isOverloaded, memberHoursPerDay, motivationFactor } from "./team";
+export { canWork, DISCIPLINE_LABELS, effectiveKnowledge, isOverloaded, memberHoursPerDay, motivationFactor, rosterMembers } from "./team";
 export { partState, PART_STATE_LABELS } from "./parts";
 export {
   ACTIONS,
@@ -22,7 +22,38 @@ export {
   type StockItem
 } from "./content/actions";
 export { BALANCE } from "./content/balance";
-export { DEFAULT_DESIGN, DESIGN_LIMITS, estimatePerformance, installedParts, missingParts, missingPartsText, PART_TYPE_LABELS } from "./aircraft";
+export {
+  aspectRatio,
+  DEFAULT_DESIGN,
+  designProblem,
+  DESIGN_LIMITS,
+  estimateDesign,
+  estimatePerformance,
+  installedParts,
+  MASS_ITEM_LABELS,
+  MASS_ITEMS,
+  massBudget,
+  maxPropDiameterIn,
+  missingParts,
+  missingPartsText,
+  PART_TYPE_LABELS,
+  stabilityEstimate,
+  staticMarginStatus,
+  wingAreaM2
+} from "./aircraft";
+export { compareDesigns, defaultTargetPayload, missionRequirements } from "./engineering";
+export {
+  cancelFlightTest,
+  flightTestCost,
+  flightTestCredits,
+  scheduleProblem,
+  upcomingEvents,
+  venueDensityAltitude,
+  venueWeather,
+  type ScheduleFlightTestRequest
+} from "./flightTests";
+export { findVenue, TEST_VENUES, type TestVenue, type VenueScenery } from "./content/testVenues";
+export { drawLook, LOOK_OPTIONS, TEAM_SHIRT_COLOR } from "./looks";
 export {
   estimateReportScore,
   reportChecklist,

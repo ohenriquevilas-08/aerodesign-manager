@@ -219,6 +219,28 @@ export interface FlightResolution {
   crashPhase?: CrashPhase;
 }
 
+/** Altura aos 55 m depois de rotacionar em `rotation` m; acima da sustentação disponível, sobe menos. */
+function heightAtObstacle(rotation: number, overload: number): number {
+  const gradient = C.climbBase + C.climbGain * (1 - rotation / R.obstacleDistance);
+  return (R.obstacleDistance - rotation) * gradient * (overload > 1 ? Math.max(0, 2 - overload) : 1);
+}
+
+/**
+ * Decolagem sem ruído (planejamento, requisitos da prancheta): corrida e folga sobre a fita de
+ * 0,9 m aos 55 m (R[7.8.0.1]). Folga null quando não sai do chão antes do obstáculo.
+ */
+export function nominalTakeoff(
+  model: FlightModel,
+  payloadKg: number,
+  densityAltitudeM: number,
+  headwindMs = 0,
+  rotation = rotationDistanceM(model, model.emptyWeightKg + payloadKg, densityAltitudeM, headwindMs)
+): { rotationDistanceM: number; obstacleClearanceM: number | null } {
+  if (rotation > R.obstacleDistance) return { rotationDistanceM: rotation, obstacleClearanceM: null };
+  const overload = (model.emptyWeightKg + payloadKg) / (model.liftCapacityKg * densityRatio(densityAltitudeM));
+  return { rotationDistanceM: rotation, obstacleClearanceM: heightAtObstacle(rotation, overload) - R.obstacleHeight };
+}
+
 /** Risco relativo de incidente: piloto, estabilidade do avião e condição das peças (1 ≈ equipe mediana). */
 export function flightRisk(pilot: number, stability: number, condition: number): number {
   return 3 * (1.2 - clamp(pilot) / 100) * (1.4 - clamp(stability, 0, 1)) * (1 + (100 - clamp(condition)) / 100);
@@ -250,9 +272,7 @@ export function resolveFlight(
   if (rotation > R.obstacleDistance) return { flight: { outcome: "no-takeoff", ...none }, rngState: rng };
 
   const overload = mass / (model.liftCapacityKg * densityRatio(hrho));
-  const gradient = C.climbBase + C.climbGain * (1 - rotation / R.obstacleDistance);
-  const height = (R.obstacleDistance - rotation) * gradient * (overload > 1 ? Math.max(0, 2 - overload) : 1);
-  const clearance = height - R.obstacleHeight + C.clearanceNoise * signed();
+  const clearance = heightAtObstacle(rotation, overload) - R.obstacleHeight + C.clearanceNoise * signed();
   const risk = flightRisk(pilot, model.stability, model.condition) * (overload > 0.95 ? 1.5 : 1);
   const stall = overload > 1 ? C.stallPerExcess * (overload - 1) : 0;
   const stop = Math.max(8, C.stopBase + C.stopPerKg * mass - C.stopPerHeadwind * weather.headwindMs + C.stopNoise * signed());
@@ -418,7 +438,7 @@ const damageLabel = (part: Part) => {
   return `${PART_TYPE_LABELS[part.type]} ${MASCULINE.has(part.type) ? state.replace(/a$/, "o") : state}`;
 };
 
-function damagePlayerParts(state: GameState, crash: boolean): { state: GameState; labels: string[] } {
+export function damagePlayerParts(state: GameState, crash: boolean): { state: GameState; labels: string[] } {
   const installed = Object.values(installedParts(state)).filter((part): part is Part => !!part);
   if (installed.length === 0) return { state, labels: [] };
   let rng = state.rngState;
@@ -443,7 +463,7 @@ function damagePlayerParts(state: GameState, crash: boolean): { state: GameState
 }
 
 /** Retirada de carga com as duas pessoas mais ágeis (R[7.7.7.1]: até 2 pessoas). */
-function playerUnloadSeconds(state: GameState): number {
+export function playerUnloadSeconds(state: GameState): number {
   const agility = state.members
     .filter(canWork)
     .map((member) => member.agility)
@@ -453,7 +473,7 @@ function playerUnloadSeconds(state: GameState): number {
   return C.unloadBase - C.unloadGain * (mean / 100);
 }
 
-function playerPilot(state: GameState): number {
+export function playerPilot(state: GameState): number {
   return Math.max(BALANCE.tests.ctPilot, ...state.members.filter(canWork).map((member) => member.piloting));
 }
 
