@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canWork, createGame, dateToHours, type GameState, type Task } from "../../src/sim";
-import { currentShift, suggestSchedule } from "../../src/ui/team/workshop";
-
-// Stub local da escala (design §5.5); estes testes caem junto quando a sim assumir o contrato.
+import { canWork, createGame, currentShift, dateToHours, suggestSchedule, type GameState, type Task } from "../../src/sim";
 
 const game = () => createGame({ seed: 1, teamName: "Teste" });
 

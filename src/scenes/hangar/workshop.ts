@@ -1,25 +1,19 @@
 // Escala da oficina no hangar (design §5.5). Funções puras (testadas em tests/scenes/):
 // turno → iluminação e adereços; presentes → quem aparece e quem cochila de madrugada.
-//
-// STUB LOCAL: `currentShift` e `workshopNow` reproduzem o contrato que a Simulação está
-// implementando. Quando `sim/index.ts` exportar os dois, apagar o bloco "stub" abaixo, importar
-// de "../../sim" e manter o resto.
+// Quem está na oficina e o turno vêm da simulação (currentShift, workshopNow).
 
-import { canWork, clockToDate, type GameState } from "../../sim";
+import { currentShift, workshopNow, type ShiftId, type SlotKey, type Weekday } from "../../sim";
 
-export type Shift = "morning" | "afternoon" | "evening" | "overnight";
+export { currentShift, workshopNow };
 
-/** Dia da semana (0 = domingo), como Date.getUTCDay. */
-export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export type Shift = ShiftId;
+export type { SlotKey, Weekday };
 
 /** Formato de `currentShift`. */
 export interface ShiftSlot {
   day: Weekday;
   shift: Shift;
 }
-
-/** Célula da grade da escala, ex.: "1-morning". */
-export type SlotKey = `${Weekday}-${Shift}`;
 
 export function slotKey(slot: ShiftSlot): SlotKey {
   return `${slot.day}-${slot.shift}`;
@@ -30,38 +24,7 @@ export function shiftOfSlot(key: SlotKey | null): Shift | null {
   return key ? (key.slice(key.indexOf("-") + 1) as Shift) : null;
 }
 
-export interface WorkshopNow {
-  slot: SlotKey | null;
-  /** Integrantes na oficina agora. */
-  present: string[];
-  open: boolean;
-  /** Motivo de a oficina estar parada (ex.: "Sem ninguém com chave"); null se não está. */
-  blocked: string | null;
-}
-
-// ---------------------------------------------------------------- stub (trocar pela sim)
-
-/** Turno da hora do dia (§5.5): manhã 8–12, tarde 13–18, noite 19–22, madrugada 22–3. */
-export function shiftForHour(hour: number): Shift | null {
-  if (hour >= 8 && hour < 12) return "morning";
-  if (hour >= 13 && hour < 18) return "afternoon";
-  if (hour >= 19 && hour < 22) return "evening";
-  if (hour >= 22 || hour < 3) return "overnight";
-  return null;
-}
-
-export function currentShift(state: GameState): ShiftSlot | null {
-  const date = new Date(clockToDate(state.clock.hours));
-  const shift = shiftForHour(date.getUTCHours() + date.getUTCMinutes() / 60);
-  return shift ? { day: date.getUTCDay() as Weekday, shift } : null;
-}
-
-/** Sem escala ainda: em qualquer turno, quem trabalha está na oficina. */
-export function workshopNow(state: GameState): WorkshopNow {
-  const shift = currentShift(state);
-  const present = shift ? state.members.filter(canWork).map((member) => member.id) : [];
-  return { slot: shift ? slotKey(shift) : null, present, open: present.length > 0, blocked: null };
-}
+export type WorkshopNow = ReturnType<typeof workshopNow>;
 
 // ---------------------------------------------------------------- iluminação
 

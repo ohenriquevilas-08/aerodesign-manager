@@ -1,27 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { workerViewsFromState } from "../../src/scenes/hangar/benchView";
-import { currentShift, lightingFor, overnightNapper, shiftForHour, shiftOfSlot, slotKey, workshopNow } from "../../src/scenes/hangar/workshop";
+import { currentShift, lightingFor, overnightNapper, shiftOfSlot, slotKey, workshopNow } from "../../src/scenes/hangar/workshop";
 import { hourOfDay } from "../../src/scenes/queue/queueView";
 import { baseState, task } from "./fixtures";
 
-describe("turnos da oficina (stub do contrato)", () => {
-  it("horários do §5.5", () => {
-    expect(shiftForHour(9)).toBe("morning");
-    expect(shiftForHour(12.5)).toBeNull();
-    expect(shiftForHour(15)).toBe("afternoon");
-    expect(shiftForHour(18.5)).toBeNull();
-    expect(shiftForHour(20)).toBe("evening");
-    expect(shiftForHour(23)).toBe("overnight");
-    expect(shiftForHour(2.5)).toBe("overnight");
-    expect(shiftForHour(5)).toBeNull();
-  });
-
+describe("turnos da oficina", () => {
   it("fora de turno a oficina fica vazia e fechada; em turno, quem trabalha está lá", () => {
     const state = baseState();
     // Leva o relógio para as 5 h.
     state.clock.hours = (5 - hourOfDay(0) + 24) % 24;
     expect(currentShift(state)).toBeNull();
-    expect(workshopNow(state)).toEqual({ slot: null, present: [], open: false, blocked: null });
+    expect(workshopNow(state)).toMatchObject({ slot: null, present: [], open: false });
+    // Escala todo mundo de manhã e à tarde, em todos os dias, sem aula.
+    const crew = state.members.filter((m) => m.role !== "president").map((m) => m.id);
+    state.members = state.members.map((m) => ({ ...m, classSlots: [] }));
+    for (let day = 0; day <= 6; day += 1) state.workshop.schedule[`${day as 0}-morning`] = crew;
     state.clock.hours += 4; // 9 h
     const now = workshopNow(state);
     const shift = currentShift(state)!;
@@ -31,7 +24,7 @@ describe("turnos da oficina (stub do contrato)", () => {
     expect(shiftOfSlot(now.slot)).toBe("morning");
     expect(now.open).toBe(true);
     // Presidente não trabalha na oficina.
-    expect(now.present).toEqual(state.members.filter((m) => m.role !== "president").map((m) => m.id));
+    expect(now.present).toEqual(crew);
   });
 });
 

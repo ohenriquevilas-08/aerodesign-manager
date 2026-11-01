@@ -26,7 +26,7 @@ export type Command =
   | { type: "cancel-task"; taskId: string }
   | { type: "hire-candidate"; candidateId: string }
   | { type: "dismiss-candidates" }
-  // Fase 3 (docs/architecture.md, "Fase 3: contrato")
+  // Fase 3 (docs/phases/fase-3.md)
   | { type: "set-design"; design: AircraftDesign }
   | { type: "set-predictions"; emptyWeightKg?: number; payloadLine?: PayloadLine }
   | { type: "submit-report" }

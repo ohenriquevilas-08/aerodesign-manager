@@ -5,7 +5,6 @@ import { canWork, type GameState, type Member } from "../../sim";
 import { ROLE_LABEL } from "../format";
 import {
   classSlotsOf,
-  devGrantNightAccess,
   SHIFTS,
   slotKey,
   slotStatus,
@@ -361,11 +360,6 @@ function NightPanel({ workshop }: { workshop: WorkshopState }) {
         ) : workshop.nightAccess === "requested" ? (
           <>
             <p class="alert alert-warn">Pedido de acesso enviado. Aguardando resposta do departamento.</p>
-            {import.meta.env.DEV ? (
-              <button type="button" class="btn-dev" onClick={devGrantNightAccess}>
-                DEV · autorizar agora
-              </button>
-            ) : null}
           </>
         ) : (
           <>
