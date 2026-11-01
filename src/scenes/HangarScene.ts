@@ -1,17 +1,51 @@
 // Hangar isométrico (design §11), no espírito de Habbo: paredes, portão, bancadas com o trabalho
 // de cada disciplina, o avião no cavalete e os integrantes trabalhando nos seus postos.
-// Cada bancada tem um cartão com a tarefa em andamento e as peças (ver hangar/benchView.ts).
+// Cada bancada tem um cartão com a tarefa em andamento e as peças (ver hangar/benchView.ts);
+// cada integrante vai para a bancada da tarefa em que está alocado, ou fica na área livre.
 // Profundidade: quem está mais à frente (maior y na tela) desenha por cima.
 // Lê o store; nunca muda o estado. O tempo da cena segue clock.speed.
 
 import Phaser from "phaser";
 import type { GameStore } from "../app/store";
 import type { GameState, PartState } from "../sim";
-import { aircraftViewFromState, benchViewsFromState, type BenchId, type BenchView } from "./hangar/benchView";
+import {
+  aircraftViewFromState,
+  benchViewsFromState,
+  workerViewsFromState,
+  type BenchId,
+  type BenchView,
+  type WorkerView
+} from "./hangar/benchView";
 import { aircraftAnchor, BENCH_LEN, BENCH_TOP, benchHotspot, COLS, drawAircraft, drawBench, drawRoom, ROWS, WALL_H } from "./hangar/hangarArt";
 import { iso } from "./hangar/iso";
 import { Worker } from "./hangar/Worker";
 import { css, fonts, palette } from "./palette";
+
+/** Área livre na frente do hangar, entre as bancadas de baixo: quem não está numa bancada fica aqui. */
+const FREE_AREA = { col: 3.7, row: 5.4, perRow: 4 };
+
+/** Posto de um integrante: na frente da bancada (até 4 por bancada) ou na área livre. */
+function workerSpot(view: WorkerView): { x: number; y: number; facingLeft: boolean } {
+  if (view.bench === null) {
+    const col = FREE_AREA.col + (view.slot % FREE_AREA.perRow) * 0.75;
+    const row = FREE_AREA.row + Math.floor(view.slot / FREE_AREA.perRow) * 0.8;
+    return { ...iso(col, row), facingLeft: view.slot % 2 === 0 };
+  }
+  const bench = BENCHES.find((b) => b.id === view.bench)!;
+  const left = view.slot % 2 === 0;
+  const col = bench.col + (left ? 0.45 : 1.15);
+  return { ...iso(col, bench.row + 1.3 + Math.floor(view.slot / 2) * 0.55), facingLeft: left };
+}
+
+/** Escreve rótulo + sufixo, cortando o rótulo com reticências até caber na largura. */
+function fitText(target: Phaser.GameObjects.Text, label: string, suffix: string, maxWidth: number) {
+  let text = label;
+  target.setText(text + suffix);
+  while (target.width > maxWidth && text.length > 4) {
+    text = text.slice(0, -1);
+    target.setText(`${text.trimEnd()}…${suffix}`);
+  }
+}
 
 /** Cartões ficam acima de tudo que anda no piso. */
 const CARD_DEPTH = 1_000_000;
@@ -52,7 +86,8 @@ const CARD_W = 128;
 
 export class HangarScene extends Phaser.Scene {
   private store!: GameStore;
-  private people: Worker[] = [];
+  private people = new Map<string, { worker: Worker; key: string }>();
+  private spawned = 0;
   private cards = new Map<BenchId, BenchCard>();
   private aircraft!: Phaser.GameObjects.Graphics;
   private aircraftKey = "";
@@ -70,7 +105,6 @@ export class HangarScene extends Phaser.Scene {
     drawRoom(this.add.graphics().setDepth(ROOM_DEPTH));
     BENCHES.forEach((bench) => this.createBench(bench));
     this.aircraft = this.add.graphics().setDepth(aircraftAnchor().y);
-    this.store.getState().members.forEach((member, index) => this.spawnPerson(member.name, index));
     this.refresh(this.store.getState());
     this.startAmbient();
 
@@ -118,6 +152,7 @@ export class HangarScene extends Phaser.Scene {
 
   private refresh(state: GameState) {
     this.refreshCards(state);
+    this.refreshPeople(state);
     const view = aircraftViewFromState(state);
     const key = JSON.stringify(view);
     if (key === this.aircraftKey) return;
@@ -155,7 +190,15 @@ export class HangarScene extends Phaser.Scene {
     benchViewsFromState(state).forEach((view) => {
       const card = this.cards.get(view.id);
       if (!card) return;
-      const key = JSON.stringify([view.title, view.task?.label, Math.round((view.task?.progress ?? 0) * 100), view.task?.waiting, view.parts]);
+      const key = JSON.stringify([
+        view.title,
+        view.task?.label,
+        Math.round((view.task?.progress ?? 0) * 100),
+        view.task?.waiting,
+        view.queued,
+        view.parts,
+        view.moreParts
+      ]);
       if (key === card.key) return;
       card.key = key;
       this.drawCard(card, view);
@@ -164,7 +207,7 @@ export class HangarScene extends Phaser.Scene {
 
   private drawCard(card: BenchCard, view: BenchView) {
     const pad = 8;
-    const partRows = view.parts.length;
+    const partRows = view.parts.length + (view.moreParts > 0 ? 1 : 0);
     const height = 22 + (view.task ? 22 : 0) + partRows * 13 + pad - 2;
     const top = -height;
     const left = -CARD_W / 2;
@@ -199,7 +242,9 @@ export class HangarScene extends Phaser.Scene {
         .setColor(view.task.waiting ? palette.textMuted : palette.text)
         .setPosition(-left - pad, top + 7)
         .setVisible(true);
-      card.task.setText(view.task.waiting ? `${view.task.label} · espera` : view.task.label).setPosition(left + pad, y).setVisible(true);
+      const suffix = [view.task.waiting ? "espera" : "", view.queued > 0 ? `+${view.queued}` : ""].filter(Boolean).join(" · ");
+      card.task.setPosition(left + pad, y).setVisible(true);
+      fitText(card.task, view.task.label, suffix ? ` · ${suffix}` : "", CARD_W - pad * 2);
       const barY = y + 14;
       const barW = CARD_W - pad * 2;
       g.fillStyle(palette.bgGrid, 1);
@@ -227,15 +272,38 @@ export class HangarScene extends Phaser.Scene {
       card.parts.add([dot, label]);
       y += 13;
     });
+    if (view.moreParts > 0) {
+      const more = this.add
+        .text(left + pad + 11, y + 1, `+${view.moreParts} peças`, { fontFamily: fonts.body, fontSize: "10px", color: palette.textDim })
+        .setResolution(2);
+      card.parts.add(more);
+    }
   }
 
-  private spawnPerson(name: string, index: number) {
-    // Cada pessoa fica numa bancada fixa; quando houver tarefas, `member.taskId` decide qual.
-    const bench = BENCHES[index % BENCHES.length]!;
-    const slot = Math.floor(index / BENCHES.length);
-    const col = bench.col + (slot % 2 === 0 ? 0.45 : 1.15);
-    const spot = iso(col, bench.row + 1.3);
-    this.people.push(new Worker(this, name, index, spot.x, spot.y, slot % 2 === 0));
+  /** Cria quem entrou na equipe, tira quem saiu e leva cada um ao seu posto. */
+  private refreshPeople(state: GameState) {
+    const views = workerViewsFromState(state);
+    const present = new Set(views.map((view) => view.memberId));
+    this.people.forEach((person, id) => {
+      if (present.has(id)) return;
+      person.worker.destroy();
+      this.people.delete(id);
+    });
+    views.forEach((view) => {
+      const key = `${view.bench}:${view.slot}:${view.working}`;
+      const spot = workerSpot(view);
+      let person = this.people.get(view.memberId);
+      if (!person) {
+        // Nasce já no posto: só quem muda de tarefa anda pelo hangar.
+        const worker = new Worker(this, view.name, this.spawned, spot.x, spot.y, spot.facingLeft);
+        this.spawned += 1;
+        person = { worker, key: "" };
+        this.people.set(view.memberId, person);
+      }
+      if (person.key === key) return;
+      person.key = key;
+      person.worker.place(spot.x, spot.y, spot.facingLeft, view.working);
+    });
   }
 
   /** Vida na oficina: faíscas da solda na eletrônica e pó da lixa na asa, no ritmo do relógio. */

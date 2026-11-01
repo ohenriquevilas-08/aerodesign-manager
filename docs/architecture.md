@@ -82,7 +82,13 @@ Coerência esperada da simulação: `no-takeoff` → rotação, folga, parada e 
 
 ### Hangar: `BenchView`
 
-Definido em `src/scenes/hangar/benchView.ts`. Cada bancada (asa, fuselagem, eletrônica, relatório) mostra uma tarefa com barra de progresso e as peças com estado (design §7.2). A cena lê `benchViewsFromState(state)`; hoje ela devolve dados simulados a partir do relógio. Quando a simulação tiver tarefas e peças por bancada, basta trocar o corpo dessa função. O avião no cavalete, no centro, segue o mesmo modelo: `aircraftViewFromState(state)` dá o estado de cada `PartType` (ou `null` se a peça não existe), e a cena pinta a peça (danificada em amarelo, quebrada em vermelho).
+Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `tests/scenes/benchView.test.ts`). Cada bancada (asa, fuselagem, eletrônica, relatório) mostra uma tarefa com barra de progresso e as peças com estado (design §7.2).
+
+- `benchForTask(state, task)`: relatório para `report-chapter` e `document`; peça fabricada ou comprada pelo `effect.part` do catálogo; reparo pela peça alvo; por último o nome da ação (`wing` → asa; `fuselage`/`gear`/`tail` → fuselagem; `motor`/`servo`/`electronic` → eletrônica). O resto (estudo, rifa, divulgação, voos) não aparece em bancada.
+- `PART_BENCH`: asa → asa; fuselagem, empenagem e trem → fuselagem; motor e eletrônica → eletrônica.
+- `benchViewsFromState(state)`: por bancada, a primeira tarefa ativa (senão a primeira esperando) e quantas outras há (`queued`); até 4 peças e o resto em `moreParts`. Progresso = `hoursDone / hoursTotal`; na espera ⌛, tempo passado sobre o prazo **prometido**, travado em 99% (o `readyAt` real não vaza).
+- `aircraftViewFromState(state)`: o avião no cavalete usa a melhor peça de cada `PartType` (maior condição, depois qualidade); `null` se não existe. A cena pinta danificada em amarelo e quebrada em vermelho.
+- `workerViewsFromState(state)`: cada integrante vai para a bancada da tarefa em que está em `assignees`; trabalha se a tarefa está ativa, fica de pé se ela espera prazo. Presidente, quem está sem tarefa ou numa tarefa fora do hangar fica na área livre, na frente. Quem entra na equipe aparece; quem sai some.
 
 ## Convenções
 
