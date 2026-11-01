@@ -34,6 +34,21 @@
   --night: #03070d; /* escuro da noite sobre a oficina e nas janelas */
   --lamp: #ffd98a; /* luz quente das luminárias acesas */
 
+  /* Cenários dos locais de ensaio de voo */
+  --venue-club-top: #1a4a6e;
+  --venue-club-bottom: #5a98b8;
+  --venue-strip-top: #244a5a;
+  --venue-strip-bottom: #7fa89a;
+  --venue-farm-top: #3a3550;
+  --venue-farm-bottom: #c98a5a;
+  --venue-grass: #1d4a3a;
+  --venue-soil: #4a3c2a;
+  --venue-wall: #6a7f8f;
+  --venue-roof: #3b4a58;
+  --venue-barn: #8a3a35;
+  --venue-trunk: #3a2a1c;
+  --venue-leaves: #1f5a3a;
+
   /* Bonecos (MemberLook): tons de pele e de cabelo, calça e sapato */
   --skin-0: #ffdcbd;
   --skin-1: #f0b48a;

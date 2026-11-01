@@ -2,7 +2,7 @@
 // exatos do contrato (docs/phases/fase-5.md) para as cenas andarem; quando a simulação integrar,
 // trocar pelos tipos de `../sim` e apagar este arquivo (ponto de troca no architecture.md, seção Cenas).
 
-import type { AircraftDesign } from "../sim";
+import type { AircraftDesign, FlightPlayback } from "../sim";
 
 /** Campos novos de AircraftDesign (S1). */
 export interface DesignPhase5 {
@@ -68,4 +68,15 @@ export function lookFor(member: { id: string; look?: MemberLook }): MemberLook {
   let h = 7;
   for (const ch of member.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return { skin: h % 6, hair: (h >> 3) % 5, hairColor: (h >> 6) % 6, shirt: STUB_SHIRTS[(h >> 9) % STUB_SHIRTS.length]!, accessory: ACCESSORIES[(h >> 12) % ACCESSORIES.length] };
+}
+
+/**
+ * Ensaio de voo agendado, pronto para tocar (S2: um `FlightPlayback` por carga planejada).
+ * `venueId` escolhe o cenário; `crew` são os bonecos da vinheta de chegada.
+ */
+export interface FlightTestSession {
+  venueId: string;
+  venueName: string;
+  crew: MemberLook[];
+  flights: FlightPlayback[];
 }

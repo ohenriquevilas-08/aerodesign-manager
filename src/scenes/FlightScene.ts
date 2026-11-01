@@ -7,17 +7,24 @@
 import Phaser from "phaser";
 import type { GameStore } from "../app/store";
 import type { BatteryResult, GameState } from "../sim";
+import type { FlightTestSession } from "./phase5";
+import { avatarShapes } from "./people/avatar";
+import { drawAvatarShapes } from "./people/draw";
 import { AircraftSprite } from "./flight/AircraftSprite";
 import { ParticleField } from "./flight/particles";
 import { FLIGHT_RULES, OUTCOME_LABEL, type FlightPlayback } from "./flight/playback";
 import { flightReplay, type ReplayRequest } from "./flight/replayChannel";
 import { autoPlayLatest } from "./flight/results";
+import { COMPETITION_SCENERY, sceneryForVenue, type Scenery } from "./flight/scenery";
+import { BETWEEN_FLIGHTS_S, CREW_WATCH_X, arrivalFrame, sessionProgress, sessionTitle, type ArrivalFrame } from "./flight/session";
 import { buildFlightScript, playbackRate, type FlightEvent, type FlightPose, type FlightScript } from "./flight/script";
 import { css, fonts, palette } from "./palette";
 
 /** Pixels por metro no mundo. */
 const S = 20;
 const px = (m: number) => m * S;
+/** Escala dos bonecos da equipe no mundo (o avatar tem ~46 px; 1,7 m = 34 px). */
+const CREW_SCALE = 0.75;
 const py = (h: number) => -h * S;
 
 const fmt = (value: number, digits = 1) =>
@@ -78,6 +85,13 @@ export class FlightScene extends Phaser.Scene {
   private stamp: Phaser.GameObjects.Container | null = null;
   private card: Phaser.GameObjects.Container | null = null;
 
+  private scenery: Scenery = COMPETITION_SCENERY;
+  /** Ensaio de voo em andamento (C3): vinheta de chegada e depois uma decolagem por carga. */
+  private session: { data: FlightTestSession; index: number; nextAt: number | null; serial: number } | null = null;
+  private arrival: { t: number } | null = null;
+  private crewG!: Phaser.GameObjects.Graphics;
+  private vanG!: Phaser.GameObjects.Graphics;
+
   private script: FlightScript | null = null;
   private time0 = 0;
   private eventIndex = 0;
@@ -131,7 +145,9 @@ export class FlightScene extends Phaser.Scene {
     this.obstacle = this.add.graphics().setDepth(10);
     this.windsock = this.add.graphics().setDepth(10);
     this.unloadG = this.add.graphics().setDepth(30);
-    this.worldLayer.add([this.field, this.obstacle, this.windsock, this.unloadG]);
+    this.vanG = this.add.graphics().setDepth(20);
+    this.crewG = this.add.graphics().setDepth(35);
+    this.worldLayer.add([this.field, this.obstacle, this.windsock, this.vanG, this.unloadG, this.crewG]);
     this.aircraft = new AircraftSprite(this);
     this.aircraft.root.setDepth(40);
     this.worldLayer.add(this.aircraft.root);
@@ -143,8 +159,12 @@ export class FlightScene extends Phaser.Scene {
     this.scale.on("resize", this.layout, this);
 
     this.unsubscribe = flightReplay.subscribe(
-      (request) => this.start(request),
-      () => this.updateSpeedLabel()
+      (request) => {
+        this.endSession();
+        this.start(request);
+      },
+      () => this.updateSpeedLabel(),
+      (session) => this.startSession(session)
     );
     // Seu voo novo toca sozinho; o relógio dispara a cada quadro, então só olha quando os resultados mudam.
     this.unsubscribeStore = this.store.subscribe((state) => this.checkResults(state));
@@ -160,7 +180,8 @@ export class FlightScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
     // Voo que aconteceu com outra tela aberta toca ao entrar; senão, o último replay pedido.
     if (!this.checkResults(this.store.getState())) {
-      if (flightReplay.current) this.start(flightReplay.current);
+      if (flightReplay.session && (!flightReplay.current || flightReplay.session.flights[0] === flightReplay.current.playback)) this.startSession(flightReplay.session);
+      else if (flightReplay.current) this.start(flightReplay.current);
       else this.showIdle();
     }
     // Atalho de depuração: window.__flightScene.seek(t) no console.
@@ -177,8 +198,8 @@ export class FlightScene extends Phaser.Scene {
 
   /** Pula o replay para o instante t (s), disparando os eventos no caminho. Para depuração. */
   seek(t: number) {
-    if (!this.script || !flightReplay.current) return;
-    if (t < this.time0) this.start(flightReplay.current);
+    if (!this.script) return;
+    if (t < this.time0) this.start({ playback: this.script.playback, serial: flightReplay.current?.serial ?? 0 });
     const script = this.script;
     const target = Phaser.Math.Clamp(t, 0, script.duration);
     this.time0 = target;
@@ -194,9 +215,140 @@ export class FlightScene extends Phaser.Scene {
     return this.script?.events.find((event) => event.type === type)?.t ?? null;
   }
 
+  // ------------------------------------------------------------------ ensaio de voo (C3)
+
+  private setScenery(scenery: Scenery) {
+    this.scenery = scenery;
+    this.layout();
+    this.drawField(this.script?.runwayEndM ?? 160);
+  }
+
+  /** Volta ao visual da competição e some com a equipe do ensaio. */
+  private endSession() {
+    if (!this.session && !this.arrival && this.scenery === COMPETITION_SCENERY) return;
+    this.session = null;
+    this.arrival = null;
+    this.crewG.clear();
+    this.vanG.clear();
+    this.aircraft.root.setVisible(true);
+    this.setScenery(COMPETITION_SCENERY);
+  }
+
+  /** Ensaio: cenário do local, vinheta de chegada e depois as decolagens em sequência. */
+  private startSession(data: FlightTestSession) {
+    this.endSession();
+    this.session = { data, index: -1, nextAt: null, serial: 0 };
+    this.setScenery(sceneryForVenue(data.venueId));
+    this.script = null;
+    this.eventIndex = 0;
+    this.tension = 0;
+    this.tapeBroken = 0;
+    this.wrecked = false;
+    this.unloading = false;
+    this.calloutUntil = 0;
+    this.snapCamera = true;
+    this.particles.clear();
+    this.aircraft.reset();
+    this.aircraft.setPayload(data.flights[0]?.payloadKg ?? 0);
+    this.stamp?.destroy();
+    this.stamp = null;
+    this.card?.destroy();
+    this.card = null;
+    this.unloadG.clear();
+    this.hudIdle.setVisible(false);
+    this.hudPhase.setText("");
+    this.hudReadout.setText("");
+    this.hudCallout.setVisible(false);
+    this.hudTimer.setVisible(false);
+    this.hudTimerBar.clear();
+    this.arrival = { t: 0 };
+    this.hudTitle.setText(sessionTitle(data.venueName));
+    this.hudInfo.setText(`${data.flights.length} decolagens planejadas · a equipe chegou ao campo`);
+    this.worldCam.resetFX();
+    this.worldCam.fadeIn(250, 8, 18, 28);
+  }
+
+  private nextSessionFlight() {
+    const session = this.session;
+    if (!session) return;
+    session.index += 1;
+    const playback = session.data.flights[session.index];
+    if (!playback) {
+      this.hudInfo.setText(`Ensaio encerrado · ${session.data.flights.length} decolagens`);
+      return;
+    }
+    session.serial += 1;
+    this.start({ playback, serial: session.serial });
+    this.hudTitle.setText(sessionTitle(session.data.venueName));
+    this.hudInfo.setText(`${sessionProgress(session.index, session.data.flights.length)}   ·   ${this.hudInfo.text}`);
+  }
+
+  /** Posição e desenho da vinheta: van, avião carregado pela equipe. */
+  private updateArrival(dt: number): ArrivalFrame | null {
+    const arrival = this.arrival;
+    const session = this.session;
+    if (!arrival || !session) return null;
+    arrival.t += dt * flightReplay.speed;
+    const frame = arrivalFrame(arrival.t, session.data.crew.length);
+    this.aircraft.root.setVisible(frame.plane.visible);
+    if (frame.done) {
+      this.arrival = null;
+      this.aircraft.root.setVisible(true);
+      this.nextSessionFlight();
+      return null;
+    }
+    return frame;
+  }
+
+  private drawVan(frame: ArrivalFrame) {
+    const g = this.vanG;
+    g.clear();
+    const x = px(frame.van.x);
+    const L = px(5.4);
+    const H = px(2.1);
+    // Roda de chão: a van olha para +x; a traseira (esquerda) abre.
+    g.fillStyle(palette.bg, 0.4).fillEllipse(x, 1, L * 0.95, 6);
+    g.fillStyle(palette.inkMuted, 1).fillRoundedRect(x - L / 2, -H, L, H - 6, 5);
+    g.fillStyle(palette.ink, 1).fillRoundedRect(x + L * 0.12, -H - 2, L * 0.38, H * 0.55, 4);
+    g.fillStyle(palette.bg, 1).fillRect(x + L * 0.2, -H + 3, L * 0.26, H * 0.34);
+    g.fillStyle(palette.accent, 1).fillRect(x - L / 2, -H * 0.55, L, 5);
+    for (const wx of [-L * 0.3, L * 0.3]) {
+      g.fillStyle(palette.bg, 1).fillCircle(x + wx, -6, 8);
+      g.lineStyle(2, palette.inkMuted, 1).strokeCircle(x + wx, -6, 8);
+    }
+    if (frame.van.doorsOpen) {
+      g.fillStyle(palette.borderStrong, 1);
+      g.fillPoints(
+        [new Phaser.Math.Vector2(x - L / 2, -H), new Phaser.Math.Vector2(x - L / 2 - 20, -H + 16), new Phaser.Math.Vector2(x - L / 2 - 20, -10), new Phaser.Math.Vector2(x - L / 2, -6)],
+        true
+      );
+    }
+  }
+
+  /** Equipe: carregando o avião na vinheta, depois parada vendo o voo. */
+  private drawCrew(frame: ArrivalFrame | null) {
+    const session = this.session;
+    const g = this.crewG;
+    g.clear();
+    if (!session) return;
+    session.data.crew.forEach((look, i) => {
+      const watching = !frame;
+      const person = frame?.crew[i];
+      if (person && !person.visible) return;
+      const x = person ? person.x : CREW_WATCH_X - i * 1.1;
+      const walking = person?.walking ?? false;
+      const bob = walking ? Math.abs(Math.sin(this.elapsed * 9 + i)) * 1.4 : 0;
+      const pose = person?.carrying ? "work" : "stand";
+      const shapes = avatarShapes(look, pose, { facing: person?.facing ?? 1, phase: person?.carrying ? 0.25 : 0 });
+      drawAvatarShapes(g, shapes, px(x), -bob, CREW_SCALE);
+      void watching;
+    });
+  }
+
   // ------------------------------------------------------------------ replay
 
   private start(request: ReplayRequest) {
+    this.aircraft.root.setVisible(true);
     const script = buildFlightScript(request.playback);
     this.script = script;
     this.time0 = 0;
@@ -251,7 +403,11 @@ export class FlightScene extends Phaser.Scene {
     let pose: FlightPose = { phase: "ready", x: 0, h: 0, pitchDeg: 0, onGround: true, progress: 0 };
     let rate = 1;
 
-    if (script) {
+    const arrival = this.updateArrival(dt);
+    if (arrival) {
+      // Vinheta: o avião vem nas mãos da equipe até a largada; a câmera fica perto da van e do ponto de espera.
+      pose = { phase: "ready", x: arrival.plane.x, h: arrival.plane.h, pitchDeg: 0, onGround: !arrival.plane.carried, progress: 0 };
+    } else if (script) {
       rate = flightReplay.speed * playbackRate(script.sample(this.time0));
       this.time0 = Math.min(script.duration, this.time0 + dt * rate);
       while (this.eventIndex < script.events.length && script.events[this.eventIndex]!.t <= this.time0) {
@@ -261,6 +417,15 @@ export class FlightScene extends Phaser.Scene {
       pose = script.sample(this.time0);
     }
 
+    const session = this.session;
+    if (session?.nextAt != null && this.elapsed >= session.nextAt) {
+      session.nextAt = null;
+      this.nextSessionFlight();
+    }
+    if (arrival) this.drawVan(arrival);
+    else if (this.vanG && !session) this.vanG.clear();
+    if (session) this.drawCrew(arrival);
+
     const simDt = dt * rate;
     this.placeAircraft(pose, simDt);
     this.emitAmbient(pose, simDt);
@@ -269,7 +434,7 @@ export class FlightScene extends Phaser.Scene {
     this.drawObstacle();
     this.drawWindsock(script?.playback.headwindMs ?? 1);
     if (script && pose.phase === "unload") this.drawUnload(pose, script.playback);
-    this.updateCamera(pose, dt);
+    this.updateCamera(arrival ? { ...pose, x: -9 } : pose, dt);
     this.drawBackdrop();
     this.updateHud(pose, script);
   }
@@ -349,6 +514,8 @@ export class FlightScene extends Phaser.Scene {
       }
       case "end":
         this.showCard(p);
+        if (this.session && this.session.index < this.session.data.flights.length - 1) this.session.nextAt = this.elapsed + BETWEEN_FLIGHTS_S;
+        else if (this.session) this.hudInfo.setText(`Ensaio encerrado · ${this.session.data.flights.length} decolagens`);
         break;
       default:
         break;
@@ -410,11 +577,11 @@ export class FlightScene extends Phaser.Scene {
     this.fieldLabels = [];
 
     // Solo e gramado.
-    g.fillStyle(palette.floor, 1);
+    g.fillStyle(this.scenery.ground, 1);
     g.fillRect(px(-250), 0, px(1100), px(40));
     g.lineStyle(1, palette.border, 1);
     g.lineBetween(px(-250), 0, px(850), 0);
-    g.lineStyle(1, palette.inkDim, 0.45);
+    g.lineStyle(1, this.scenery.grassTuft, 0.45);
     for (let m = -250; m < 850; m += 1.7) {
       if (m > -12 && m < runwayEndM) continue;
       const x = px(m) + ((m * 37) % 7);
@@ -422,7 +589,7 @@ export class FlightScene extends Phaser.Scene {
     }
 
     // Pista: faixa clara com eixo tracejado.
-    g.fillStyle(palette.panelRaised, 1);
+    g.fillStyle(this.scenery.runway, 1);
     g.fillRect(px(-12), 0, px(runwayEndM + 12), 7);
     g.fillStyle(palette.inkDim, 0.7);
     for (let m = -10; m < runwayEndM - 2; m += 4) g.fillRect(px(m), 2.5, px(2), 2);
@@ -648,7 +815,7 @@ export class FlightScene extends Phaser.Scene {
     g.clear();
     const horizon = height / 2 + (0 - this.camY) * this.zoom;
 
-    this.clouds.forEach((cloud) => {
+    this.clouds.slice(0, Math.round(this.clouds.length * this.scenery.clouds)).forEach((cloud) => {
       const span = width + 300;
       const raw = cloud.x - this.camX * this.zoom * cloud.factor * 0.25 + this.cloudDrift * cloud.factor * 10;
       const x = ((raw % span) + span) % span - 150;
@@ -660,11 +827,50 @@ export class FlightScene extends Phaser.Scene {
 
     // Morros distantes no horizonte.
     const hillShift = -this.camX * this.zoom * 0.05;
-    g.fillStyle(palette.bgGrid, 1);
+    g.fillStyle(this.scenery.hills, 1);
     for (let i = -1; i < 7; i += 1) {
       const span = width / 4;
       const x = ((((i * span + hillShift) % (span * 7)) + span * 7) % (span * 7)) - span;
       g.fillEllipse(x, horizon, span * 1.6, 70 + (i % 3) * 22);
+    }
+    this.drawVenueProps(g, horizon, -this.camX * this.zoom * 0.12);
+  }
+
+  /** Construções e árvores do local no horizonte, em paralaxe suave. */
+  private drawVenueProps(g: Phaser.GameObjects.Graphics, horizon: number, shift: number) {
+    const { width } = this.scale;
+    const backdrop = this.scenery.backdrop;
+    if (backdrop === "hills") return;
+    const period = 520;
+    const wrap = (x: number) => ((((x + shift) % period) + period) % period) - 120;
+    for (let tile = -1; tile * period < width + period; tile += 1) {
+      const at = (offset: number) => wrap(offset) + tile * period;
+      if (backdrop === "hangars") {
+        for (const [off, w, h] of [[0, 150, 54], [200, 110, 40], [340, 90, 34]] as const) {
+          const x = at(off);
+          g.fillStyle(palette.venueWall, 1).fillRect(x, horizon - h, w, h);
+          g.fillStyle(palette.venueRoof, 1).fillEllipse(x + w / 2, horizon - h, w, h * 0.5);
+          g.fillStyle(palette.bg, 0.7).fillRect(x + w * 0.3, horizon - h * 0.55, w * 0.4, h * 0.55);
+        }
+      } else if (backdrop === "trees") {
+        for (const [off, h] of [[0, 52], [60, 40], [130, 60], [190, 44], [270, 56], [340, 38], [410, 58]] as const) {
+          const x = at(off);
+          g.fillStyle(palette.venueTrunk, 1).fillRect(x - 2, horizon - h * 0.4, 4, h * 0.4);
+          g.fillStyle(palette.venueLeaves, 1).fillEllipse(x, horizon - h * 0.7, h * 0.8, h * 0.9);
+        }
+      } else {
+        const x = at(40);
+        g.fillStyle(palette.venueBarn, 1).fillRect(x, horizon - 58, 120, 58);
+        g.fillStyle(palette.venueRoof, 1).fillTriangle(x - 8, horizon - 58, x + 128, horizon - 58, x + 60, horizon - 96);
+        g.fillStyle(palette.ink, 0.85).fillRect(x + 44, horizon - 32, 32, 32);
+        g.fillStyle(palette.venueWall, 1).fillRect(x + 150, horizon - 80, 22, 80);
+        g.fillStyle(palette.venueRoof, 1).fillEllipse(x + 161, horizon - 80, 24, 14);
+        for (const off of [300, 360]) {
+          const tx = at(off);
+          g.fillStyle(palette.venueTrunk, 1).fillRect(tx - 2, horizon - 18, 4, 18);
+          g.fillStyle(palette.venueLeaves, 1).fillEllipse(tx, horizon - 34, 34, 40);
+        }
+      }
     }
   }
 
@@ -708,7 +914,7 @@ export class FlightScene extends Phaser.Scene {
     this.worldCam.setSize(width, height);
     this.hudCam.setSize(width, height);
     this.sky.clear();
-    this.sky.fillGradientStyle(palette.bg, palette.bg, palette.panelRaised, palette.panelRaised, 1);
+    this.sky.fillGradientStyle(this.scenery.skyTop, this.scenery.skyTop, this.scenery.skyBottom, this.scenery.skyBottom, 1);
     this.sky.fillRect(0, 0, width, height);
     this.hudPhase.setPosition(width / 2, 14);
     this.hudTimer.setPosition(width / 2, 46);

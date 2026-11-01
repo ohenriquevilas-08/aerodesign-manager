@@ -7,7 +7,7 @@ import Phaser from "phaser";
 import { palette } from "../palette";
 import type { MemberLook } from "../phase5";
 import { avatarShapes, type AvatarPose } from "../people/avatar";
-import { vec } from "./iso";
+import { drawAvatarShapes } from "../people/draw";
 
 /** Escala do boneco no hangar (as peças do avatar têm ~46 px de altura). */
 const SCALE = 0.85;
@@ -61,14 +61,7 @@ export class Worker {
   private redraw() {
     const g = this.gfx;
     g.clear();
-    for (const shape of avatarShapes(this.look, this.pose, { facing: this.facing, phase: this.swing.phase })) {
-      const points = vec(shape.points.map(([x, y]) => ({ x, y })));
-      if (shape.line) {
-        g.lineStyle(1, shape.fill, 1).strokePoints(points, true, true);
-      } else {
-        g.fillStyle(shape.fill, 1).fillPoints(points, true);
-      }
-    }
+    drawAvatarShapes(g, avatarShapes(this.look, this.pose, { facing: this.facing, phase: this.swing.phase }));
   }
 
   private setPose(pose: AvatarPose) {
