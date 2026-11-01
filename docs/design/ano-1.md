@@ -179,6 +179,43 @@ O presidente não fabrica nem calcula: coordena. Gerir a equipe é o mesmo probl
 
 **Teste de validade:** toda mecânica que sai destes princípios precisa ser reconhecível por quem já foi de equipe de aerodesign. Se só fizer sentido como metáfora de gestão de projetos, fica de fora. O tema do jogo é aerodesign e pessoas, não gestão.
 
+### 5.5 Escala da oficina **[PROPOSTA]**
+
+Toda equipe real tem uma planilha de escala: quem está na oficina em cada turno, encaixado entre as aulas. A oficina é pequena, a chave fica com poucos e ninguém lamina sozinho. No jogo, a escala decide **quando** o trabalho de oficina acontece.
+
+**A grade:** semana de 7 dias × 4 turnos.
+
+| Turno | Horário | Observação |
+|---|---|---|
+| Manhã | 8h–12h | Disputa com aula |
+| Tarde | 13h–18h | Disputa com aula |
+| Noite | 19h–22h | Disputa com aula noturna em alguns semestres |
+| Madrugada | 22h–3h | **O único turno em que todos estão livres.** Exige autorização de acesso; cobra sono |
+
+**Madrugada:** na engenharia, cada semestre tem uma grade diferente. Juntar Aerodinâmica, Estruturas e Elétrica no mesmo turno quase sempre só é possível de madrugada. É ali que acontecem a integração do avião e as laminações grandes, que precisam de muita gente ao mesmo tempo.
+
+- **Autorização de acesso:** o prédio fecha às 22h. Para ficar depois disso, a equipe pede autorização ao departamento uma vez (só horas e ⌛ de resposta, como um patrocínio). Sem ela, a madrugada fica bloqueada na grade.
+- **Sono cobra a conta:** quem fez madrugada perde o turno da manhã seguinte (está dormindo ou em aula, sem render) e tem queda de motivação, que aumenta com madrugadas seguidas.
+- **Cansaço gera erro:** trabalho de madrugada sai com qualidade menor (como uma dedicação "rápida" involuntária), maior depois da 1h. Dá para compensar com a dedicação "caprichado".
+- **Virada antes de prazo:** na semana de um prazo (relatório, vídeo de voo), a madrugada rende mais motivação em vez de tirar. A equipe se une na reta final, e qualquer um que já virou noite na oficina reconhece isso. Fora dessas semanas, ela desgasta.
+
+- Cada integrante tem a **grade de aulas** do semestre. Turno com aula fica bloqueado. Em semana de provas, os turnos livres somem; nas férias de julho, todos ficam livres (é o 160% da seção 4.4, agora visível).
+- O presidente monta a escala arrastando pessoas para os turnos. O capitão sugere uma **escala automática**, que o presidente aceita ou ajusta: a atenção do presidente é recurso (§5.4).
+
+**O que a escala muda:**
+
+- **Só tarefa de oficina depende dela:** fabricar, reparar, montar, laminar. Ela só avança nos turnos em que quem está alocado nela está escalado. Estudo, relatório, divulgação e captação continuam fora da oficina, nas horas livres do dia.
+- **Lotação:** a oficina tem **4 lugares** no Ano 1. Turno cheio não aceita mais ninguém.
+- **Chave:** a oficina só abre se alguém com chave estiver no turno (no começo, os capitães). Dar a chave a mais gente é uma decisão simples, sem custo.
+- **Nunca sozinho:** laminação com resina e uso de máquinas exigem duas pessoas no turno (regra de segurança de toda oficina universitária). Com uma pessoa só, a tarefa não anda e o hangar mostra o motivo.
+- **Turno junto ensina:** veterano e novato no mesmo turno é mentoria de graça (§5.3): o novato ganha conhecimento tácito mais rápido.
+- **Escala automática sabe da madrugada:** o capitão só sugere madrugada quando a tarefa precisa de gente que não coincide em nenhum outro turno, e avisa o custo.
+- **Estimativas respeitam a escala:** "~3d restantes" passa a contar só os turnos escalados. Escala vazia = "não anda".
+
+**No hangar:** a cena mostra quem está escalado naquela hora. Fora de turno a oficina fica vazia; à noite, com luz acesa; de madrugada, cheia, com café, pizza e gente cochilando no canto. É o que faz o hangar parecer vivo (referência Habbo).
+
+**Fica de fora do Ano 1:** ampliar a oficina (mais lugares e áreas), troca de turno entre integrantes, ponto e frequência.
+
 ---
 
 ## 6. Projeto da aeronave **[PROPOSTA]**
@@ -450,7 +487,7 @@ Resultados possíveis: voo válido · não passou o obstáculo (inválido) · ro
 | Tela | Tipo | Conteúdo |
 |---|---|---|
 | Central | Painel | Relógio e controles de velocidade, calendário com contagens regressivas, inbox (recados dos capitães, comunicados da CT) |
-| Equipe | Painel | Elenco, alocação, conhecimento por disciplina, seletiva |
+| Equipe | Painel | Elenco, alocação, conhecimento por disciplina, seletiva, escala da oficina (§5.5) |
 | Prancheta | Painel | Decisões de projeto, multiplicadores de pontuação, estimativas com margem |
 | Hangar | **Cena (Phaser)** | Oficina isométrica; integrantes trabalhando nas bancadas; tarefas e peças com barras de progresso e estados |
 | Ensaios | Cena + painel | Escolher ensaio, ver acontecer, pontos da reta de previsão |
