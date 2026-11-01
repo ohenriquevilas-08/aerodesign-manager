@@ -2,7 +2,7 @@
 
 import { TEAM_POOL } from "./content/teams";
 import { createReport } from "./report";
-import { drawLook } from "./looks";
+import { drawLook, TEAM_SHIRT_COLOR } from "./looks";
 import { nextRandom } from "./rng";
 import { createShops } from "./shop";
 import { createWorkshop, drawClassSlots } from "./workshop";
@@ -43,7 +43,7 @@ function founder(id: string, name: string, role: Member["role"], focus: Discipli
     workStreakHours: 0,
     classSlots: [],
     area: role === "president" ? null : focus,
-    look: { skin: "tan", hair: "short", hairColor: "black", shirt: "tee" }
+    look: { skin: 0, hair: 0, hairColor: 0, shirt: TEAM_SHIRT_COLOR }
   };
 }
 

@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { drawCandidates, hireCandidate } from "../../src/sim/selection";
-import { createGame, drawLook, formationView, LOOK_OPTIONS, rosterMembers, type MemberLook } from "../../src/sim";
+import { createGame, drawLook, formationView, LOOK_OPTIONS, rosterMembers, TEAM_SHIRT_COLOR, type MemberLook } from "../../src/sim";
 
 function validLook(look: MemberLook) {
-  expect(LOOK_OPTIONS.skin).toContain(look.skin);
-  expect(LOOK_OPTIONS.hair).toContain(look.hair);
-  expect(LOOK_OPTIONS.hairColor).toContain(look.hairColor);
-  expect(LOOK_OPTIONS.shirt).toContain(look.shirt);
-  if (look.accessory !== undefined) expect(LOOK_OPTIONS.accessory).toContain(look.accessory);
+  const index = (value: number, count: number) => {
+    expect(Number.isInteger(value)).toBe(true);
+    expect(value).toBeGreaterThanOrEqual(0);
+    expect(value).toBeLessThan(count);
+  };
+  index(look.skin, LOOK_OPTIONS.skins);
+  index(look.hair, LOOK_OPTIONS.hairs);
+  index(look.hairColor, LOOK_OPTIONS.hairColors);
+  expect(look.shirt).toBe(TEAM_SHIRT_COLOR);
+  if (look.accessory !== undefined) expect(LOOK_OPTIONS.accessories).toContain(look.accessory);
 }
 
 describe("aparência dos integrantes (S3)", () => {

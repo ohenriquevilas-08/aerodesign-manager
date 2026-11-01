@@ -155,8 +155,12 @@ describe("prancheta com engenharia de sistemas (S1)", () => {
 describe("requisitos da missão e comparação (S1)", () => {
   const ids = ["takeoff-run", "obstacle-clearance", "static-margin", "span", "power", "empty-weight"];
 
-  it("projeto padrão com 10 kg a Hρ 1000 m atende os requisitos", () => {
-    const list = missionRequirements(hangar(), DEFAULT_DESIGN, 1000, 10);
+  /** 80 % da carga máxima que a equipe estima: folga para qualquer sorteio escondido. */
+  const safeTarget = (state: GameState) => 0.8 * estimatePerformance(state, 1000)!.maxPayloadKg.value;
+
+  it("projeto padrão com folga de carga a Hρ 1000 m atende os requisitos", () => {
+    const state = hangar();
+    const list = missionRequirements(state, DEFAULT_DESIGN, 1000, safeTarget(state));
     expect(list.map((item) => item.id)).toEqual(ids);
     for (const item of list) expect(item.status).not.toBe("fail");
     const run = list.find((item) => item.id === "takeoff-run")!;
@@ -185,8 +189,9 @@ describe("requisitos da missão e comparação (S1)", () => {
   it("compara gravado × rascunho: requisitos, massa, multiplicador e nota", () => {
     const state = hangar();
     const draft = make({ span: 3.4 });
-    const result = compareDesigns(state, DEFAULT_DESIGN, draft, 1000, 10);
-    expect(result.targetPayloadKg).toBe(10);
+    const target = safeTarget(state);
+    const result = compareDesigns(state, DEFAULT_DESIGN, draft, 1000, target);
+    expect(result.targetPayloadKg).toBe(target);
     expect(result.a.multiplier).toBeCloseTo(surfacesFactor(2) * spanFactor(2.8), 9);
     expect(result.b.multiplier).toBeLessThan(result.a.multiplier);
     expect(result.b.mass.total.value).toBeGreaterThan(result.a.mass.total.value);

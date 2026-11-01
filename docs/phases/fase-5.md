@@ -48,7 +48,7 @@ Atualizar o design §7.3 junto. Os ensaios de bancada continuam tarefas da ofici
 
 ### S3. Aparência dos integrantes
 
-**Status: feito.** `MemberLook` com `SkinTone`, `HairStyle`, `HairColor`, `ShirtStyle` (só o modelo; a cor é a da equipe), `Accessory?`; opções em `LOOK_OPTIONS`, sorteio em `drawLook`. O presidente também tem `look` (cabeçalho).
+**Status: feito.** `MemberLook = { skin: 0–5, hair: 0–4, hairColor: 0–5, shirt: 0xRRGGBB, accessory?: "glasses" | "cap" | "headband" }` (índices nas paletas das cenas, combinado com Cenas); camiseta = `TEAM_SHIRT_COLOR` (espelha `palette.highlight`). Contagens em `LOOK_OPTIONS`, sorteio em `drawLook`. O presidente também tem `look` (cabeçalho).
 
 - `Member.look: MemberLook` (`skin`, `hair`, `hairColor`, `shirt`, `accessory?`), sorteado pelo `rngState` ao criar o integrante (inicial e seletiva). Candidato também tem `look`.
 - Camiseta usa a cor da equipe.

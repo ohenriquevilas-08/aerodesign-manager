@@ -53,7 +53,7 @@ export {
   type ScheduleFlightTestRequest
 } from "./flightTests";
 export { findVenue, TEST_VENUES, type TestVenue, type VenueScenery } from "./content/testVenues";
-export { drawLook, LOOK_OPTIONS } from "./looks";
+export { drawLook, LOOK_OPTIONS, TEAM_SHIRT_COLOR } from "./looks";
 export {
   estimateReportScore,
   reportChecklist,

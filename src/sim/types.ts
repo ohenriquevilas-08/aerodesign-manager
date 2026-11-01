@@ -93,18 +93,17 @@ export interface Member {
 // Fase 5, S3: aparência dos integrantes (boneco isométrico, docs/phases/fase-5.md C2).
 // ---------------------------------------------------------------------------
 
-export type SkinTone = "light" | "tan" | "brown" | "dark";
-export type HairStyle = "short" | "buzz" | "curly" | "long" | "ponytail" | "bald";
-export type HairColor = "black" | "brown" | "blonde" | "red";
-/** Modelo da camiseta; a cor é sempre a da equipe (paleta das cenas). */
-export type ShirtStyle = "tee" | "polo" | "hoodie";
-export type Accessory = "glasses" | "cap" | "headphones";
+export type Accessory = "glasses" | "cap" | "headband";
 
 export interface MemberLook {
-  skin: SkinTone;
-  hair: HairStyle;
-  hairColor: HairColor;
-  shirt: ShirtStyle;
+  /** Tom de pele, índice 0–5 (a paleta fica nas cenas). */
+  skin: number;
+  /** Estilo de cabelo, 0–4. */
+  hair: number;
+  /** Cor do cabelo, índice 0–5. */
+  hairColor: number;
+  /** Cor da camiseta, 0xRRGGBB: sempre a da equipe (TEAM_SHIRT_COLOR). */
+  shirt: number;
   /** Ausente = nenhum. */
   accessory?: Accessory;
 }
