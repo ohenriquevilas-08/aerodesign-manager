@@ -6,6 +6,7 @@ import { findAction, type ActionDef, type StockItem } from "./content/actions";
 import { BALANCE } from "./content/balance";
 import { findDedication, type Dedication } from "./content/dedication";
 import { crewQuality, documentGain, fabricatedQuality, rollApplicants, rollMultiplier, sponsorChance } from "./outcome";
+import { addReportHours } from "./report";
 import { nextRandom } from "./rng";
 import { drawCandidates, expectedApplicants, findSelectionFormat } from "./selection";
 import { DISCIPLINES } from "./state";
@@ -325,6 +326,15 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
     case "agility":
       body = "A equipe ficou mais rápida na retirada de carga.";
       break;
+    case "report-chapter":
+    case "drawings":
+    case "oral-practice": {
+      const hours = Math.min(task.hoursTotal, Object.values(task.contributions).reduce((sum, value) => sum + value, 0));
+      const written = addReportHours(next, effect.kind, hours, isDiscipline(task.targetId) ? task.targetId : null);
+      next = written.state;
+      body = written.body;
+      break;
+    }
     case "test": {
       const tested = applyTest(next, effect.test, quality, multiplier);
       next = tested.state;

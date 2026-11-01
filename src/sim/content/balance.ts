@@ -154,6 +154,33 @@ export const BALANCE = {
     pilotingPerHour: 0.6
   },
 
+  /**
+   * Relatório (design §9.1). Nota do capítulo = máximo × esforço(horas) × conteúdo, com
+   * conteúdo = base + peso do acervo documentado + peso dos ensaios citados.
+   */
+  report: {
+    /** Horas para chegar a ~63% do esforço possível num capítulo (1 − e^(−h/H)). */
+    chapterHours: 25,
+    drawingsHours: 20,
+    contentBase: 0.35,
+    contentKnowledge: 0.45,
+    contentTests: 0.2,
+    /** Ensaios para ~63% do peso dos ensaios citados. */
+    testsScale: 2,
+    /** Variação (±) da nota da CT: de maxSpread (acervo 0) a minSpread (acervo 100). */
+    minSpread: 0.06,
+    maxSpread: 0.18,
+    /** Envio atrasado (16 a 23/ago): perde esta fração da NR por dia começado. Provisório. */
+    latePenaltyPerDay: 0.05,
+    /** Apresentação oral (0–40): base + comunicação de quem apresenta + acervo + ensaios. */
+    oralBase: 0.25,
+    oralCommunication: 0.35,
+    oralKnowledge: 0.25,
+    oralPractice: 0.15,
+    oralPracticeHours: 10,
+    oralSpread: 0.1
+  },
+
   calendar: {
     /** Aviso de prazo próximo, em dias (design §4.1). */
     warnDays: 7

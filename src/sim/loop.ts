@@ -6,6 +6,7 @@ import { BALANCE } from "./content/balance";
 import { OFFICIAL_CALENDAR } from "./content/calendar2026";
 import { findAction } from "./content/actions";
 import { crewRates } from "./crew";
+import { reportEvents } from "./report";
 import { addMessage, completeTask } from "./tasks";
 import { canWork, clamp, isOverloaded } from "./team";
 import { clockToDate, dateToHours, gameHoursForRealSeconds } from "./time";
@@ -127,6 +128,9 @@ export function step(state: GameState, dt: number): GameState {
       pauses.push({ reason: "deadline-passed", messageId: added.id });
     }
   }
+
+  // 5b. Relatório: envio automático no prazo e apresentação oral (os marcos acima já pausam).
+  next = reportEvents(next, t0, t1);
 
   // 6. Pausa automática: o relógio para e guarda o motivo do primeiro evento do passo.
   const first = pauses[0];
