@@ -6,7 +6,7 @@ Antes de mexer em código, leia:
 
 1. `docs/design/ano-1.md`: o que o jogo é (regras, tempo, custos, competição). Fonte da verdade de design.
 2. `docs/architecture.md`: núcleo técnico (stack, camadas, regras de dependência, fluxo de dados, cenas, convenções). Fonte da verdade técnica.
-3. Só a fase em que for mexer: `docs/phases/fase-2.md`, `fase-3.md` ou `fase-4.md` (contratos e regras de cada fase). Não leia as outras.
+3. Só a fase em que for mexer: `docs/phases/fase-2.md`, `fase-3.md`, `fase-4.md` ou `fase-5.md` (contratos e regras de cada fase). Não leia as outras.
 
 Regras rápidas:
 
