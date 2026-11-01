@@ -32,7 +32,7 @@ import {
 } from "../../sim";
 import { EstimateRow } from "../components/EstimateRow";
 import { Slider } from "../components/Controls";
-import { formatNumber } from "../format";
+import { formatNumber, isCounterfeit } from "../format";
 import { useDerived } from "../hooks";
 import { PhaserStage } from "../PhaserStage";
 
@@ -310,7 +310,10 @@ function PartsPanel({ issues }: { issues: string[] }) {
           const stateId = partState(part.condition);
           return (
             <div key={part.id} class="part-row">
-              <span>{part.label}</span>
+              <span>
+                {part.label}
+                {isCounterfeit(part) ? <span class="seal-counterfeit">fora da especificação</span> : null}
+              </span>
               <span class={`part-state tone-${PART_TONE[stateId]}`}>
                 {PART_STATE_LABELS[stateId]} · {n(part.condition)}%
               </span>

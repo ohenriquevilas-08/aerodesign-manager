@@ -1,6 +1,6 @@
 // Formatação e rótulos da interface. Puro (sem Preact) para poder ser testado em tests/ui/.
 
-import type { ActionSkill, Cost, Crew, Discipline, RiskLevel, Role } from "../sim";
+import type { ActionSkill, Cost, Crew, Discipline, Part, RiskLevel, Role } from "../sim";
 
 /** Número no padrão pt-BR com casas fixas: 1234.5 → "1.234,50". */
 export function formatNumber(value: number, digits = 0): string {
@@ -119,4 +119,28 @@ export function crewText(crew: Crew): string {
   if (crew.min === crew.max) return crew.max === 1 ? "1 pessoa" : `${crew.max} pessoas`;
   const ideal = crew.ideal < crew.max ? ` · ideal ${crew.ideal}` : "";
   return `${crew.min}–${crew.max} pessoas${ideal}`;
+}
+
+/**
+ * Por que o relógio parou (GameState.pause.reason). Chave string porque a simulação acrescenta
+ * motivos ("order", "flight", "competition") sem quebrar a tela; motivo desconhecido = "Pausado".
+ */
+export const PAUSE_REASON_LABEL: Record<string, string> = {
+  start: "Início",
+  manual: "Pausado",
+  "task-done": "Tarefa concluída",
+  "deadline-soon": "Prazo chegando",
+  "deadline-passed": "Prazo hoje",
+  order: "Pedido",
+  flight: "Seu voo",
+  competition: "Competição"
+};
+
+export function pauseReasonLabel(reason: string): string {
+  return PAUSE_REASON_LABEL[reason] ?? "Pausado";
+}
+
+/** Part.counterfeit chega com a Fase 3 da simulação (opcional): peça fora da especificação. */
+export function isCounterfeit(part: Part): boolean {
+  return (part as Part & { counterfeit?: boolean }).counterfeit === true;
 }

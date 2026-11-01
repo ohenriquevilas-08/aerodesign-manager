@@ -234,3 +234,19 @@
   line-height: 1.3;
   color: var(--highlight);
 }
+
+.clock-pause {
+  color: var(--accent);
+}
+
+/* Peça comprada fora da especificação (Part.counterfeit): reprova na inspeção, §9.2. */
+.seal-counterfeit {
+  margin-left: var(--space-2);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--highlight-soft);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}

@@ -28,7 +28,7 @@ import {
 } from "../../sim";
 import { ActionCard, CostLegend, CostTag } from "../components/CostTag";
 import { Meter } from "../components/Controls";
-import { crewText, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatDays, formatNumber, SKILL_LABEL } from "../format";
+import { crewText, isCounterfeit, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatDays, formatNumber, SKILL_LABEL } from "../format";
 
 // Tela Ações (design §4.2 e §8): iniciar uma ação cria uma tarefa. O tempo não pula: a tarefa
 // espera o prazo ⌛ e avança com as horas de quem está alocado, até o limite de pessoas da ação.
@@ -220,7 +220,7 @@ function Composer({ action, onClose }: { action: ActionDef; onClose: () => void 
           <TargetSelect label="Peça" value={target} onChange={setTarget} empty="Nenhuma peça fabricada ainda">
             {parts.map((part) => (
               <option key={part.id} value={part.id}>
-                {part.label} · {PART_STATE_LABELS[partState(part.condition)]} ({Math.round(part.condition)})
+                {part.label} · {PART_STATE_LABELS[partState(part.condition)]} ({Math.round(part.condition)}){isCounterfeit(part) ? " · fora da especificação" : ""}
               </option>
             ))}
           </TargetSelect>
