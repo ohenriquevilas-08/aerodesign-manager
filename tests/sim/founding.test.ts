@@ -119,7 +119,16 @@ describe("found-team", () => {
     expect(refused({ captains: { aerodynamics: "founder-bia", structures: "founder-caio" } })).toContain("outro cargo");
     expect(refused({ captains: { aerodynamics: "founder-marina", structures: "founder-marina" } })).toContain("outro cargo");
     expect(refused({ captains: { aerodynamics: "founder-marina", structures: "founder-caio", conceptual: "founder-rafa" } })).toContain("não é uma área");
-    expect(refused({ captains: { aerodynamics: "founder-marina" } })).toContain("Estruturas");
+  });
+
+  it("aceita capitães vazios ou parciais: só o presidente é obrigatório", () => {
+    const base = createGame({ seed: 3, teamName: "Aero" });
+    const empty = found(base, { captains: {} });
+    expect(empty.founding).toBe(false);
+    expect(empty.members.filter((m) => m.role === "captain")).toHaveLength(0);
+    expect(empty.workshop.keyHolders).toEqual([]);
+    const partial = found(base, { captains: { electrical: "founder-rafa" } });
+    expect(partial.members.filter((m) => m.role === "captain").map((m) => m.id)).toEqual(["founder-rafa"]);
   });
 });
 

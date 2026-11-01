@@ -43,7 +43,8 @@ export type Role = "president" | "captain" | "member" | "trainee";
 export type PresidentAgenda = "report" | "flight" | "funding" | "balanced";
 
 /** A "cara" de um fundador: o que gosta de fazer (content/founders.ts). */
-export type FounderFlair = "design" | "build" | "fly" | "organize";
+/** "management" e "marketing" são inclinações de gestão (sem área de negócio nem árvore de habilidades: Fase 7). */
+export type FounderFlair = "design" | "build" | "fly" | "organize" | "management" | "marketing";
 
 // ---------------------------------------------------------------------------
 // Escala da oficina (design §5.5).

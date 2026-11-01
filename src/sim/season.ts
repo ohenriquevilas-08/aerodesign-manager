@@ -51,7 +51,7 @@ export function actionProblem(state: GameState, action: ActionDef): string | nul
 
 export interface FoundTeamRequest {
   presidentId: string;
-  /** Capitão por disciplina (só as áreas da formação). Aerodinâmica e Estruturas são obrigatórias. */
+  /** Capitão por disciplina (só as áreas da formação). Pode vir vazio: o organograma de fundação não é rígido. */
   captains: Partial<Record<Discipline, string>>;
   teamName?: string;
 }
@@ -81,7 +81,6 @@ export function foundTeam(state: GameState, request: FoundTeamRequest): GameStat
     if (used.has(memberId)) return warn(state, `${captain.name} já tem outro cargo: cada fundador assume um só.`);
     used.add(memberId);
   }
-  if (!request.captains.aerodynamics || !request.captains.structures) return warn(state, "Escolha os capitães de Aerodinâmica e de Estruturas.");
 
   const captainArea = new Map(entries.map(([discipline, memberId]) => [memberId, discipline]));
   const members = state.members.map((member): Member => {
