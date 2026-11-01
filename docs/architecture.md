@@ -219,17 +219,64 @@ Cada frente mexe só nas suas pastas. Mudança em `sim/types.ts` ou `sim/command
 
 Catálogo das lojas em `sim/content/shops.ts` (design §8.4): `SHOPS` (frete normal e expresso por loja, taxa de imposto), `PRODUCTS` (o que cada produto vira ao chegar: peça, estoque ou equipamento) e `LISTINGS` (preço, prazo prometido, qualidade de origem, chance de taxação e de falsificação, condição de usado, estoque inicial, avaliações). Novos consumíveis: `balsa-light`, `balsa` (média), `balsa-hard`, `carbon-fiber`, `resin`; novo equipamento: `thrust-stand`.
 
-### Campos opcionais e motivos de pausa (Fase 3)
+### Motivos de pausa novos (`PauseReason`)
 
-- `Part.counterfeit?`: veio fora da especificação (falsificado). Servo falsificado instalado reprova na inspeção; o relatório final lista as peças.
-- `Aircraft.evidence?` (ensaios acumulados), `Aircraft.flightVideoAt?` (vídeo válido; sem ele não voa), `AircraftHidden.bias?` (erro da opinião da equipe; nunca mostrar).
-- `ReportState.oralPracticeHours?`, `Order.customsPaid?`, `CompetitionState.suspended?` (equipe fora de uma bateria: rival que caiu, ou você abortando com trem alto).
-- `PauseReason` ganhou `"order"` (retido/entregue), `"flight"` (seu voo: tocar o replay) e `"competition"` (início, vez perdida, resultado final).
+| Motivo | Quando | `messageId` aponta para |
+|---|---|---|
+| `"order"` | Pedido retido na fiscalização ou entregue | "Retido na fiscalização: …" / "Pedido entregue: …" |
+| `"flight"` | Seu voo na competição: a UI toca o replay (último `BatteryResult` de `PLAYER_TEAM_ID`) | "Bateria N: seu voo com X kg" |
+| `"competition"` | Início da competição, vez perdida por pendência da inspeção, resultado final | Mensagem da CT correspondente |
 
-### Catálogo de ações (Fase 3)
+### Campos opcionais novos
 
-- `report-chapter` exige `targetId` = disciplina. Novas: `drawings` (plantas), `oral-rehearsal`, `build-fuselage` (balsa dura), `build-tail` (balsa leve), `build-gear` (fibra de carbono), `test-structural` (precisa de asa), `test-thrust` (grupo motopropulsor; com `thrust-stand` rende mais), `test-flight` e `flight-video` (avião completo). Ensaios estreitam margens, citam o ensaio nos capítulos (`testsCited`) e desgastam ou danificam peças; voos ensinam pilotagem.
-- `buy-*` e `express-shipping` saíram: compras só pelo navegador (`place-order`). O tipo `"waiting-task"` continua no union de `ActionTarget`, sem ação que o use.
+| Campo | Significado | Mostrar? |
+|---|---|---|
+| `Part.counterfeit?` | Veio fora da especificação de uma loja. Servo falsificado instalado reprova na inspeção (§9.2); o resultado final lista as peças | Só depois da inspeção ou no resultado final |
+| `Aircraft.evidence?` | Ensaios acumulados `{ emptyWeight, payload, takeoff }`; estreitam as margens | Pode (ex.: "3 ensaios de voo") |
+| `Aircraft.flightVideoAt?` | Momento do voo filmado válido; sem ele não voa na competição | Sim |
+| `AircraftHidden.bias?` | Erro da opinião da equipe (−1 a 1, em frações da margem) | **Nunca mostrar**, como o resto de `hidden` |
+| `ReportState.oralPracticeHours?` | Horas de ensaio da apresentação oral | Sim |
+| `Order.customsPaid?` | Imposto já pago | Sim |
+| `CompetitionState.suspended?` | Equipe fora de uma bateria (id → bateria): rival que caiu, ou você abortando com trem alto | Sim |
+
+### Ações novas e o que exigem
+
+Sem a exigência, `start-action` recusa com `warning`. Peça quebrada (condição < 20) conta como faltando. Avião incompleto dá texto nomeando as peças: "Avião incompleto para voar. Falta o trem de pouso."
+
+| Ação | Custo ⏱ ◆ | Equipe | Exige | Efeito |
+|---|---|---|---|---|
+| `report-chapter` (mudou) | 30 h | 1 | `targetId` = disciplina | Horas no capítulo (até o envio) |
+| `drawings` | 20 h | 1–2 | — | Horas de plantas (10 pts em Conceitual e 10 em Estruturas) |
+| `oral-rehearsal` | 6 h | 1–3 | — | Horas de ensaio da oral (até 17/out) |
+| `build-fuselage` | 40 h, ◆ 120 | 1–3 | 1 `balsa-hard` | Peça `fuselage` |
+| `build-tail` | 24 h, ◆ 60 | 1–2 | 1 `balsa-light` | Peça `tail` |
+| `build-gear` | 16 h, ◆ 80 | 1–2 | 1 `carbon-fiber` | Peça `landingGear` |
+| `test-structural` | 8 h, ◆ 20 | 2–3 | Projeto + asa utilizável | Evidência de peso vazio; cita em Estruturas e Cargas; desgasta a asa ou a danifica |
+| `test-thrust` | 4 h, ◆ 10 | 1–2 | Projeto + grupo motopropulsor | Evidência de decolagem (mais com `thrust-stand`, que também mede a potência); cita em Elétrico e Desempenho |
+| `test-flight` (mudou) | 12 h, ◆ 30 | 2–4 | Avião completo | Evidência de carga e decolagem; cita em Desempenho, Aerodinâmica e Estabilidade; ensina pilotagem; pode danificar uma peça |
+| `flight-video` (mudou) | 12 h, ◆ 30 | 2–4 | Avião completo | Sem incidente e até 27/set, grava `flightVideoAt` |
+
+Avião completo = asa, fuselagem, trem de pouso, grupo motopropulsor, eletrônica e, com N ≥ 2, empenagem. `buy-*` e `express-shipping` saíram: compras só pelo navegador (`place-order`). O tipo `"waiting-task"` continua no union de `ActionTarget`, sem ação que o use.
+
+### `BALANCE.competition` (provisório)
+
+| Chave | Valor | Uso |
+|---|---|---|
+| `realSecondsPerGameHour` | 20 | Nas janelas de voo, 1 h de jogo = 20 s reais em 1× (fora delas, o ritmo normal) |
+| `flightDays`, `windowStartHour`, `windowEndHour` | 3, 7, 17 | Voos nos 3 dias depois do marco (23–25/out), das 7h às 17h |
+| `slotMinutes` | 12 | Uma decolagem a cada 12 min |
+| `maxBatteries` | 7 | Teto de baterias (a Tabela 10.1 tem 7 linhas) |
+| `weather` | 945 hPa ± 2; 16 °C às 6h a 29 °C às 15h, ± 2 °C por dia; vento de proa 1,5 ± 2 m/s, +1 à tarde | Clima de São José dos Campos; Hρ ~750 m de manhã a ~1200 m à tarde |
+| `climbBase`, `climbGain` | 0,08; 0,2 | Altura aos 55 m = (55 − corrida) × gradiente; abaixo de 0,9 m rompe a fita (~47 m de corrida) |
+| `rotationNoise`, `clearanceNoise` | 5%; 0,1 m | Sorteio na corrida e na folga |
+| `stopBase`, `stopPerKg`, `stopPerHeadwind`, `stopNoise` | 20 m; 1,2; 3; 6 | Parada desde o toque |
+| `landingZoneM` | 60 | Parar depois disso = `landing-out` (sem BPO) |
+| `unloadBase`, `unloadGain`, `unloadNoise` | 34 s; 20; 3 | Retirada com as 2 pessoas mais ágeis |
+| `crashChance`, `damageChance`, `landingOutChance` | 2%; 5%; 8% | × risco (piloto, estabilidade, condição das peças; 1 ≈ equipe mediana) |
+| `stallPerExcess` | 4 | Acima da sustentação: chance de queda = 4 × excesso relativo de massa |
+| `lateChangePenalty` | 5 | Pontos por alteração de projeto depois de 27/set (Apêndice 6) |
+
+Piloto: o melhor `piloting` da equipe ou o piloto da CT (`BALANCE.tests.ctPilot` = 55), o que for maior.
 
 ### Regras que a Simulação precisa respeitar
 

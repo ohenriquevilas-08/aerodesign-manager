@@ -8,7 +8,7 @@ import {
   densityRatio,
   installedParts,
   maxPayloadKg,
-  missingParts,
+  missingPartsText,
   PART_TYPE_LABELS,
   playerFlightModel,
   rotationDistanceM,
@@ -275,8 +275,8 @@ const SCORED: ReadonlySet<FlightOutcome> = new Set(["valid", "landing-out", "dam
 export function inspectionIssues(state: GameState): string[] {
   if (!state.aircraft) return ["Sem avião: a equipe não tem projeto aprovado."];
   const issues: string[] = [];
-  const missing = missingParts(state);
-  if (missing.length) issues.push(`Avião incompleto: falta ${missing.join(", ").toLowerCase()}.`);
+  const missing = missingPartsText(state);
+  if (missing) issues.push(`Avião incompleto. ${missing}`);
   if (state.aircraft.flightVideoAt == null) issues.push("Sem vídeo de voo válido (27/set): a CT não libera o voo.");
   const electronics = installedParts(state).electronics;
   if (electronics?.counterfeit) issues.push(`${electronics.label} sem certificação de fábrica (falsificados): troque antes de voar.`);

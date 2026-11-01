@@ -160,7 +160,12 @@ describe("ensaios", () => {
     expect(state.tasks).toHaveLength(0);
     expect(state.warning?.text).toContain("asa");
     const flight = applyCommand({ ...withDesign(), credits: 100 }, { type: "start-action", actionId: "test-flight" });
-    expect(flight.warning?.text).toContain("incompleto");
+    expect(flight.warning?.text).toBe(
+      "Avião incompleto para voar. Faltam a asa, a fuselagem, a empenagem, o trem de pouso, o grupo motopropulsor e a eletrônica."
+    );
+    const noGear = withParts(withDesign(), PART_TYPES.filter((t) => t !== "landingGear").map((t) => part(t)));
+    const one = applyCommand({ ...noGear, credits: 100 }, { type: "start-action", actionId: "flight-video" });
+    expect(one.warning?.text).toBe("Avião incompleto para voar. Falta o trem de pouso.");
   });
 
   it("ensaio estrutural soma evidência, cita nos capítulos e desgasta a asa", () => {

@@ -186,6 +186,31 @@ export function missingParts(state: GameState): string[] {
     .map((type) => PART_TYPE_LABELS[type]);
 }
 
+/** Artigo de cada peça, para frases como "Falta o trem de pouso". */
+const PART_ARTICLES: Record<PartType, string> = {
+  wing: "a",
+  fuselage: "a",
+  tail: "a",
+  landingGear: "o",
+  powertrain: "o",
+  electronics: "a"
+};
+
+/**
+ * Frase do que falta para o avião voar, para warnings e inspeção: "Falta o trem de pouso." ou
+ * "Faltam a asa e o trem de pouso."; null se está completo. Peça quebrada conta como faltando.
+ */
+export function missingPartsText(state: GameState): string | null {
+  if (!state.aircraft) return "Falta o projeto da aeronave na prancheta.";
+  const installed = installedParts(state);
+  const missing = requiredParts(state.aircraft.design).filter((type) => !installed[type]);
+  if (missing.length === 0) return null;
+  const names = missing.map((type) => `${PART_ARTICLES[type]} ${PART_TYPE_LABELS[type].toLowerCase()}`);
+  const list = names.length === 1 ? names[0]! : `${names.slice(0, -1).join(", ")} e ${names.at(-1)!}`;
+  const broken = missing.some((type) => state.parts.some((part) => part.type === type));
+  return `${names.length === 1 ? "Falta" : "Faltam"} ${list}${broken ? " (peça quebrada não conta)" : ""}.`;
+}
+
 /** Avião real da equipe: projeto × desvios escondidos × peças instaladas. Nunca mostrar. */
 export function playerFlightModel(state: GameState): FlightModel | null {
   const aircraft = state.aircraft;
@@ -325,8 +350,8 @@ export function testProblem(state: GameState, kind: TestKind): string | null {
   const installed = installedParts(state);
   if (kind === "structural") return installed.wing ? null : "O ensaio estrutural precisa de uma asa inteira.";
   if (kind === "thrust") return installed.powertrain ? null : "O ensaio de bancada precisa do grupo motopropulsor.";
-  const missing = missingParts(state);
-  return missing.length === 0 ? null : `Avião incompleto para voar: falta ${missing.join(", ").toLowerCase()}.`;
+  const missing = missingPartsText(state);
+  return missing === null ? null : `Avião incompleto para voar. ${missing}`;
 }
 
 /** Disciplinas cujo capítulo pode citar o ensaio (11.1: Estruturas e ensaios estruturais etc.). */

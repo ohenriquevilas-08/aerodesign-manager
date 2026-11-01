@@ -221,6 +221,7 @@ export interface AircraftHidden {
   /**
    * Erro da opinião da equipe, de −1 a 1, em frações da margem: a estimativa fica em
    * real + bias × margem × BALANCE.aircraft.biasShare. Ensaios sorteiam de novo. Ausente = 0.
+   * NUNCA mostrar, como o resto de `hidden`: revelaria o desempenho real.
    */
   bias?: { emptyWeight: number; payload: number; takeoff: number };
 }
