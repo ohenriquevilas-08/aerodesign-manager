@@ -5,13 +5,13 @@ import {
   CANDIDATE_COMMUNICATION,
   CANDIDATE_GRADUATIONS,
   CANDIDATE_HOURS_PER_DAY,
-  CANDIDATE_NAMES,
   SELECTION_FORMATS,
   type SelectionFormat,
   type SelectionFormatDef
 } from "./content/selection";
 import { TRAINEE_END } from "./content/season2026";
 import { drawLook } from "./looks";
+import { drawPersonName } from "./naming";
 import { dateToHours } from "./time";
 import { nextRandom } from "./rng";
 import { DISCIPLINES, zeroKnowledge } from "./state";
@@ -53,9 +53,9 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
   let nextId = state.nextId;
   const drawn: Candidate[] = [];
   for (let i = 0; i < count; i += 1) {
-    const free = CANDIDATE_NAMES.filter((name) => !taken.has(name));
-    if (free.length === 0) break;
-    const name = pick(free);
+    const drawnName = drawPersonName(rng, taken);
+    rng = drawnName.rngState;
+    const name = drawnName.name;
     taken.add(name);
     const focus = pick(DISCIPLINES);
     const knowledge = zeroKnowledge();

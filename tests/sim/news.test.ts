@@ -60,7 +60,8 @@ describe("notícias", () => {
     expect(state.shops.stock[listingId("hangar-aeromodelista", "thrust-stand")]).toBe(0);
     state = step(state, 24);
     const stock = state.news.find((item) => item.kind === "stock" && item.shopId === "hangar-aeromodelista");
-    expect(stock?.title).toContain("esgotado");
+    // A reposição diária (BALANCE.shop.restockChancePerDay) pode ter devolvido uma unidade neste dia.
+    expect(stock?.title).toMatch(/esgotado|Última unidade/);
   });
 
   it("a deadline coming up makes a deadline news item", () => {

@@ -136,7 +136,7 @@ describe("presidente e agenda", () => {
   it("presidentView mostra nome, agenda e o mês", () => {
     const state = foundedGame({ seed: 4, teamName: "T" });
     const view = presidentView(state)!;
-    expect(view).toMatchObject({ id: "founder-bia", name: "Bia Nogueira", agenda: "funding", agendaLabel: "Captação", status: "none", loggedDays: 0 });
+    expect(view).toMatchObject({ id: "founder-bia", name: state.members.find((m) => m.id === "founder-bia")!.name, agenda: "funding", agendaLabel: "Captação", status: "none", loggedDays: 0 });
   });
 
   it("tarefa da agenda concluída dá bônus de motivação à equipe; fora da agenda, não", () => {
@@ -265,5 +265,26 @@ describe("trainees", () => {
     expect(stayers(tired)).toBeLessThan(20);
     // Quem desiste sai da equipe inteira.
     expect(tired.members.length).toBe(4 + stayers(tired));
+  });
+});
+
+describe("nomes de pessoa", () => {
+  it("fundadores, candidatos e trainees têm nome e sobrenome sorteados, sem repetir e sem rótulo de cargo", () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const game = createGame({ seed, teamName: "T" });
+      const state = drawCandidates({ ...game, outreach: 200 }, "broad", 25);
+      const names = [...state.members, ...state.candidates].map((p) => p.name);
+      expect(new Set(names).size).toBe(names.length);
+      for (const name of names) expect(name).toMatch(/^\p{Lu}\p{L}+ \p{Lu}\p{L}+$/u);
+      expect(names.some((n) => /Capit|President|Trainee/.test(n))).toBe(false);
+    }
+    // Reproduzível pelo seed e diferente entre seeds.
+    expect(createGame({ seed: 1, teamName: "T" }).members.map((m) => m.name)).toEqual(createGame({ seed: 1, teamName: "T" }).members.map((m) => m.name));
+    expect(createGame({ seed: 1, teamName: "T" }).members.map((m) => m.name)).not.toEqual(createGame({ seed: 2, teamName: "T" }).members.map((m) => m.name));
+  });
+
+  it("o orientador tem nome padrão editável na criação", () => {
+    expect(createGame({ seed: 1, teamName: "T" }).advisor.name).toBe("Helena Prado");
+    expect(createGame({ seed: 1, teamName: "T", advisorName: "Otávio Lins" }).advisor.name).toBe("Otávio Lins");
   });
 });

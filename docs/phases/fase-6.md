@@ -31,6 +31,10 @@ Tudo exportado por `src/sim/index.ts`. `GameState.version` = 7.
 - O organograma de fundação não é rígido: em `found-team`, `captains` (`Partial<Record<Discipline, memberId>>`) pode vir vazio ou parcial; só o presidente é obrigatório (antes exigia Aerodinâmica e Estruturas). Cada fundador ainda assume um só cargo.
 - `FounderFlair` ganhou `"management"` e `"marketing"` (inclinação de gestão, sem efeito no Ano 1). Nenhum fundador usa ainda; áreas de negócio e árvore de habilidades ficam para a Fase 7.
 
+### Nomes de pessoa (segundo ajuste do Henrique)
+
+Todo aluno tem nome e sobrenome brasileiros, nunca o cargo. `content/names.ts` (`FIRST_NAMES`, `LAST_NAMES`) e `naming.ts` (`drawPersonName`) sorteiam pelo `rngState`, sem repetir o nome completo na equipe e, quando dá, sem repetir o primeiro nome. Valem para os fundadores (sorteados em `createGame`; `FounderDef` não tem mais `name`, e os ids `founder-*` são só chaves estáveis de perfil), os candidatos da seletiva (que viram trainees) e os trainees. `CANDIDATE_NAMES` saiu de `content/selection.ts`. O cargo é rótulo à parte (`Member.role`). O orientador tem nome padrão "Helena Prado"; `createGame({ advisorName })` aceita outro para a UI deixar editar na abertura.
+
 ### Valores **[PROPOSTA]** em `BALANCE`
 
 `season.summerFactor` 0,5 · `season.unreadPenaltyFactor` 2 · `trainee.hoursRequired` 24, `knowledgePerHour` 0,6, `withoutCaptainShare` 0,5, `stayChanceAtZero` 0,4, `stayChanceAtFull` 0,95 · `agenda.alignedBoost` 1, `idleDays` 3, `idlePenalty` 3, `logDays` 30 · `advisor.startReputation` 10, `reportSubmitted` 3, `competitionBase` 2, `competitionPerPlaceFromLast` 0,25.

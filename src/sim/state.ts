@@ -3,6 +3,7 @@
 import { BALANCE } from "./content/balance";
 import { FOUNDERS, type FounderDef } from "./content/founders";
 import { TEAM_POOL } from "./content/teams";
+import { drawPersonName } from "./naming";
 import { createReport } from "./report";
 import { drawLook, TEAM_SHIRT_COLOR } from "./looks";
 import { nextRandom } from "./rng";
@@ -26,12 +27,12 @@ export const zeroKnowledge = (): Record<Discipline, number> =>
   Object.fromEntries(DISCIPLINES.map((discipline) => [discipline, 0])) as Record<Discipline, number>;
 
 /** Aluno fundador (content/founders.ts): conhecimento inicial baixo no foco e uma "cara". Ninguém começa com cargo. */
-function founderMember(def: FounderDef): Member {
+function founderMember(def: FounderDef, name: string): Member {
   const knowledge = zeroKnowledge();
   knowledge[def.focus] = def.knowledge;
   return {
     id: def.id,
-    name: def.name,
+    name,
     role: "member",
     knowledge,
     fabrication: def.fabrication,
@@ -83,8 +84,13 @@ export function drawField(seed: number): { rivals: RivalTeam[]; rngState: number
 export function createGame(options: { seed: number; teamName: string; advisorName?: string }): GameState {
   const { rivals, rngState: fieldRng } = drawField(options.seed);
   let rngState = fieldRng;
+  const taken = new Set<string>();
   const members = FOUNDERS.map((def) => {
-    const member = founderMember(def);
+    // Nome de pessoa sorteado; o papel é rótulo separado.
+    const drawnName = drawPersonName(rngState, taken);
+    taken.add(drawnName.name);
+    rngState = drawnName.rngState;
+    const member = founderMember(def, drawnName.name);
     const looks = drawLook(rngState);
     const drawn = drawClassSlots(looks.rngState);
     rngState = drawn.rngState;

@@ -109,7 +109,7 @@ describe("a ação agendada começa sozinha", () => {
     const message = state.inbox.find((m) => m.id === state.pause?.messageId)!;
     expect(message.title).toBe("Ação agendada não começou: Organizar rifa");
     expect(message.body).toContain("Faltou gente");
-    expect(message.body).toContain("Marina Alves");
+    expect(message.body).toContain(state.members.find((m) => m.id === "founder-marina")!.name);
   });
 
   it("sem caixa ou material: não começa e avisa com o motivo do catálogo", () => {

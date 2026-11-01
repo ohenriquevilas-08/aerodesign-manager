@@ -67,38 +67,3 @@ export const CANDIDATE_AGILITY: Range = [20, 70];
 export const CANDIDATE_COMMUNICATION: Range = [10, 60];
 export const CANDIDATE_GRADUATIONS = ["2027.2", "2028.1", "2028.2", "2029.1", "2029.2", "2030.1"] as const;
 
-/** Nomes fictícios para candidatos. */
-export const CANDIDATE_NAMES = [
-  "Ana Ribeiro",
-  "Bruno Tavares",
-  "Carla Menezes",
-  "Diego Furtado",
-  "Elisa Prado",
-  "Felipe Arantes",
-  "Gabriela Lins",
-  "Heitor Campos",
-  "Isabela Rocha",
-  "João Pedro Viana",
-  "Larissa Moura",
-  "Marcos Teles",
-  "Natália Duarte",
-  "Otávio Brandão",
-  "Paula Siqueira",
-  "Rafael Coutinho",
-  "Sofia Barreto",
-  "Thiago Nunes",
-  "Vitória Assis",
-  "Yuri Fontana",
-  "Alice Paranhos",
-  "Bernardo Quintela",
-  "Camila Sardinha",
-  "Daniel Vasconcelos",
-  "Eduarda Mattos",
-  "Fábio Lacerda",
-  "Giovana Peixoto",
-  "Henrique Salles",
-  "Iara Mendonça",
-  "Lucas Bittencourt",
-  "Manuela Freitas",
-  "Nicolas Amaral"
-] as const;

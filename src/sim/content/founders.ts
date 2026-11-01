@@ -53,7 +53,6 @@ export function frontOf(actionId: string): Exclude<PresidentAgenda, "balanced"> 
 
 export interface FounderDef {
   id: string;
-  name: string;
   flair: FounderFlair;
   /** Frase da carta: o que gosta de fazer. */
   likes: string;
@@ -69,7 +68,6 @@ export interface FounderDef {
 export const FOUNDERS: readonly FounderDef[] = [
   {
     id: "founder-marina",
-    name: "Marina Alves",
     flair: "design",
     likes: "Passa horas em polares e planilhas de dimensionamento.",
     agenda: "report",
@@ -81,7 +79,6 @@ export const FOUNDERS: readonly FounderDef[] = [
   },
   {
     id: "founder-caio",
-    name: "Caio Ferreira",
     flair: "build",
     likes: "Só fica feliz com resina nas mãos e uma asa na bancada.",
     agenda: "flight",
@@ -93,7 +90,6 @@ export const FOUNDERS: readonly FounderDef[] = [
   },
   {
     id: "founder-bia",
-    name: "Bia Nogueira",
     flair: "organize",
     likes: "Faz rifa, convence patrocinador e sabe o nome de todo mundo.",
     agenda: "funding",
@@ -105,7 +101,6 @@ export const FOUNDERS: readonly FounderDef[] = [
   },
   {
     id: "founder-rafa",
-    name: "Rafa Tavares",
     flair: "fly",
     likes: "Pilota aeromodelo desde o ensino médio e quer ver o avião no ar.",
     agenda: "balanced",
