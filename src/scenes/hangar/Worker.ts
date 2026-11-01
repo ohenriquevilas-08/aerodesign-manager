@@ -15,6 +15,7 @@ export class Worker {
   private readonly armTween: Phaser.Tweens.Tween;
   private side: 1 | -1;
   private move: Phaser.Tweens.Tween | null = null;
+  private zzz: Phaser.GameObjects.Text | null = null;
 
   constructor(scene: Phaser.Scene, name: string, index: number, x: number, y: number, facingLeft: boolean) {
     const shirt = SHIRTS[index % SHIRTS.length]!;
@@ -78,6 +79,25 @@ export class Worker {
     });
   }
 
+  /** Cochilando no canto (madrugada): tronco encostado, braço parado e "z" subindo. */
+  setNapping(napping: boolean) {
+    this.torso.setRotation(napping ? -0.5 : 0);
+    if (!napping) {
+      if (this.zzz) this.scene.tweens.killTweensOf(this.zzz);
+      this.zzz?.destroy();
+      this.zzz = null;
+      return;
+    }
+    this.armTween.pause();
+    this.arm.setRotation(0);
+    if (this.zzz) return;
+    this.zzz = this.scene.add
+      .text(8, -40, "z", { fontFamily: fonts.mono, fontSize: "10px", color: palette.textMuted })
+      .setResolution(2);
+    this.root.add(this.zzz);
+    this.scene.tweens.add({ targets: this.zzz, y: -54, x: 14, alpha: 0, duration: 1600, repeat: -1, ease: "Sine.easeOut" });
+  }
+
   /** Vai até (x, y) no piso; trabalhando mexe o braço, parado fica com o braço junto ao corpo. */
   place(x: number, y: number, facingLeft: boolean, working: boolean) {
     this.side = facingLeft ? -1 : 1;
@@ -104,6 +124,7 @@ export class Worker {
   }
 
   destroy() {
+    this.setNapping(false);
     this.move?.stop();
     this.armTween.remove();
     this.root.destroy();

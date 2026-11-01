@@ -398,3 +398,51 @@ export function drawCrateLid(g: Phaser.GameObjects.Graphics) {
   g.lineBetween(a.x, a.y, b.x, b.y);
 }
 
+/** Janelas da parede esquerda (linhas inicial e final), para a luz de dentro e de fora. */
+const WINDOWS: readonly [number, number][] = [
+  [1.2, 2.8],
+  [4.2, 5.8]
+];
+/** Luminárias de parede, em coluna da parede do fundo. */
+export const WALL_LAMPS: readonly number[] = [3.4, 9];
+
+/** Noite lá fora: vidro escuro por cima das janelas. */
+export function drawNightWindows(g: Phaser.GameObjects.Graphics) {
+  WINDOWS.forEach(([r0, r1]) => {
+    g.fillStyle(palette.night, 0.85);
+    g.fillPoints(colWallQuad(-0.5, r0, r1, 44, 96), true);
+    // Reflexo fraco da luz de dentro no vidro.
+    g.fillStyle(palette.lamp, 0.06);
+    g.fillPoints(colWallQuad(-0.5, r0 + 0.1, r0 + 0.5, 50, 90), true);
+  });
+}
+
+/** Onde fica a pizza e o café de madrugada: na área livre, no piso. */
+export const SNACK_SPOT = { col: 5.9, row: 6.55 };
+/** Canto onde alguém cochila: borda direita do piso, entre a fuselagem e o relatório (fora dos cartões). */
+export const NAP_SPOT = { col: 9.25, row: 3.8 };
+
+/** Caixa de pizza aberta e garrafa de café com dois copos. */
+export function drawSnacks(g: Phaser.GameObjects.Graphics) {
+  const { col, row } = SNACK_SPOT;
+  const cardboard = shade(palette.highlight, 0.35);
+  // Caixa aberta: fundo, pizza com fatias faltando e a tampa em pé atrás.
+  isoBox(g, col, col + 0.6, row, row + 0.6, 0, 3, { top: shade(cardboard, 0.2), left: shade(cardboard, 0.35), right: shade(cardboard, 0.5) });
+  const center = iso(col + 0.3, row + 0.3, 3);
+  g.fillStyle(palette.warn, 1);
+  g.slice(center.x, center.y, 12, 0.6, Math.PI * 1.7, false);
+  g.fillPath();
+  g.fillStyle(palette.danger, 0.9);
+  [
+    [-4, -1],
+    [3, 2],
+    [-1, 3]
+  ].forEach(([dx, dy]) => g.fillCircle(center.x + dx!, center.y + dy!, 1.4));
+  g.fillStyle(cardboard, 1);
+  g.fillPoints(vec([iso(col, row, 3), iso(col + 0.6, row, 3), iso(col + 0.6, row, 22), iso(col, row, 22)]), true);
+  // Garrafa térmica e copos.
+  isoBox(g, col + 0.85, col + 1.0, row + 0.1, row + 0.25, 0, 16, { top: palette.ink, left: palette.inkMuted, right: palette.inkDim });
+  isoBox(g, col + 0.8, col + 0.9, row + 0.4, row + 0.5, 0, 6, { top: shade(palette.highlight, 0.6), left: palette.ink, right: palette.inkMuted });
+  isoBox(g, col + 1.0, col + 1.1, row + 0.45, row + 0.55, 0, 6, { top: shade(palette.highlight, 0.6), left: palette.ink, right: palette.inkMuted });
+}
+

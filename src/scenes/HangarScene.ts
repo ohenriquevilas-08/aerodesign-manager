@@ -3,6 +3,7 @@
 // Cada bancada tem um cartão com a tarefa em andamento e as peças (ver hangar/benchView.ts);
 // cada integrante vai para a bancada da tarefa em que está alocado, ou fica na área livre.
 // Pedidos das lojas a caminho viram caixas no portão; o entregue é aberto (hangar/packages.ts).
+// A escala da oficina (hangar/workshop.ts, design §5.5) decide quem está lá e a luz do turno.
 // Profundidade: quem está mais à frente (maior y na tela) desenha por cima.
 // Lê o store; nunca muda o estado. O tempo da cena segue clock.speed.
 
@@ -29,12 +30,18 @@ import {
   drawBench,
   drawCrate,
   drawCrateLid,
+  drawNightWindows,
   drawRoom,
+  drawSnacks,
+  NAP_SPOT,
   ROWS,
+  WALL_LAMPS,
   UNPACK_SPOT,
   WALL_H
 } from "./hangar/hangarArt";
 import { packagesAtDoor, recentDeliveries, type PackageView } from "./hangar/packages";
+import { lightingFor, overnightNapper, workshopNow, type WorkshopLighting, type WorkshopNow } from "./hangar/workshop";
+import { hourOfDay } from "./queue/queueView";
 import { iso } from "./hangar/iso";
 import { Worker } from "./hangar/Worker";
 import { css, fonts, palette } from "./palette";
@@ -64,6 +71,10 @@ function fitText(target: Phaser.GameObjects.Text, label: string, suffix: string,
     target.setText(`${text.trimEnd()}…${suffix}`);
   }
 }
+
+/** Escuro do turno por cima de piso, paredes e gente; luz das luminárias por cima dele. */
+const DIM_DEPTH = 900_000;
+const LAMP_DEPTH = 900_001;
 
 /** Cartões ficam acima de tudo que anda no piso. */
 const CARD_DEPTH = 1_000_000;
@@ -129,6 +140,12 @@ export class HangarScene extends Phaser.Scene {
   /** Pedidos já abertos nesta cena, para cada entrega abrir uma vez só. */
   private opened = new Set<string>();
   private openings: Opening[] = [];
+  private windows!: Phaser.GameObjects.Graphics;
+  private dim!: Phaser.GameObjects.Graphics;
+  private lamps!: Phaser.GameObjects.Graphics;
+  private snacks!: Phaser.GameObjects.Graphics;
+  private sign!: Phaser.GameObjects.Text;
+  private lightKey = "";
 
   constructor() {
     super("hangar");
@@ -140,6 +157,26 @@ export class HangarScene extends Phaser.Scene {
 
   create() {
     drawRoom(this.add.graphics().setDepth(ROOM_DEPTH));
+    this.windows = this.add.graphics().setDepth(ROOM_DEPTH + 1);
+    this.dim = this.add.graphics().setDepth(DIM_DEPTH);
+    this.lamps = this.add.graphics().setDepth(LAMP_DEPTH).setBlendMode(Phaser.BlendModes.ADD);
+    this.snacks = this.add.graphics();
+    drawSnacks(this.snacks);
+    this.snacks.setDepth(iso(6.5, 7.1).y).setVisible(false);
+    const signAt = iso(6.2, -0.5, 66);
+    this.sign = this.add
+      .text(signAt.x, signAt.y, "", {
+        fontFamily: fonts.body,
+        fontSize: "10px",
+        color: palette.text,
+        backgroundColor: css(palette.panel),
+        padding: { x: 6, y: 4 },
+        align: "center"
+      })
+      .setOrigin(0.5)
+      .setResolution(2)
+      .setDepth(CARD_DEPTH - 1)
+      .setVisible(false);
     BENCHES.forEach((bench) => this.createBench(bench));
     this.aircraft = this.add.graphics().setDepth(aircraftAnchor().y);
     const caption = iso(3.6, -0.5, 52);
@@ -194,8 +231,10 @@ export class HangarScene extends Phaser.Scene {
   }
 
   private refresh(state: GameState) {
+    const now = workshopNow(state);
     this.refreshCards(state);
-    this.refreshPeople(state);
+    this.refreshPeople(state, now);
+    this.refreshLight(lightingFor(now.slot, now.open, hourOfDay(state.clock.hours)), now);
     this.refreshPackages(state);
     const view = aircraftViewFromState(state);
     const key = JSON.stringify(view);
@@ -411,9 +450,61 @@ export class HangarScene extends Phaser.Scene {
     });
   }
 
-  /** Cria quem entrou na equipe, tira quem saiu e leva cada um ao seu posto. */
-  private refreshPeople(state: GameState) {
-    const views = workerViewsFromState(state);
+  /** Luz do turno, adereços da madrugada e placa no portão. Só redesenha quando muda. */
+  private refreshLight(light: WorkshopLighting, now: WorkshopNow) {
+    const key = JSON.stringify([light, now.open, now.blocked]);
+    if (key === this.lightKey) return;
+    this.lightKey = key;
+
+    this.windows.clear();
+    if (light.darkWindows) drawNightWindows(this.windows);
+
+    this.dim.clear();
+    if (light.dim > 0) {
+      // Cobre todo o hangar (com folga), abaixo dos cartões.
+      const left = iso(-1, ROWS).x - 40;
+      const right = iso(COLS, -1).x + 40;
+      const top = iso(-1, -1, WALL_H).y - 40;
+      const bottom = iso(COLS, ROWS).y + 40;
+      this.dim.fillStyle(palette.night, light.dim);
+      this.dim.fillRect(left, top, right - left, bottom - top);
+    }
+
+    this.lamps.clear();
+    if (light.lampsOn) {
+      WALL_LAMPS.forEach((col) => {
+        const p = iso(col, -0.5, 100);
+        this.lamps.fillStyle(palette.lamp, 0.1);
+        this.lamps.fillCircle(p.x, p.y, 34);
+        this.lamps.fillStyle(palette.lamp, 0.5);
+        this.lamps.fillCircle(p.x, p.y, 4);
+      });
+      // Luz sobre cada bancada.
+      BENCHES.forEach((bench) => {
+        const c = iso(bench.col + BENCH_LEN / 2, bench.row + 0.55);
+        this.lamps.fillStyle(palette.lamp, 0.07);
+        this.lamps.fillEllipse(c.x, c.y + 4, 150, 70);
+        this.lamps.fillStyle(palette.lamp, 0.05);
+        this.lamps.fillEllipse(c.x, c.y + 4, 90, 42);
+      });
+    }
+
+    this.snacks.setVisible(light.overnightProps);
+
+    if (now.blocked) {
+      this.sign.setText(`OFICINA PARADA
+${now.blocked}`).setColor(css(palette.warn)).setVisible(true);
+    } else if (!now.open) {
+      this.sign.setText("FECHADA").setColor(palette.textMuted).setVisible(true);
+    } else {
+      this.sign.setVisible(false);
+    }
+  }
+
+  /** Cria quem chegou ao turno, tira quem saiu e leva cada um ao seu posto. */
+  private refreshPeople(state: GameState, now: WorkshopNow) {
+    const views = workerViewsFromState(state, now.present);
+    const napper = overnightNapper(now.slot, views);
     const present = new Set(views.map((view) => view.memberId));
     this.people.forEach((person, id) => {
       if (present.has(id)) return;
@@ -421,8 +512,9 @@ export class HangarScene extends Phaser.Scene {
       this.people.delete(id);
     });
     views.forEach((view) => {
-      const key = `${view.bench}:${view.slot}:${view.working}`;
-      const spot = workerSpot(view);
+      const napping = view.memberId === napper;
+      const key = `${view.bench}:${view.slot}:${view.working}:${napping}`;
+      const spot = napping ? { ...iso(NAP_SPOT.col, NAP_SPOT.row), facingLeft: false } : workerSpot(view);
       let person = this.people.get(view.memberId);
       if (!person) {
         // Nasce já no posto: só quem muda de tarefa anda pelo hangar.
@@ -434,6 +526,7 @@ export class HangarScene extends Phaser.Scene {
       if (person.key === key) return;
       person.key = key;
       person.worker.place(spot.x, spot.y, spot.facingLeft, view.working);
+      person.worker.setNapping(napping);
     });
   }
 

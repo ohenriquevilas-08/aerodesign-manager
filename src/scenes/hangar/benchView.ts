@@ -170,10 +170,16 @@ export interface WorkerView {
   working: boolean;
 }
 
-export function workerViewsFromState(state: GameState): WorkerView[] {
+/**
+ * `present`: ids de quem está na oficina agora (escala, design §5.5); quem não está não aparece.
+ * Sem `present`, todos aparecem.
+ */
+export function workerViewsFromState(state: GameState, present?: readonly string[]): WorkerView[] {
   const taskById = new Map(state.tasks.map((task) => [task.id, task]));
   const counts = new Map<BenchId | null, number>();
-  return state.members.map((member) => {
+  const here = present ? new Set(present) : null;
+  const members = here ? state.members.filter((member) => here.has(member.id)) : state.members;
+  return members.map((member) => {
     // `assignees` é a fonte; Member.taskId espelha.
     const task = state.tasks.find((t) => t.status !== "done" && t.assignees.includes(member.id)) ?? (member.taskId ? taskById.get(member.taskId) : undefined);
     const bench = canWork(member) && task && task.status !== "done" ? benchForTask(state, task) : null;
