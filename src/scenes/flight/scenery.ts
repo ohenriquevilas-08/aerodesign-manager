@@ -2,6 +2,7 @@
 // A competição mantém o visual de sempre (`COMPETITION_SCENERY`); os locais de ensaio (S2: testVenues)
 // mapeiam para um destes três por `sceneryForVenue`.
 
+import { findVenue } from "../../sim";
 import { palette } from "../palette";
 
 export type Backdrop = "hills" | "hangars" | "trees" | "barn";
@@ -74,7 +75,8 @@ const SCENERY: Record<string, Scenery> = {
 
 /** Cenário de um local de ensaio; id desconhecido cai no campo do aeroclube. */
 export function sceneryForVenue(venueId: string): Scenery {
-  return SCENERY[venueId] ?? SCENERY.aeroclub!;
+  const key = findVenue(venueId)?.scenery ?? venueId;
+  return SCENERY[key === "model-field" ? "airstrip" : key] ?? SCENERY.aeroclub!;
 }
 
 /** Ids de cenário conhecidos (para testes e a depuração). */

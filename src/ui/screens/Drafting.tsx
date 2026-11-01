@@ -2,23 +2,39 @@ import { useEffect, useState } from "preact/hooks";
 import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import {
+  aspectRatio,
+  compareDesigns,
   DEFAULT_DESIGN,
+  defaultTargetPayload,
   DESIGN_LIMITS,
-  estimatePerformance,
+  designProblem,
+  estimateDesign,
+  MASS_ITEM_LABELS,
+  massBudget,
+  maxPropDiameterIn,
+  missionRequirements,
   powerPenalty,
   REGULAR_2026,
   spanFactor,
   spanPenalty,
+  stabilityEstimate,
   surfacesFactor,
   type AircraftDesign,
+  type DesignComparison,
   type DesignMaterial,
   type DesignPhilosophy,
-  type GearHeight
+  type DesignSnapshot,
+  type Estimate,
+  type GearHeight,
+  type MassBudget,
+  type MissionRequirement,
+  type RequirementStatus,
+  type WingPosition
 } from "../../sim";
 import { Segmented, Slider } from "../components/Controls";
 import { EstimateRow } from "../components/EstimateRow";
 import { formatNumber } from "../format";
-import { usePerformance } from "../hooks";
+import { useDerived } from "../hooks";
 import { blueprintChannel } from "../../scenes/blueprint/channel";
 import { BlueprintScene } from "../../scenes/BlueprintScene";
 import { PhaserStage } from "../PhaserStage";
@@ -30,6 +46,10 @@ const R = REGULAR_2026;
 const n = formatNumber;
 const SPAN = DESIGN_LIMITS.span;
 const POWER = DESIGN_LIMITS.powerW;
+const CHORD = DESIGN_LIMITS.chordM;
+const TAIL = DESIGN_LIMITS.tailVolume;
+const CG = DESIGN_LIMITS.cgPercentMac;
+const PROP = DESIGN_LIMITS.propDiameterIn;
 
 /** Altitudes densidade de referência para a estimativa (manhã fria → tarde quente). */
 const REFERENCE_ALTITUDES = [300, 600, 900, 1200] as const;
@@ -135,22 +155,79 @@ function alertsFor(draft: AircraftDesign): Alert[] {
   return alerts;
 }
 
+type DraftTab = "requirements" | "mass" | "compare";
+// Sobrevivem à troca de tela; não são estado do jogo.
+let savedDraft: AircraftDesign | null = null;
+let savedTab: DraftTab = "requirements";
+let savedTarget: number | null = null;
+
+const WING_POSITIONS = [
+  { value: "high", label: "Asa alta" },
+  { value: "low", label: "Asa baixa" }
+] as const;
+
+const WING_POSITION_TEXT: Record<WingPosition, string> = {
+  high: "Estabilidade lateral de graça (efeito pêndulo). A corrida é um pouco mais longa: sem efeito solo.",
+  low: "Efeito solo ajuda a decolar, mas a estabilidade lateral é menor e o trem fica mais exposto."
+};
+
+const STATUS_LABEL: Record<RequirementStatus, string> = { ok: "OK", risk: "Risco", fail: "Falha" };
+const draftKey = (design: AircraftDesign) => JSON.stringify(design);
+const unitDigits = (unit: string) => (unit === "kg" ? 2 : unit === "W" ? 0 : 1);
+
 export function Drafting() {
   const saved = useGame((state) => state.aircraft?.design ?? null);
-  const draft = saved ?? DEFAULT_DESIGN;
+  const [draft, setDraftState] = useState<AircraftDesign>(() => savedDraft ?? saved ?? DEFAULT_DESIGN);
+  const [tab, setTabState] = useState(savedTab);
+  const [target, setTargetState] = useState(savedTarget);
   const [altitude, setAltitudeState] = useState(savedAltitude);
-  const estimate = usePerformance(altitude);
-  // O rascunho ainda não é estado do jogo: a cena do blueprint recebe o projeto por este canal.
-  useEffect(() => {
-    blueprintChannel.show(draft);
-  }, [draft.span, draft.surfaces, draft.powerW, draft.philosophy, draft.material, draft.gear]);
+  const savedKey = saved ? draftKey(saved) : null;
+  const dirty = savedKey === null || savedKey !== draftKey(draft);
+  const problem = designProblem(draft);
 
-  const set = <K extends keyof AircraftDesign>(key: K, value: AircraftDesign[K]) =>
-    store.dispatch({ type: "set-design", design: { ...draft, [key]: value } });
+  const setDraft = (next: AircraftDesign) => setDraftState((savedDraft = next));
+  const setTab = (value: DraftTab) => setTabState((savedTab = value));
+  const setTarget = (value: number | null) => setTargetState((savedTarget = value));
   const setAltitude = (value: number) => {
     savedAltitude = value;
     setAltitudeState(value);
   };
+  const set = <K extends keyof AircraftDesign>(key: K, value: AircraftDesign[K]) => {
+    const next = { ...draft, [key]: value };
+    // O trem limita a hélice: trocar para trem baixo encolhe a hélice em vez de deixar o projeto inválido.
+    next.propDiameterIn = Math.min(next.propDiameterIn, maxPropDiameterIn(next.gear));
+    setDraft(next);
+  };
+  const commit = () => store.dispatch({ type: "set-design", design: draft });
+  const discard = () => setDraft(saved ?? DEFAULT_DESIGN);
+
+  // O rascunho ainda não é estado do jogo: a cena do blueprint recebe o projeto por este canal;
+  // na aba Comparar, o gravado aparece em traço apagado por baixo.
+  const key = draftKey(draft);
+  useEffect(() => {
+    blueprintChannel.show(draft);
+  }, [key]);
+  useEffect(() => {
+    blueprintChannel.compare(tab === "compare" && saved ? saved : null);
+    return () => blueprintChannel.compare(null);
+  }, [tab, savedKey]);
+
+  const analysis = useDerived(
+    (state) => {
+      const defaultTarget = defaultTargetPayload(state, draft, altitude);
+      const payload = target ?? defaultTarget;
+      return {
+        defaultTarget,
+        estimate: estimateDesign(state, draft, altitude),
+        requirements: missionRequirements(state, draft, altitude, payload),
+        mass: massBudget(draft, state),
+        stability: stabilityEstimate(draft, state),
+        comparison: saved ? compareDesigns(state, saved, draft, altitude, payload) : null
+      };
+    },
+    [key, altitude, target, savedKey]
+  );
+  const payload = target ?? analysis.defaultTarget;
 
   const sf = surfacesFactor(draft.surfaces);
   const bf = spanFactor(draft.span);
@@ -158,21 +235,33 @@ export function Drafting() {
   // Melhor caso de FPV (1,10) e FPR (1,00): pontos de voo por ponto de EE.
   const perEE = 50 * 1.1 * multiplier;
   const alerts = alertsFor(draft);
+  const maxProp = maxPropDiameterIn(draft.gear);
 
   return (
     <div class="screen">
       <header class="screen-head">
         <h1 class="screen-title">Prancheta</h1>
         <span class="muted">
-          {saved
-            ? "Projeto gravado: cada mudança vale para o avião da equipe."
-            : "Ainda sem projeto: a primeira mudança grava o avião da equipe."}
+          {!saved
+            ? "Ainda sem projeto: grave para a equipe passar a trabalhar nele."
+            : dirty
+              ? "Rascunho com mudanças: o avião da equipe continua no projeto gravado."
+              : "Projeto gravado: é o avião da equipe."}
         </span>
+        <div class="draft-actions">
+          <button type="button" class="btn-ghost" disabled={!dirty} onClick={discard}>
+            Descartar
+          </button>
+          <button type="button" class="btn-primary" disabled={!dirty || problem !== null} title={problem ?? undefined} onClick={commit}>
+            Gravar projeto
+          </button>
+        </div>
       </header>
       <div class="drafting-grid">
         <section class="panel">
           <h2 class="panel-title">Decisões de projeto</h2>
           <div class="panel-body drafting-controls">
+            <h3 class="decision-group">Asa</h3>
             <div class="decision">
               <Slider
                 label="Envergadura (b)"
@@ -185,9 +274,25 @@ export function Drafting() {
                 onChange={(value) => set("span", Math.round(value * 100) / 100)}
               />
               <p class="decision-text">
-                Mais envergadura = mais sustentação e carga. Mas a nota de voo é multiplicada por 1,15^(−b): aqui ×
-                {n(bf, 3)}. Acima de {n(R.maxSpan, 1)} m, penalidade em toda bateria.
+                Mais envergadura = mais sustentação e carga. A nota de voo é multiplicada por 1,15^(−b): aqui ×{n(bf, 3)}.
+                Acima de {n(R.maxSpan, 1)} m, penalidade em toda bateria.
               </p>
+            </div>
+            <div class="decision">
+              <Slider
+                label="Corda média"
+                value={draft.chordM}
+                min={CHORD.min}
+                max={CHORD.max}
+                step={0.01}
+                display={`${n(draft.chordM, 2)} m · AR ${n(aspectRatio(draft), 1)}`}
+                onChange={(value) => set("chordM", Math.round(value * 100) / 100)}
+              />
+              <p class="decision-text">Corda grande dá área e carga; alongamento alto (asa fina e comprida) rende mais por área, mas pesa na estrutura.</p>
+            </div>
+            <div class="decision">
+              <Segmented label="Posição da asa" value={draft.wingPosition} options={WING_POSITIONS} onChange={(value) => set("wingPosition", value)} />
+              <p class="decision-text">{WING_POSITION_TEXT[draft.wingPosition]}</p>
             </div>
             <div class="decision">
               <Segmented
@@ -198,22 +303,8 @@ export function Drafting() {
               />
               <p class="decision-text">{SURFACES_TEXT[draft.surfaces]}</p>
             </div>
-            <div class="decision">
-              <Slider
-                label="Potência (P)"
-                value={draft.powerW}
-                min={POWER.min}
-                max={POWER.max}
-                step={10}
-                display={`${draft.powerW} W`}
-                alert={draft.powerW >= R.maxPower}
-                onChange={(value) => set("powerW", value)}
-              />
-              <p class="decision-text">
-                Mais potência decola antes dos {R.obstacleDistance} m com mais carga, mas pede bateria e motor mais
-                pesados, que aumentam o peso vazio. Acima de {R.maxPower} W, penalidade por watt.
-              </p>
-            </div>
+
+            <h3 class="decision-group">Estrutura</h3>
             <div class="decision">
               <Segmented
                 label="Filosofia"
@@ -227,6 +318,71 @@ export function Drafting() {
               <Segmented label="Material" value={draft.material} options={MATERIALS} onChange={(value) => set("material", value)} />
               <p class="decision-text">{MATERIAL_TEXT[draft.material]}</p>
             </div>
+
+            <h3 class="decision-group">Empenagem e estabilidade</h3>
+            <div class="decision">
+              <Slider
+                label="Volume de cauda (VH)"
+                value={draft.tailVolume}
+                min={TAIL.min}
+                max={TAIL.max}
+                step={0.01}
+                display={n(draft.tailVolume, 2)}
+                onChange={(value) => set("tailVolume", Math.round(value * 100) / 100)}
+              />
+              <p class="decision-text">
+                {draft.surfaces === 1
+                  ? "Asa voadora não tem cauda horizontal: o volume de cauda não muda nada."
+                  : "Cauda maior empurra o ponto neutro para trás (mais estável) e pesa mais."}
+              </p>
+            </div>
+            <div class="decision">
+              <Slider
+                label="Posição do CG"
+                value={draft.cgPercentMac}
+                min={CG.min}
+                max={CG.max}
+                step={0.5}
+                display={`${n(draft.cgPercentMac, 1)} % CMA`}
+                onChange={(value) => set("cgPercentMac", value)}
+              />
+              <p class="decision-text">
+                Margem estática = ponto neutro − CG. Entre 5 e 20 % é o confortável; negativa é instável. CG avançado = mais estável,
+                mas pede mais cauda e piora a rotação.
+              </p>
+            </div>
+
+            <h3 class="decision-group">Propulsão</h3>
+            <div class="decision">
+              <Slider
+                label="Potência (P)"
+                value={draft.powerW}
+                min={POWER.min}
+                max={POWER.max}
+                step={10}
+                display={`${draft.powerW} W`}
+                alert={draft.powerW >= R.maxPower}
+                onChange={(value) => set("powerW", value)}
+              />
+              <p class="decision-text">
+                Mais potência decola antes dos {R.obstacleDistance} m com mais carga, mas pede bateria e motor mais pesados.
+                Acima de {R.maxPower} W, penalidade por watt.
+              </p>
+            </div>
+            <div class="decision">
+              <Slider
+                label="Diâmetro da hélice"
+                value={draft.propDiameterIn}
+                min={PROP.min}
+                max={maxProp}
+                step={0.5}
+                display={`${n(draft.propDiameterIn, 1)} pol.`}
+                hint={`Máximo ${maxProp} pol. com este trem`}
+                onChange={(value) => set("propDiameterIn", value)}
+              />
+            </div>
+
+            <h3 class="decision-group">Trem de pouso</h3>
             <div class="decision">
               <Segmented label="Altura do trem" value={draft.gear} options={GEARS} onChange={(value) => set("gear", value)} />
               <p class="decision-text">{GEAR_TEXT[draft.gear]}</p>
@@ -241,22 +397,44 @@ export function Drafting() {
 
         <div class="stack scroll-col">
           <section class="panel">
+            <div class="tabs draft-tabs" role="tablist" aria-label="Análise do projeto">
+              {(
+                [
+                  ["requirements", "Requisitos"],
+                  ["mass", "Massa"],
+                  ["compare", "Comparar"]
+                ] as const
+              ).map(([id, label]) => (
+                <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div class="panel-body stack-tight">
+              {tab === "requirements" ? (
+                <RequirementsTab
+                  requirements={analysis.requirements}
+                  payload={payload}
+                  isDefault={target === null}
+                  onPayload={setTarget}
+                  altitude={altitude}
+                  onAltitude={setAltitude}
+                />
+              ) : null}
+              {tab === "mass" ? <MassTab mass={analysis.mass} /> : null}
+              {tab === "compare" ? <CompareTab comparison={analysis.comparison} dirty={dirty} /> : null}
+            </div>
+          </section>
+          <section class="panel">
             <h2 class="panel-title">Estimativa de desempenho</h2>
             <div class="panel-body stack-tight">
-              <Segmented
-                label="Altitude densidade de referência (Hρ)"
-                value={altitude}
-                options={REFERENCE_ALTITUDES.map((value) => ({ value, label: `${n(value)} m` }))}
-                onChange={setAltitude}
-              />
-              <EstimateRow label="Peso vazio" value={estimate?.emptyWeightKg} unit="kg" digits={2} />
-              <EstimateRow label="Carga máxima" value={estimate?.maxPayloadKg} unit="kg" digits={1} />
-              <EstimateRow label="Eficiência estrutural" value={estimate?.structuralEfficiency} digits={2} />
-              <EstimateRow label="Corrida de decolagem" value={estimate?.takeoffDistanceM} unit="m" digits={0} />
+              <EstimateRow label="Peso vazio" value={analysis.estimate.emptyWeightKg} unit="kg" digits={2} />
+              <EstimateRow label="Carga máxima" value={analysis.estimate.maxPayloadKg} unit="kg" digits={1} />
+              <EstimateRow label="Eficiência estrutural" value={analysis.estimate.structuralEfficiency} digits={2} />
+              <EstimateRow label="Corrida de decolagem" value={analysis.estimate.takeoffDistanceM} unit="m" digits={0} />
               <p class="muted small">
-                {estimate
-                  ? `É o que a equipe acha, não o avião real: o real costuma cair dentro da margem. Ensaios e conhecimento de Aerodinâmica, Desempenho e Estruturas encolhem a faixa. Obstáculo aos ${R.obstacleDistance} m.`
-                  : "Sem estimativa ainda: a equipe precisa de um projeto gravado para calcular."}
+                É o que a equipe acha do rascunho, não o avião real: o real costuma cair dentro da margem. Ensaios e conhecimento
+                encolhem a faixa. Obstáculo aos {R.obstacleDistance} m.
               </p>
             </div>
           </section>
@@ -280,7 +458,8 @@ export function Drafting() {
           <section class="panel">
             <h2 class="panel-title">Alertas do regulamento</h2>
             <div class="panel-body stack-tight">
-              {alerts.length === 0 ? <p class="muted">Nenhum alerta para esta configuração.</p> : null}
+              {problem ? <p class="alert alert-danger">{problem}</p> : null}
+              {alerts.length === 0 && !problem ? <p class="muted">Nenhum alerta para esta configuração.</p> : null}
               {alerts.map((alert) => (
                 <p key={alert.text} class={`alert alert-${alert.tone}`}>
                   {alert.text}
@@ -288,12 +467,159 @@ export function Drafting() {
               ))}
             </div>
           </section>
-          <button type="button" class="btn-ghost" onClick={() => store.dispatch({ type: "set-design", design: DEFAULT_DESIGN })}>
-            Restaurar projeto padrão
+          <button type="button" class="btn-ghost" onClick={() => setDraft(DEFAULT_DESIGN)}>
+            Restaurar projeto padrão (rascunho)
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function RequirementsTab({
+  requirements,
+  payload,
+  isDefault,
+  onPayload,
+  altitude,
+  onAltitude
+}: {
+  requirements: MissionRequirement[];
+  payload: number;
+  isDefault: boolean;
+  onPayload: (value: number | null) => void;
+  altitude: number;
+  onAltitude: (value: number) => void;
+}) {
+  return (
+    <>
+      <Segmented
+        label="Altitude densidade de referência (Hρ)"
+        value={altitude}
+        options={REFERENCE_ALTITUDES.map((value) => ({ value, label: `${n(value)} m` }))}
+        onChange={onAltitude}
+      />
+      <Slider
+        label="Carga-alvo"
+        value={payload}
+        min={0}
+        max={12}
+        step={0.1}
+        display={`${n(payload, 1)} kg`}
+        hint={
+          isDefault ? (
+            "Sugestão da equipe: a previsão do relatório ou a carga máxima estimada."
+          ) : (
+            <button type="button" class="link-btn" onClick={() => onPayload(null)}>
+              Voltar à sugestão da equipe
+            </button>
+          )
+        }
+        onChange={(value) => onPayload(Math.round(value * 10) / 10)}
+      />
+      <ul class="req-list">
+        {requirements.map((req) => (
+          <li key={req.id} class={`req req-${req.status}`}>
+            <span class="req-status">{STATUS_LABEL[req.status]}</span>
+            <span class="req-label">{req.label}</span>
+            <span class="req-value">
+              {n(req.value.value, unitDigits(req.unit))}
+              <span class="estimate-margin">
+                {" "}
+                ± {n(req.value.margin, unitDigits(req.unit))} {req.unit}
+              </span>
+            </span>
+            <span class="req-target">alvo {req.target}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function MassTab({ mass }: { mass: MassBudget }) {
+  const biggest = Math.max(...mass.items.map((item) => item.kg.value), 0.01);
+  return (
+    <>
+      <ul class="mass-list">
+        {mass.items.map((item) => (
+          <li key={item.id}>
+            <span class="mass-label">{MASS_ITEM_LABELS[item.id] ?? item.label}</span>
+            <span class="mass-bar" aria-hidden="true">
+              <span class="mass-fill" style={{ width: `${(item.kg.value / biggest) * 100}%` }} />
+            </span>
+            <span class="mass-value">
+              {n(item.kg.value, 2)}
+              <span class="estimate-margin"> ± {n(item.kg.margin, 2)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div class="mass-total">
+        <span>Peso vazio</span>
+        <strong>
+          {n(mass.total.value, 2)} kg<span class="estimate-margin"> ± {n(mass.total.margin, 2)}</span>
+        </strong>
+      </div>
+      <p class="muted small">
+        A soma dos subsistemas é o peso vazio da estimativa. Filosofia, material e potência mexem nas barras; a margem encolhe com
+        conhecimento e pesagem.
+      </p>
+    </>
+  );
+}
+
+function CompareTab({ comparison, dirty }: { comparison: DesignComparison | null; dirty: boolean }) {
+  if (!comparison) return <p class="muted">Grave um projeto primeiro: a comparação é entre o gravado e o rascunho.</p>;
+  const { a, b } = comparison;
+  const ok = (snap: DesignSnapshot) => snap.requirements.filter((req) => req.status === "ok").length;
+  const total = a.requirements.length;
+  const est = (value: Estimate, digits: number) => `${n(value.value, digits)} ± ${n(value.margin, digits)}`;
+  const rows: { label: string; a: string; b: string; delta: number | null; digits: number; better: "up" | "down" }[] = [
+    { label: "Nota de voo estimada", a: est(a.flightScore, 0), b: est(b.flightScore, 0), delta: b.flightScore.value - a.flightScore.value, digits: 0, better: "up" },
+    { label: "Carga máxima (kg)", a: est(a.maxPayloadKg, 1), b: est(b.maxPayloadKg, 1), delta: b.maxPayloadKg.value - a.maxPayloadKg.value, digits: 1, better: "up" },
+    { label: "Peso vazio (kg)", a: est(a.mass.total, 2), b: est(b.mass.total, 2), delta: b.mass.total.value - a.mass.total.value, digits: 2, better: "down" },
+    {
+      label: "Margem estática (% CMA)",
+      a: est(a.stability.staticMarginPercentMac, 1),
+      b: est(b.stability.staticMarginPercentMac, 1),
+      delta: null,
+      digits: 1,
+      better: "up"
+    },
+    { label: "Multiplicador", a: `× ${n(a.multiplier, 3)}`, b: `× ${n(b.multiplier, 3)}`, delta: b.multiplier - a.multiplier, digits: 3, better: "up" },
+    { label: "Requisitos OK", a: `${ok(a)}/${total}`, b: `${ok(b)}/${total}`, delta: ok(b) - ok(a), digits: 0, better: "up" }
+  ];
+  return (
+    <>
+      <p class="muted small">
+        Mesma Hρ ({n(comparison.densityAltitudeM)} m) e mesma carga-alvo ({n(comparison.targetPayloadKg, 1)} kg). O gravado aparece em
+        traço apagado no blueprint.
+      </p>
+      {!dirty ? <p class="muted small">O rascunho é igual ao gravado: mude alguma decisão para ver a diferença.</p> : null}
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th />
+            <th>Gravado</th>
+            <th>Rascunho</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const changed = row.delta !== null && Math.abs(row.delta) >= 10 ** -row.digits / 2;
+            const tone = changed ? ((row.delta! > 0) === (row.better === "up") ? " is-better" : " is-worse") : "";
+            return (
+              <tr key={row.label}>
+                <th>{row.label}</th>
+                <td>{row.a}</td>
+                <td class={`compare-draft${tone}`}>{row.b}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </>
   );
 }
 

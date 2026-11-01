@@ -4,8 +4,8 @@
 // `place` leva a pessoa até o posto (bancada ou área livre) e liga ou desliga o trabalho.
 
 import Phaser from "phaser";
+import type { MemberLook } from "../../sim";
 import { palette } from "../palette";
-import type { MemberLook } from "../phase5";
 import { avatarShapes, type AvatarPose } from "../people/avatar";
 import { drawAvatarShapes } from "../people/draw";
 

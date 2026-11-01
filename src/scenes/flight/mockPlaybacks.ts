@@ -1,7 +1,7 @@
 // Voos de exemplo, um por desfecho, para o painel de depuração e os testes.
 // Números plausíveis para a Classe Regular, escolhidos à mão (não saem da simulação).
 
-import type { FlightTestSession } from "../phase5";
+import type { FlightTestSession } from "./replayChannel";
 import type { FlightOutcome, FlightPlayback } from "./playback";
 
 const base = {

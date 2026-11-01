@@ -7,9 +7,11 @@ import {
   DISCIPLINES,
   isOverloaded,
   memberHoursPerDay,
+  rosterMembers,
   type Discipline,
   type Member
 } from "../../sim";
+import { Avatar } from "../components/Avatar";
 import { Meter } from "../components/Controls";
 import { Formation } from "../team/Formation";
 import { WorkshopSchedule } from "../team/WorkshopSchedule";
@@ -47,7 +49,8 @@ export function Team() {
   const tasks = useGame((state) => state.tasks);
   const date = clockToDate(day * 24);
   const academic = academicFactor(date);
-  const workers = members.filter(canWork);
+  const workers = rosterMembers({ members });
+  const president = members.find((member) => !canWork(member));
   const teamHours = workers.reduce((sum, member) => sum + memberHoursPerDay(member, date), 0);
 
   return (
@@ -65,6 +68,12 @@ export function Team() {
             Escala da oficina
           </button>
         </div>
+        {president ? (
+          <span class="stat" title="O presidente coordena e fica fora das listas">
+            <span class="stat-label">Você</span>
+            <strong>{president.name}</strong>
+          </span>
+        ) : null}
         <div class="stat-row">
           <span class="stat">
             <span class="stat-label">Integrantes</span>
@@ -86,14 +95,12 @@ export function Team() {
       {tab === "schedule" ? <WorkshopSchedule /> : null}
       <div class="team-grid" hidden={tab !== "roster"}>
         <div class="member-list scroll-col">
-          {members.map((member) => {
+          {workers.map((member) => {
             const focus = focusOf(member);
             return (
               <article key={member.id} class="panel member">
                 <header class="member-head">
-                  <span class="avatar" aria-hidden="true">
-                    {member.name.charAt(0)}
-                  </span>
+                  <Avatar member={member} size={52} class="member-portrait" />
                   <div>
                     <div class="member-name">{member.name}</div>
                     <div class="member-role">
@@ -112,11 +119,9 @@ export function Team() {
                   ) : null}
                 </header>
                 <div class={`member-task${isOverloaded(member) ? " is-overloaded" : ""}`}>
-                  {!canWork(member)
-                    ? "Você decide e coordena; o trabalho operacional fica com a equipe."
-                    : member.taskId
-                      ? `Trabalhando em: ${tasks.find((task) => task.id === member.taskId)?.label ?? "tarefa"}`
-                      : "Sem tarefa: motivação cai a cada dia parado"}
+                  {member.taskId
+                    ? `Trabalhando em: ${tasks.find((task) => task.id === member.taskId)?.label ?? "tarefa"}`
+                    : "Sem tarefa: motivação cai a cada dia parado"}
                   {isOverloaded(member) ? " · sobrecarregado" : ""}
                 </div>
                 <div class="member-body">
@@ -159,7 +164,7 @@ export function Team() {
               com a tarefa "Documentar conhecimento".
             </p>
             {DISCIPLINES.map((discipline) => {
-              const best = Math.max(...members.map((member) => member.knowledge[discipline]), 0);
+              const best = Math.max(...workers.map((member) => member.knowledge[discipline]), 0);
               return (
                 <div key={discipline} class="doc-row">
                   <div class="doc-head">

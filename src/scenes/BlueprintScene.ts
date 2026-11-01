@@ -9,7 +9,8 @@ import { vec } from "./hangar/iso";
 import { blueprintChannel } from "./blueprint/channel";
 import { blueprintGeometry, type BlueprintGeometry, type Surface } from "./blueprint/geometry";
 import { css, fonts, palette } from "./palette";
-import { marginBand, type BlueprintDesign, type MarginBand } from "./phase5";
+import type { AircraftDesign } from "../sim";
+import { marginBand, type MarginBand } from "./blueprint/margin";
 
 const fmt = (value: number, digits = 2) =>
   value.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -35,10 +36,10 @@ export class BlueprintScene extends Phaser.Scene {
   private labels: Phaser.GameObjects.Text[] = [];
   private labelCursor = 0;
   /** Projeto pedido e projeto desenhado; envergadura e potência deslizam até o pedido. */
-  private target: BlueprintDesign = DEFAULT_DESIGN;
-  private shown: BlueprintDesign = DEFAULT_DESIGN;
+  private target: AircraftDesign = DEFAULT_DESIGN;
+  private shown: AircraftDesign = DEFAULT_DESIGN;
   /** Projeto gravado do modo comparação, desenhado em traço apagado por baixo do rascunho. */
-  private reference: BlueprintDesign | null = null;
+  private reference: AircraftDesign | null = null;
   private ghost = false;
   private dirty = true;
   private unsubscribe: (() => void) | null = null;

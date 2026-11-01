@@ -1,12 +1,12 @@
 import { css } from "../../scenes/palette";
 import { AVATAR_BOUNDS, avatarShapes, type AvatarPose } from "../../scenes/people/avatar";
-import { lookFor, type MemberLook } from "../../scenes/phase5";
+import type { MemberLook } from "../../sim";
 
 const { minX, maxX, minY, maxY } = AVATAR_BOUNDS;
 
 /**
  * Retrato isométrico do integrante em SVG: os mesmos polígonos de `scenes/people/avatar.ts` que o hangar
- * desenha no Phaser, então carta e hangar mostram o mesmo boneco. `member` sem `look` recebe a aparência estável do stub.
+ * desenha no Phaser, então carta e hangar mostram o mesmo boneco.
  */
 export function Avatar({
   member,
@@ -16,7 +16,7 @@ export function Avatar({
   facing = 1,
   class: className
 }: {
-  member?: { id: string; look?: MemberLook };
+  member?: { look: MemberLook };
   look?: MemberLook;
   pose?: AvatarPose;
   /** Altura em px. */
@@ -24,7 +24,7 @@ export function Avatar({
   facing?: 1 | -1;
   class?: string;
 }) {
-  const resolved = look ?? (member ? lookFor(member) : lookFor({ id: "?" }));
+  const resolved = look ?? member?.look;
   const shapes = avatarShapes(resolved, pose, { facing, phase: pose === "work" ? 0.5 : 0 });
   const width = ((maxX - minX) / (maxY - minY)) * size;
   return (

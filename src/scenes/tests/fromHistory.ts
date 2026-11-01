@@ -23,6 +23,8 @@ export function entryFromHistory(entry: TestHistoryEntry, teamName: string): Tes
     };
   }
   if (entry.test === "flight") {
+    // Voo de ensaio agendado: a decolagem que a simulação resolveu.
+    if (entry.playback) return { kind: "flight", playback: entry.playback };
     const base = { battery: 1, teamName, payloadKg: entry.payloadKg ?? 0, densityAltitudeM: entry.densityAltitudeM, headwindMs: TEST_HEADWIND_MS };
     const playback: FlightPlayback = entry.ok
       ? { ...base, rotationDistanceM: 42, obstacleClearanceM: 0.9, outcome: "valid", stopDistanceM: 32, unloadTimeS: 18 }
