@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   applyCommand,
-  createGame,
   DEFAULT_DESIGN,
   findProduct,
   findShop,
@@ -12,13 +11,14 @@ import {
   PRODUCTS,
   SHOPS
 } from "../../src/sim";
+import { startedGame } from "./helpers";
 
-const game = () => createGame({ seed: 7, teamName: "Equipe Teste" });
+const game = () => startedGame({ seed: 7, teamName: "Equipe Teste" });
 
 describe("estado inicial da Fase 3", () => {
   it("começa sem avião, sem pedidos, sem competição e com relatório vazio", () => {
     const state = game();
-    expect(state.version).toBe(6);
+    expect(state.version).toBe(7);
     expect(state.aircraft).toBeNull();
     expect(state.orders).toEqual([]);
     expect(state.competition).toBeNull();
@@ -92,9 +92,9 @@ describe("catálogo das lojas", () => {
   it("promoção ativa troca o preço da vitrine até acabar", () => {
     const base = game();
     const id = listingId("hobbykong", "motor-600");
-    const onSale = { ...base, shops: { ...base.shops, sales: { [id]: { price: 250, until: 48 } } } };
+    const onSale = { ...base, shops: { ...base.shops, sales: { [id]: { price: 250, until: base.clock.hours + 48 } } } };
     expect(listingPrice(onSale, "hobbykong", "motor-600")).toBe(250);
-    const later = { ...onSale, clock: { ...onSale.clock, hours: 48 } };
+    const later = { ...onSale, clock: { ...onSale.clock, hours: onSale.clock.hours + 48 } };
     expect(listingPrice(later, "hobbykong", "motor-600")).toBe(300);
     expect(listingPrice(base, "hobbykong", "balsa")).toBeNull();
   });

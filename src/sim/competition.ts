@@ -19,7 +19,7 @@ import {
   type FlightModel
 } from "./aircraft";
 import { BALANCE } from "./content/balance";
-import { OFFICIAL_CALENDAR } from "./content/calendar2026";
+import { OFFICIAL_CALENDAR } from "./content/season2026";
 import { REGULAR_2026 } from "./content/regulation2026";
 import { GENERIC_RIVAL, RIVAL_ARCHETYPES, type Range } from "./content/rivals";
 import { partState, PART_STATE_LABELS } from "./parts";
@@ -29,6 +29,7 @@ import { addNews } from "./news";
 import { nextRandom } from "./rng";
 import { densityAltitude, predictedPayload, reliabilityBonus, scoreBattery } from "./scoring";
 import { counterfeitParts } from "./shop";
+import { defaultFounding, foundTeam, REGULATION_HOURS } from "./season";
 import { DISCIPLINES } from "./state";
 import { addMessage, warn } from "./tasks";
 import { canWork, clamp } from "./team";
@@ -358,7 +359,7 @@ interface Pending {
 
 function startCompetition(state: GameState): { state: GameState; pending: Pending } {
   const projectScores: Record<string, number> = { [PLAYER_TEAM_ID]: (state.report.score ?? 0) + (state.report.oralScore ?? 0) };
-  const penalties: Record<string, number> = { [PLAYER_TEAM_ID]: (state.aircraft?.lateChanges ?? 0) * C.lateChangePenalty };
+  const penalties: Record<string, number> = { [PLAYER_TEAM_ID]: (state.aircraft?.lateChanges ?? 0) * C.lateChangePenalty * (state.regulationRead ? 1 : BALANCE.season.unreadPenaltyFactor) };
   for (const team of state.rivals) {
     const profile = rivalProfile(state.seed, team);
     projectScores[team.id] = profile.report + profile.oral;
@@ -722,7 +723,10 @@ export function setBatteryPayload(state: GameState, payloadKg: number): GameStat
  */
 export function devStartCompetition(state: GameState): GameState {
   if (state.competition) return warn(state, "A competição já começou.");
-  let next = state.aircraft ? state : setDesign(state, DEFAULT_DESIGN);
+  // Dev: a abertura é pulada com a fundação padrão e o relógio vai para o dia do regulamento (Prancheta aberta).
+  let next: GameState = state.founding ? foundTeam(state, defaultFounding()) : state;
+  next = { ...next, clock: { ...next.clock, hours: Math.max(next.clock.hours, REGULATION_HOURS) } };
+  next = next.aircraft ? next : setDesign(next, DEFAULT_DESIGN);
   const aircraft = next.aircraft!;
   // Equipe treinada: acervo razoável, pilotagem e agilidade.
   const documented = Object.fromEntries(DISCIPLINES.map((d) => [d, Math.max(next.documented[d], 50)])) as GameState["documented"];

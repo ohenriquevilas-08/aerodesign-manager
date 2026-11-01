@@ -5,7 +5,7 @@
 
 import { findAction, type ActionDef } from "./content/actions";
 import { BALANCE } from "./content/balance";
-import { OFFICIAL_CALENDAR } from "./content/calendar2026";
+import { OFFICIAL_CALENDAR } from "./content/season2026";
 import { findShift, parseSlot, SHIFTS, slotKey, WEEKDAYS } from "./content/workshop";
 import { nextRandom } from "./rng";
 import { warn } from "./tasks";

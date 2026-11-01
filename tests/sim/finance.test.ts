@@ -4,7 +4,7 @@ import { weatherAt } from "../../src/sim/competition";
 import { maxPayloadKg, playerFlightModel, requiredParts } from "../../src/sim/aircraft";
 import {
   applyCommand,
-  createGame,
+  dateToHours,
   DEFAULT_DESIGN,
   densityAltitude,
   financeSummary,
@@ -12,8 +12,9 @@ import {
   testHistory,
   type GameState
 } from "../../src/sim";
+import { startedGame } from "./helpers";
 
-const game = (): GameState => createGame({ seed: 12, teamName: "Caixa" });
+const game = (): GameState => startedGame({ seed: 12, teamName: "Caixa" });
 
 /** Inicia a ação, finge que as horas acabaram e conclui. */
 function finish(state: GameState, actionId: string, targetId?: string): GameState {
@@ -21,8 +22,8 @@ function finish(state: GameState, actionId: string, targetId?: string): GameStat
   const task = started.tasks.at(-1)!;
   const worked = {
     ...started,
-    members: started.members.map((m) => (m.id === "captain-aero" ? { ...m, taskId: task.id } : m)),
-    tasks: started.tasks.map((t) => (t.id === task.id ? { ...t, status: "active" as const, hoursDone: t.hoursTotal, contributions: { "captain-aero": Math.max(1, t.hoursTotal) } } : t))
+    members: started.members.map((m) => (m.id === "founder-marina" ? { ...m, taskId: task.id } : m)),
+    tasks: started.tasks.map((t) => (t.id === task.id ? { ...t, status: "active" as const, hoursDone: t.hoursTotal, contributions: { "founder-marina": Math.max(1, t.hoursTotal) } } : t))
   };
   return completeTask(worked, task.id).state;
 }
@@ -58,6 +59,9 @@ describe("ledger", () => {
   });
 });
 
+/** Horas de jogo de 9/fev/2026 (a temporada começa em 10/nov/2025). */
+const FEB9 = dateToHours(Date.UTC(2026, 1, 9));
+
 describe("financeSummary", () => {
   it("splits income and expense by kind and by month", () => {
     const base = game();
@@ -65,10 +69,10 @@ describe("financeSummary", () => {
       ...base,
       credits: 1000,
       ledger: [
-        { at: 24 * 5, credits: 500, kind: "raffle", label: "Rifa" },
-        { at: 24 * 6, credits: -200, kind: "order", label: "Pedido" },
-        { at: 24 * 40, credits: -50, kind: "customs", label: "Imposto" },
-        { at: 24 * 41, credits: 300, kind: "sponsor", label: "Patrocínio" }
+        { at: FEB9 + 24 * 5, credits: 500, kind: "raffle", label: "Rifa" },
+        { at: FEB9 + 24 * 6, credits: -200, kind: "order", label: "Pedido" },
+        { at: FEB9 + 24 * 40, credits: -50, kind: "customs", label: "Imposto" },
+        { at: FEB9 + 24 * 41, credits: 300, kind: "sponsor", label: "Patrocínio" }
       ]
     };
     const summary = financeSummary(state);
@@ -77,7 +81,7 @@ describe("financeSummary", () => {
     expect(summary.expense).toBe(250);
     expect(summary.byKind.raffle).toEqual({ income: 500, expense: 0 });
     expect(summary.byKind.order).toEqual({ income: 0, expense: 200 });
-    // Dia 5 e 6 do jogo (início em 9/fev) caem em fevereiro; dias 40 e 41, em março.
+    // Dia 5 e 6 a partir de 9/fev caem em fevereiro; dias 40 e 41, em março.
     expect(summary.byMonth).toEqual([
       { month: "2026-02", income: 500, expense: 200, net: 300 },
       { month: "2026-03", income: 300, expense: 50, net: 250 }

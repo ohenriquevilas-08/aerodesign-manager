@@ -22,14 +22,16 @@ export interface FormationAreaView {
 export interface FormationView {
   category: FormationCategory;
   areas: FormationAreaView[];
-  /** Integrantes sem área (novatos recém-chegados), fora o presidente. */
+  /** Alunos sem área (novatos recém-chegados e quem ainda não foi escalado), presidente incluso. */
   unassigned: string[];
-  /** O presidente (você), fora do campo; null se não existe. */
+  /** Trainees da etapa de dez a jan: faixa própria, fora das áreas. */
+  trainees: string[];
+  /** O presidente, um aluno como os outros (ocupa área como qualquer um); null antes da fundação. */
   presidentId: string | null;
 }
 
 export function formationView(state: GameState, category: FormationCategory = DEFAULT_CATEGORY): FormationView {
-  const players = rosterMembers(state);
+  const players = rosterMembers(state).filter((member) => member.role !== "trainee");
   const areas = FORMATIONS[category].map((def): FormationAreaView => {
     const inArea = players.filter((member) => member.area === def.discipline);
     const captain = inArea.find((member) => member.role === "captain") ?? null;
@@ -49,7 +51,8 @@ export function formationView(state: GameState, category: FormationCategory = DE
     category,
     areas,
     unassigned: players.filter((member) => !member.area || !known.has(member.area)).map((member) => member.id),
-    presidentId: state.members.find((member) => !canWork(member))?.id ?? null
+    trainees: state.members.filter((member) => member.role === "trainee").map((member) => member.id),
+    presidentId: state.members.find((member) => member.role === "president")?.id ?? null
   };
 }
 
@@ -66,11 +69,15 @@ const patch = (state: GameState, memberId: string, change: Partial<Member>): Gam
 export function setArea(state: GameState, memberId: string, area: Discipline | null, captain = false): GameState {
   const member = state.members.find((item) => item.id === memberId);
   if (!member) return warn(state, "Integrante não encontrado.");
-  if (!canWork(member)) return warn(state, "O presidente coordena a equipe; ele não entra na formação.");
+  if (!canWork(member)) return warn(state, "Esse integrante não entra na formação.");
+  if (member.role === "trainee") return warn(state, "Trainee só entra na formação depois da etapa de treino (1/fev).");
+  // Presidente e capitão ficam como estão: o cargo não depende da área, só a vaga de capitão.
+  const plain = member.role === "president" ? "president" : "member";
   if (area === null) {
-    if (member.area === null && member.role === "member") return state;
-    return patch(state, memberId, { area: null, role: "member" });
+    if (member.area === null && member.role !== "captain") return state;
+    return patch(state, memberId, { area: null, role: plain });
   }
+  if (captain && member.role === "president") return warn(state, "O presidente não ocupa a vaga de capitão.");
   const def = findFormationArea(DEFAULT_CATEGORY, area);
   if (!def) return warn(state, "Essa área não existe na formação da categoria.");
   const others = state.members.filter((item) => item.id !== memberId && canWork(item) && item.area === area);
@@ -79,7 +86,7 @@ export function setArea(state: GameState, memberId: string, area: Discipline | n
   } else if (others.filter((item) => item.role !== "captain").length >= def.members) {
     return warn(state, `${DISCIPLINE_LABELS[area]} está cheia (${def.members} vagas de integrante).`);
   }
-  const role = captain ? "captain" : "member";
+  const role = captain ? "captain" : plain;
   if (member.area === area && member.role === role) return state;
   const moved = member.area !== null && member.area !== area;
   return patch(state, memberId, {

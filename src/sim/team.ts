@@ -22,22 +22,26 @@ export function motivationFactor(motivation: number): number {
   return floor + (1 - floor) * (clamp(motivation) / 100);
 }
 
-/** O presidente é o jogador: coordena e não faz trabalho operacional simulado. */
-export function canWork(member: Member): boolean {
-  return member.role !== "president";
+/**
+ * Todo aluno trabalha, inclusive o presidente (Fase 6: o jogador é o orientador, não um integrante).
+ * Mantida como ponto único caso algum papel volte a ficar de fora do trabalho.
+ */
+export function canWork(_member: Member): boolean {
+  return true;
 }
 
-/**
- * Integrantes sem o presidente (Fase 5, S4): elenco, escalação, escala da oficina e seletiva
- * listam só eles; o presidente aparece no cabeçalho como "Você".
- */
+/** Progresso do treino na etapa trainee, 0–1 (BALANCE.trainee.hoursRequired). */
+export function traineeProgress(member: Member): number {
+  return Math.min(1, (member.trainingHours ?? 0) / BALANCE.trainee.hoursRequired);
+}
+
+/** Todos os alunos da equipe, presidente e trainees incluídos (Fase 6; antes o presidente ficava de fora). */
 export function rosterMembers(state: { members: readonly Member[] }): Member[] {
   return state.members.filter(canWork);
 }
 
-/** Horas por dia = disponibilidade × calendário acadêmico × motivação (design §8.1). Presidente: 0. */
+/** Horas por dia = disponibilidade × calendário acadêmico × motivação (design §8.1). */
 export function memberHoursPerDay(member: Member, date: number): number {
-  if (!canWork(member)) return 0;
   return member.hoursPerDay * academicFactor(date).factor * motivationFactor(member.motivation);
 }
 

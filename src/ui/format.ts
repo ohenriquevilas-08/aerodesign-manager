@@ -95,7 +95,8 @@ export const SKILL_LABEL: Record<ActionSkill, string> = {
 export const ROLE_LABEL: Record<Role, string> = {
   president: "Presidente",
   captain: "Capitania",
-  member: "Membro"
+  member: "Membro",
+  trainee: "Trainee"
 };
 
 /** Faixa de motivação em palavras (design §5.1: Baixa → Alta). */
@@ -134,7 +135,8 @@ export const PAUSE_REASON_LABEL: Record<string, string> = {
   order: "Pedido",
   flight: "Seu voo",
   competition: "Competição",
-  "flight-test": "Ensaio de voo"
+  "flight-test": "Ensaio de voo",
+  scheduled: "Ação agendada"
 };
 
 export function pauseReasonLabel(reason: string): string {

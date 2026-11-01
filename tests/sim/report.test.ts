@@ -3,7 +3,6 @@ import { chapterScore, latePenalty, ORAL_DATE, REPORT_DEADLINE, REPORT_LATE_DEAD
 import { step } from "../../src/sim/loop";
 import {
   applyCommand,
-  createGame,
   DEFAULT_DESIGN,
   DISCIPLINES,
   estimateReportScore,
@@ -11,8 +10,9 @@ import {
   REPORT_CHAPTERS,
   type GameState
 } from "../../src/sim";
+import { startedGame } from "./helpers";
 
-const game = () => createGame({ seed: 3, teamName: "T" });
+const game = () => startedGame({ seed: 3, teamName: "T" });
 
 function withChapters(state: GameState, hours: number, tests = 0, documented = 0, drawings = 0): GameState {
   const chapters = Object.fromEntries(DISCIPLINES.map((d) => [d, { hours, testsCited: tests }])) as GameState["report"]["chapters"];
@@ -63,7 +63,7 @@ describe("nota do relatório (11.1)", () => {
     expect(state.warning?.text).toContain("disciplina");
     state = applyCommand(state, { type: "start-action", actionId: "report-chapter", targetId: "performance" });
     const taskId = state.tasks[0]!.id;
-    state = applyCommand(state, { type: "assign-member", memberId: "captain-aero", taskId });
+    state = applyCommand(state, { type: "assign-member", memberId: "founder-marina", taskId });
     for (let i = 0; i < 400 && state.tasks[0]!.status !== "done"; i += 1) {
       state = applyCommand(applyCommand(state, { type: "set-speed", speed: 4 }), { type: "tick", realSeconds: 10 });
     }
@@ -77,7 +77,7 @@ describe("envio no Portal da CT", () => {
     const ready = designed(withChapters(game(), 40, 1, 40, 20));
     const estimate = estimateReportScore(ready)!;
     const sent = applyCommand(ready, { type: "submit-report" });
-    expect(sent.report.submittedAt).toBe(0);
+    expect(sent.report.submittedAt).toBe(ready.clock.hours);
     expect(sent.report.score!).toBeGreaterThanOrEqual(estimate.value - estimate.margin - 1e-9);
     expect(sent.report.score!).toBeLessThanOrEqual(estimate.value + estimate.margin + 1e-9);
     expect(estimateReportScore(sent)).toEqual({ value: sent.report.score, margin: 0 });

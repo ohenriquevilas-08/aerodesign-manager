@@ -89,7 +89,7 @@ Não há turnos. O tempo corre como em jogos de gestão em tempo real (Two Point
 
 - Controles: **⏸ pausa · ▶ 1× · ▶▶ 2× · ▶▶▶ 4×** (barra de espaço pausa).
 - **Pausa automática** em eventos importantes (configurável): peça quebrou, ensaio terminou, prazo a 7 dias, alguém pediu para sair.
-- Escala **[PROPOSTA]**: em 1×, **1 dia de jogo ≈ 10 segundos**. Fevereiro a outubro (~250 dias) dá ~40 min em 1×; acelerando nos períodos calmos, o Ano 1 completo (com competição) fica nos 60–90 min.
+- Escala **[PROPOSTA]**: em 1×, **1 dia de jogo ≈ 10 segundos**. De 10/nov a 22/out (~345 dias) dá ~58 min em 1×; acelerando nos períodos calmos (pré-temporada, férias), o Ano 1 completo (com competição) fica nos 60–90 min. **[PROPOSTA, Fase 6]**
 - Prazos aparecem como **contagem regressiva**: `Relatório: 12d 04h`.
 
 ### 4.2 Trabalho como tarefas em andamento
@@ -107,13 +107,28 @@ Rifa de março           ██████████░░  85%   Davi       
 - Gente sem tarefa desmotiva. Gente sobrecarregada também.
 - Isso substitui as "ações flexíveis" da premissa 3B: o volume de trabalho depende da equipe, não de um limite de ações.
 
-### 4.3 Calendário oficial 2026
+### 4.3 Calendário da temporada 2025–26 **[DECIDIDO, Fase 6]**
+
+A temporada real começa quando a competição anterior acaba, na 2ª semana de novembro. O relógio parte da **segunda, 10/nov/2025** (`SEASON_START`), pausado na abertura (os fundadores convidam o orientador, seção 5.2), e a temporada dura 13 meses (nov a nov).
+
+**Pré-temporada (nov a fev)**, marcos com efeito (`content/season2026.ts`):
 
 | Data | Marco | Efeito no jogo |
 |---|---|---|
-| 9/fev | Regulamento publicado (Rev00) | Começa a temporada |
+| 10/nov | Convite dos fundadores | Abertura; o comando `found-team` libera o relógio |
+| Nov (até 30/nov) | Processo seletivo | A seletiva acontece aqui; depois de 30/nov a ação `recruitment` é recusada |
+| 1/dez a 1/fev | Etapa trainee | Quem entrou pela seletiva é `trainee` e treina (seção 5.2) |
+| 15/dez a 13/fev | Férias de verão | Horas por integrante a 50% (`BALANCE.season.summerFactor`, **[PROPOSTA]**) |
+| 1/fev | Fim da etapa trainee | Cada trainee vira integrante ou desiste |
+| **9/fev** | **Regulamento 2026 publicado (Rev00)** | Libera a tarefa "Leitura do regulamento" e a Prancheta (antes: "Aguardando regulamento") |
+
+Antes de 9/fev ficam permitidos: estudo, seletiva, trainee, captação e compras.
+
+**Datas oficiais de 2026** (iguais):
+
+| Data | Marco | Efeito no jogo |
+|---|---|---|
 | 1/mar | Revisão 01 do regulamento | Evento: "Errata publicada" |
-| Mar–mai | Seletiva da equipe | Evento de fundação (seção 5.2) |
 | **16/ago** | **Relatório, plantas, peso vazio previsto e reta de previsão de carga** | Congela as previsões que valem na competição |
 | 23/ago | Prazo final do relatório, com penalidade | Atrasar custa pontos |
 | 13/set | Cronograma da apresentação oral | Informativo |
@@ -131,9 +146,14 @@ O prazo do vídeo de voo é o grande divisor: **até o fim de setembro o avião 
 | Período | Horas por integrante |
 |---|---|
 | Aulas normais | 100% |
-| Semanas de provas (meados de abr, jun, set, nov) | 40% |
+| Semanas de provas (nov e dez de 2025; meados de abr, jun, set e nov de 2026) | 40% |
+| Férias de verão (15/dez a 13/fev) | 50% **[PROPOSTA]**: muitos viajam |
 | Férias de julho | 160% (é quando as equipes reais fabricam) |
 | Carnaval, feriados | 70% |
+
+### 4.5 Calendário anual e ações agendadas **[DECIDIDO, Fase 6]**
+
+O jogador pode marcar ações no calendário (estilo FIFA): `schedule-action` põe a ação em `plannedActions` com `startAt` (horas de jogo), e ela vira tarefa sozinha nessa hora, com a gente indicada já alocada. Se faltar gente livre, caixa, material ou pré-condição na hora, não começa: sai da lista, avisa na caixa de entrada e pausa o relógio (`PauseReason` `"scheduled"`). `reschedule-action` muda a data; `unschedule-action` tira. Sem `memberIds`, a tarefa nasce sem ninguém alocado. As leituras `calendarMonth(state, ano, mês 1–12)` (por dia: marcos, período acadêmico, ações agendadas, ensaios de voo, tarefas em andamento com início e fim previstos, prazos de pedidos) e `seasonOverview(state)` (os 13 meses com marcos) alimentam a tela.
 
 ---
 
@@ -143,7 +163,7 @@ O prazo do vídeo de voo é o grande divisor: **até o fim de setembro o avião 
 
 | Atributo | Faixa | Uso |
 |---|---|---|
-| Função | Presidente, capitão, membro | Capitães recomendam e lideram a frente |
+| Função | Presidente (aluno), capitão, membro, trainee | Capitães recomendam e lideram a frente. O **jogador é o professor orientador**, fora desta tabela: permanente, sem horas nem área |
 | Conhecimento por disciplina | 0–100 (tácito) | Qualidade do trabalho e do capítulo do relatório |
 | Fabricação | 0–100 | Qualidade e velocidade na oficina |
 | Pilotagem | 0–100 | Só para quem pilota; afeta risco no voo |
@@ -152,15 +172,23 @@ O prazo do vídeo de voo é o grande divisor: **até o fim de setembro o avião 
 | Disponibilidade | h/dia | Base das horas |
 | Período / formatura | semestre | Define quando sai da equipe |
 
-**Formação por área (Fase 4):** a equipe se organiza por área, cada uma com 1 capitão e N integrantes; sem banco nem reserva. Classe Regular: Aerodinâmica (2 vagas de integrante), Estruturas (3), Elétrica (2), Desempenho (1), Estabilidade e controle (1) e Cargas (1), ou seja, 6 capitães + 10 integrantes (valores provisórios, `content/formations.ts`). Projeto conceitual é do presidente e não é área. Novato chega sem área; o presidente fica fora da formação. Trocar um integrante de uma área para outra custa **8 pontos de motivação** (`BALANCE.formation.changeAreaMotivation`); o conhecimento tácito fica na disciplina antiga. Área vazia mostra o que para sem ela. Os dois capitães do início já começam nas suas áreas.
+**Formação por área (Fase 4):** a equipe se organiza por área, cada uma com 1 capitão e N integrantes; sem banco nem reserva. Classe Regular: Aerodinâmica (2 vagas de integrante), Estruturas (3), Elétrica (2), Desempenho (1), Estabilidade e controle (1) e Cargas (1), ou seja, 6 capitães + 10 integrantes (valores provisórios, `content/formations.ts`). Projeto conceitual não é área. Novato chega sem área; o presidente é um aluno como os outros e pode ocupar uma área (mas não a vaga de capitão); o trainee fica fora da formação até virar integrante. Trocar um integrante de uma área para outra custa **8 pontos de motivação** (`BALANCE.formation.changeAreaMotivation`); o conhecimento tácito fica na disciplina antiga. Área vazia mostra o que para sem ela. Os capitães escolhidos na fundação já começam nas suas áreas.
 
 **Disciplinas** = as do relatório 2026: Projeto conceitual e preliminar · Aerodinâmica · Desempenho · Estabilidade e controle · Cargas e aeroelasticidade · Estruturas e ensaios estruturais · Projeto elétrico e safety assessment. Usar as disciplinas reais amarra equipe, projeto e nota do relatório num único eixo.
 
 **Piloto:** piloto próprio (treina nos ensaios, conhece o avião) ou piloto da CT (nível fixo, não conhece o avião), como na regra real. O cadastro vence em 27/set.
 
-### 5.2 Seletiva de fundação **[DECIDIDO]**
+### 5.2 Fundação, seletiva e trainee **[DECIDIDO, Fase 6]**
 
-Começa com presidente + capitão de Aerodinâmica + capitão de Estruturas. A seletiva é o primeiro evento: escolha de formato (ampla, técnica, por indicação, desafio prático), pareceres dos capitães, convites gratuitos. Elenco mínimo para o projeto: Aerodinâmica, Estruturas e uma terceira pessoa (elétrica, fabricação ou relatório).
+**O jogador é o professor orientador** (`advisor: { name, reputation }`), permanente de ano para ano, como o técnico no modo carreira. A reputação começa baixa (`BALANCE.advisor`, **[PROPOSTA]**) e sobe com resultados (relatório enviado, fim da competição); no Ano 1 só é exibida (`advisorView`).
+
+**Fundação:** um grupo de **4 alunos fundadores** (`content/founders.ts`), sem cargo, conhecimento inicial baixo, cada um com uma "cara" (o que gosta de fazer) e um perfil de agenda, convida o orientador. O comando `found-team { presidentId, captains, teamName? }` (só no estado `founding`; o relógio fica pausado até lá) é a eleição: o orientador sugere quem preside e quem capitaneia o quê. Os capitães são opcionais (o organograma de fundação não é rígido); cada fundador assume um só cargo; só áreas da formação têm capitão. Fundadores podem ter inclinação de gestão ou marketing, não só de engenharia (áreas de negócio ficam para a Fase 7).
+
+**Presidente:** um aluno NPC. Trabalha, tem horas, área e carta, e uma `agenda`: `report`, `flight`, `funding` ou `balanced` (**[PROPOSTA]**). Tarefa concluída da agenda dá +1 de motivação a toda a equipe; 3 dias seguidos sem tarefa da agenda tiram 3 de motivação do presidente por dia (`BALANCE.agenda`). Nada é bloqueado. `presidentView` mostra a agenda e como o mês (30 dias) está para ela.
+
+**Seletiva (novembro):** escolha de formato (ampla, técnica, por indicação, desafio prático), pareceres dos capitães, convites gratuitos. Só até 30/nov. Elenco mínimo para o projeto: Aerodinâmica, Estruturas e uma terceira pessoa.
+
+**Etapa trainee (1/dez a 1/fev):** quem entra pela seletiva chega como `trainee`. A tarefa "Treinamento de trainees" (horas do trainee e de um capitão; sem capitão rende 50%) dá horas de treino e conhecimento. Em 1/fev cada trainee vira integrante ou desiste, com chance de ficar entre 40% (motivação 0) e 95% (100), multiplicada por 0,5 a 1 conforme o treino (**[PROPOSTA]**, `BALANCE.trainee`).
 
 ### 5.3 Conhecimento: tácito vs documentado **[DECIDIDO]**
 
@@ -172,12 +200,12 @@ Começa com presidente + capitão de Aerodinâmica + capitão de Estruturas. A s
 
 ### 5.4 Liderança e delegação **[DECIDIDO como princípio; mecânicas em PROPOSTA]**
 
-O presidente não fabrica nem calcula: coordena. Gerir a equipe é o mesmo problema de qualquer grupo trabalhando em paralelo: **fazer muita gente produzir ao mesmo tempo sem perder a coerência do avião.** Quatro princípios guiam as mecânicas:
+O orientador não fabrica nem calcula: coordena (o presidente, aluno, trabalha como qualquer outro). Gerir a equipe é o mesmo problema de qualquer grupo trabalhando em paralelo: **fazer muita gente produzir ao mesmo tempo sem perder a coerência do avião.** Quatro princípios guiam as mecânicas:
 
-1. **Delegar com instrução, não só alocar.** Ao iniciar uma tarefa, o presidente escolhe quem lidera e a **dedicação** (rápido, normal, caprichado). Instrução vaga sai rápido e com mais variância; instrução caprichada custa horas e reduz o erro.
+1. **Delegar com instrução, não só alocar.** Ao iniciar uma tarefa, o orientador escolhe quem lidera e a **dedicação** (rápido, normal, caprichado). Instrução vaga sai rápido e com mais variância; instrução caprichada custa horas e reduz o erro.
 2. **Dependências visíveis.** Algumas tarefas só começam quando outras terminam (fabricar a asa depende do projeto aerodinâmico; o relatório de Estruturas depende do ensaio estrutural). Adiantar o que tem dependência é possível, mas o que for feito sobre base não confirmada pode virar retrabalho.
 3. **Integração é um evento.** Montar o protótipo ou o avião oficial junta peças feitas por pessoas diferentes e pode revelar incompatibilidades (encaixe, peso acima do previsto, CG fora). A chance cai com o conhecimento documentado e com quem conhece o conjunto (capitão de projeto conceitual).
-4. **A atenção do presidente é um recurso.** Pedidos de decisão (aprovar compra, escolher candidato, autorizar ensaio arriscado) chegam pela caixa de entrada; enquanto não são respondidos, a tarefa espera. A pausa automática já cobre os pedidos urgentes.
+4. **A atenção do orientador é um recurso.** Pedidos de decisão (aprovar compra, escolher candidato, autorizar ensaio arriscado) chegam pela caixa de entrada; enquanto não são respondidos, a tarefa espera. A pausa automática já cobre os pedidos urgentes.
 
 **Teste de validade:** toda mecânica que sai destes princípios precisa ser reconhecível por quem já foi de equipe de aerodesign. Se só fizer sentido como metáfora de gestão de projetos, fica de fora. O tema do jogo é aerodesign e pessoas, não gestão.
 
@@ -196,13 +224,13 @@ Toda equipe real tem uma planilha de escala: quem está na oficina em cada turno
 
 **Madrugada:** na engenharia, cada semestre tem uma grade diferente. Juntar Aerodinâmica, Estruturas e Elétrica no mesmo turno quase sempre só é possível de madrugada. É ali que acontecem a integração do avião e as laminações grandes, que precisam de muita gente ao mesmo tempo.
 
-- **Sem autorização:** a oficina é da equipe, fora do bloco de aulas, e a equipe tem a chave (quem pode abrir a oficina continua sendo decisão do presidente: a chave). A madrugada está sempre disponível na grade; o que a limita são os custos abaixo, não um pedido ao departamento (decidido no playtest de 01/11/2026).
+- **Sem autorização:** a oficina é da equipe, fora do bloco de aulas, e a equipe tem a chave (quem pode abrir a oficina continua sendo decisão do orientador: a chave). A madrugada está sempre disponível na grade; o que a limita são os custos abaixo, não um pedido ao departamento (decidido no playtest de 01/11/2026).
 - **Sono cobra a conta:** quem fez madrugada perde o turno da manhã seguinte (está dormindo ou em aula, sem render) e tem queda de motivação, que aumenta com madrugadas seguidas.
 - **Cansaço gera erro:** trabalho de madrugada sai com qualidade menor (como uma dedicação "rápida" involuntária), maior depois da 1h. Dá para compensar com a dedicação "caprichado".
 - **Virada antes de prazo:** na semana de um prazo (relatório, vídeo de voo), a madrugada rende mais motivação em vez de tirar. A equipe se une na reta final, e qualquer um que já virou noite na oficina reconhece isso. Fora dessas semanas, ela desgasta.
 
 - Cada integrante tem a **grade de aulas** do semestre. Turno com aula fica bloqueado. Em semana de provas, os turnos livres somem; nas férias de julho, todos ficam livres (é o 160% da seção 4.4, agora visível).
-- O presidente monta a escala arrastando pessoas para os turnos. O capitão sugere uma **escala automática**, que o presidente aceita ou ajusta: a atenção do presidente é recurso (§5.4).
+- O orientador monta a escala arrastando pessoas para os turnos. O capitão sugere uma **escala automática**, que o orientador aceita ou ajusta: a atenção do orientador é recurso (§5.4).
 
 **O que a escala muda:**
 
@@ -600,6 +628,16 @@ Direção visual: imagens geradas pelo Gemini (painel escuro, ciano e laranja, �
 | 9 | Equipe nova **entra direto** na competição no Ano 1; Torneio de Acesso fica para a carreira |
 | 10 | Escala de tempo (1 dia ≈ 10 s em 1×) será testada no protótipo |
 | 11 | Custos separados em horas, créditos e prazo, com desgaste/risco à parte (seção 8) |
+
+### Fechadas em 01/11/2026 (Fase 6)
+
+| # | Decisão |
+|---|---|
+| 12 | O jogador é o **professor orientador**, permanente de ano para ano; o presidente é um aluno NPC com uma agenda |
+| 13 | A temporada começa em **10/nov/2025**, com 4 fundadores que convidam o orientador; `found-team` é a eleição de fundação |
+| 14 | Pré-temporada (nov a fev): seletiva em novembro, etapa trainee de dez a jan, férias de verão com horas reduzidas |
+| 15 | A Prancheta e a leitura do regulamento abrem em 9/fev; sem a leitura, a penalidade por alteração tardia de projeto na inspeção é multiplicada (`BALANCE.season.unreadPenaltyFactor`, **[PROPOSTA]**) |
+| 16 | Calendário anual no estilo FIFA com ações agendadas (seção 4.5) |
 
 ### Ainda abertas
 

@@ -24,6 +24,8 @@ export type EquipmentItem = "scale" | "thrust-stand";
  * - selection: sorteia candidatos da seletiva no formato escolhido ao iniciar (design §5.2).
  * - test: ensaio (design §7.3); estreita margens, cita nos capítulos, desgasta peças (sim/aircraft.ts).
  * - report-chapter / drawings / oral-practice: horas que entram no relatório e na apresentação (sim/report.ts).
+ * - read-regulation: marca o regulamento como lido (Fase 6, S1); só depois de 9/fev.
+ * - train: treino de trainees com um capitão (Fase 6, S2); só com trainee na equipe.
  */
 export type ActionEffect =
   | { kind: "credits"; amount: number }
@@ -41,7 +43,9 @@ export type ActionEffect =
   | { kind: "test"; test: "structural" | "thrust" }
   | { kind: "report-chapter" }
   | { kind: "drawings" }
-  | { kind: "oral-practice" };
+  | { kind: "oral-practice" }
+  | { kind: "read-regulation" }
+  | { kind: "train" };
 
 /** Alvo exigido no comando start-action. */
 export type ActionTarget = "part" | "waiting-task" | "discipline" | "selection-format";
@@ -111,6 +115,9 @@ const defs: Omit<ActionDef, "category">[] = [
   { id: "outreach-social", label: "Post nas redes", cost: cost(1, 0), crew: crew(1, 1, 1), skill: "communication", effect: { kind: "outreach", amount: 2 } },
   { id: "outreach-classroom", label: "Passar em sala de aula", cost: cost(3, 0), crew: crew(1, 2, 2), skill: "communication", effect: { kind: "outreach", amount: 6 } },
   { id: "outreach-freshers", label: "Stand na recepção de calouros", cost: cost(6, 0), crew: crew(2, 2, 3), skill: "communication", effect: { kind: "outreach", amount: 12 } },
+  // Fase 6: leitura do regulamento (libera em 9/fev) e treino da etapa trainee (dez–jan).
+  { id: "read-regulation", label: "Leitura do regulamento", cost: cost(12, 0), crew: crew(1, 2, 3), skill: "knowledge", discipline: "conceptual", effect: { kind: "read-regulation" } },
+  { id: "trainee-training", label: "Treinamento de trainees", cost: cost(8, 0), crew: crew(2, 3, 4), skill: "knowledge", effect: { kind: "train" } },
   { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), crew: crew(1, 2, 3), skill: "knowledge", discipline: "aerodynamics" },
   // Relatório (design §9.1): o capítulo é a disciplina escolhida; as horas entram na nota.
   {

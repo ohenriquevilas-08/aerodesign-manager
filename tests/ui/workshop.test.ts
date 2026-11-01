@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { canWork, createGame, currentShift, dateToHours, suggestSchedule, type GameState, type Task } from "../../src/sim";
+import { canWork, currentShift, dateToHours, suggestSchedule, type GameState, type Task } from "../../src/sim";
+import { startedGame } from "../sim/helpers";
 
-const game = () => createGame({ seed: 1, teamName: "Teste" });
+const game = () => startedGame({ seed: 1, teamName: "Teste" });
 
 /** Relógio numa data UTC (o jogo usa UTC para o calendário). */
 function at(state: GameState, iso: string): GameState {
@@ -44,6 +45,7 @@ describe("escala do capitão", () => {
       assignees: workers,
       contributions: {},
       targetId: null,
+      startedAt: 0,
       doneAt: null,
       dedication: "normal"
     };

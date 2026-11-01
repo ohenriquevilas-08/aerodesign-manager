@@ -3,12 +3,12 @@ import {
   applyCommand,
   BALANCE,
   DEDICATIONS,
-  createGame,
   dateToHours,
   estimateOutcome,
   estimateRemainingDays,
   estimateTaskDays,
   leadDaysRange,
+  clockToDate,
   memberHoursPerDay,
   motivationFactor,
   partState,
@@ -17,10 +17,11 @@ import {
   type GameState,
   type Member
 } from "../../src/sim";
+import { startedGame, TEST_START_HOURS } from "./helpers";
 
 /** Integrante contratado para os testes: o presidente não trabalha (é o jogador). */
 function withRookie(game: GameState): GameState {
-  const founder = game.members.find((item) => item.id === "captain-aero")!;
+  const founder = game.members.find((item) => item.id === "founder-marina")!;
   const rookie: Member = {
     ...founder,
     id: "rookie",
@@ -43,7 +44,7 @@ function withFullSchedule(game: GameState): GameState {
 }
 
 const newGame = (overrides: Partial<GameState> = {}): GameState => ({
-  ...withFullSchedule(withRookie(createGame({ seed: 42, teamName: "Teste" }))),
+  ...withFullSchedule(withRookie(startedGame({ seed: 42, teamName: "Teste" }))),
   ...overrides
 });
 
@@ -76,7 +77,7 @@ const member = (state: GameState, id: string): Member => state.members.find((ite
 
 describe("horas da equipe", () => {
   it("multiplica disponibilidade, calendário acadêmico e motivação", () => {
-    const captain = member(newGame(), "captain-aero");
+    const captain = member(newGame(), "founder-marina");
     expect(motivationFactor(100)).toBe(1);
     expect(motivationFactor(0)).toBe(BALANCE.motivation.hoursFactorAtZero);
     expect(memberHoursPerDay(captain, SEASON_START)).toBeCloseTo(3 * 1 * 0.9);
@@ -86,11 +87,11 @@ describe("horas da equipe", () => {
   it("o tick distribui horas só para quem está alocado em tarefa ativa", () => {
     let game = run(newGame(), { type: "start-action", actionId: "raffle" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId });
     game = play(game, 1);
     const task = game.tasks.find((item) => item.id === taskId)!;
     expect(task.hoursDone).toBeCloseTo(2.7);
-    expect(task.contributions).toEqual({ "captain-aero": expect.closeTo(2.7) });
+    expect(task.contributions).toEqual({ "founder-marina": expect.closeTo(2.7) });
   });
 
   it("vários integrantes somam horas na mesma tarefa", () => {
@@ -98,8 +99,8 @@ describe("horas da equipe", () => {
     const taskId = lastTask(game).id;
     game = run(
       game,
-      { type: "assign-member", memberId: "captain-aero", taskId },
-      { type: "assign-member", memberId: "captain-struct", taskId }
+      { type: "assign-member", memberId: "founder-marina", taskId },
+      { type: "assign-member", memberId: "founder-caio", taskId }
     );
     game = play(game, 1);
     expect(game.tasks[0]!.hoursDone).toBeCloseTo(5.4);
@@ -122,7 +123,7 @@ describe("tarefas do catálogo", () => {
     let game = run(newGame(), { type: "start-action", actionId: "sponsor-pitch" });
     const taskId = lastTask(game).id;
     game = run(game, { type: "assign-member", memberId: "rookie", taskId });
-    const readyDays = lastTask(game).readyAt! / 24;
+    const readyDays = (lastTask(game).readyAt! - game.clock.hours) / 24;
     game = play(game, readyDays - 0.5);
     expect(game.tasks[0]!.hoursDone).toBe(0);
     expect(game.tasks[0]!.status).toBe("waiting");
@@ -145,9 +146,9 @@ describe("tarefas do catálogo", () => {
     expect(member(game, "rookie").taskId).toBeNull();
     expect(game.tasks[1]!.assignees).toEqual([]);
 
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId: study!.id }, { type: "cancel-task", taskId: study!.id });
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId: study!.id }, { type: "cancel-task", taskId: study!.id });
     expect(game.tasks.map((task) => task.id)).toEqual([raffle!.id]);
-    expect(member(game, "captain-aero").taskId).toBeNull();
+    expect(member(game, "founder-marina").taskId).toBeNull();
   });
 
   it("applyCommand não muta o estado anterior", () => {
@@ -164,18 +165,18 @@ describe("efeitos de conclusão", () => {
   it("rifa credita no caixa e avisa na inbox", () => {
     let game = run(newGame(), { type: "start-action", actionId: "raffle" });
     const taskId = lastTask(game).id;
-    const estimate = estimateOutcome(game, "raffle", ["captain-aero", "rookie"])!;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "rookie", taskId });
+    const estimate = estimateOutcome(game, "raffle", ["founder-marina", "rookie"])!;
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId }, { type: "assign-member", memberId: "rookie", taskId });
     game = playUntilDone(game, taskId);
     expect(game.credits).toBeGreaterThanOrEqual(Math.floor(estimate.min));
     expect(game.credits).toBeLessThanOrEqual(Math.ceil(estimate.max));
     expect(game.inbox.some((message) => message.title === "Concluído: Organizar rifa")).toBe(true);
-    expect(member(game, "captain-aero").taskId).toBeNull();
+    expect(member(game, "founder-marina").taskId).toBeNull();
   });
 
   it("patrocínio é sorteado com rngState e reproduzível pelo seed", () => {
     const outcome = (seed: number) => {
-      let game = run(withRookie(createGame({ seed, teamName: "T" })), { type: "start-action", actionId: "sponsor-pitch" });
+      let game = run(withRookie(startedGame({ seed, teamName: "T" })), { type: "start-action", actionId: "sponsor-pitch" });
       const taskId = lastTask(game).id;
       game = run(game, { type: "assign-member", memberId: "rookie", taskId });
       return playUntilDone(game, taskId).credits;
@@ -189,18 +190,18 @@ describe("efeitos de conclusão", () => {
   it("estudo aumenta o conhecimento tácito de quem trabalhou, com retorno decrescente", () => {
     let game = run(newGame(), { type: "start-action", actionId: "study-aero" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "rookie", taskId });
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId }, { type: "assign-member", memberId: "rookie", taskId });
     game = playUntilDone(game, taskId);
-    const captain = member(game, "captain-aero");
+    const captain = member(game, "founder-marina");
     const rookie = member(game, "rookie");
-    expect(captain.knowledge.aerodynamics).toBeGreaterThan(25);
+    expect(captain.knowledge.aerodynamics).toBeGreaterThan(14);
     expect(rookie.knowledge.aerodynamics).toBeGreaterThan(0);
-    expect(member(game, "captain-struct").knowledge.aerodynamics).toBe(0);
-    // O novato parte de 0 e aprende mais por hora que o capitão (25).
+    expect(member(game, "founder-caio").knowledge.aerodynamics).toBe(0);
+    // O novato parte de 0 e aprende mais por hora que a capitã (14).
     const perHour = (from: number, to: number, id: string) =>
       (to - from) / game.tasks[0]!.contributions[id]!;
     expect(perHour(0, rookie.knowledge.aerodynamics, "rookie")).toBeGreaterThan(
-      perHour(25, captain.knowledge.aerodynamics, "captain-aero")
+      perHour(14, captain.knowledge.aerodynamics, "founder-marina")
     );
   });
 
@@ -210,9 +211,9 @@ describe("efeitos de conclusão", () => {
     game = run(game, { type: "start-action", actionId: "document", targetId: "aerodynamics" });
     const task = lastTask(game);
     expect(task.label).toBe("Documentar conhecimento (Aerodinâmica)");
-    const estimate = estimateOutcome(game, "document", ["captain-aero"], "aerodynamics")!;
+    const estimate = estimateOutcome(game, "document", ["founder-marina"], "aerodynamics")!;
     expect(estimate.text).toMatch(/^Acervo de Aerodinâmica \+/);
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId: task.id });
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId: task.id });
     game = playUntilDone(game, task.id);
     expect(game.documented.aerodynamics).toBeGreaterThanOrEqual(estimate.min - 1e-9);
     expect(game.documented.aerodynamics).toBeLessThanOrEqual(estimate.max + 1e-9);
@@ -229,11 +230,11 @@ describe("efeitos de conclusão", () => {
     game = run(game, { type: "start-action", actionId: "build-wing" });
     expect(game.stock.balsa).toBe(0);
     const taskId = lastTask(game).id;
-    const estimate = estimateOutcome(game, "build-wing", ["captain-struct", "captain-aero"])!;
+    const estimate = estimateOutcome(game, "build-wing", ["founder-caio", "founder-marina"])!;
     game = run(
       game,
-      { type: "assign-member", memberId: "captain-struct", taskId },
-      { type: "assign-member", memberId: "captain-aero", taskId }
+      { type: "assign-member", memberId: "founder-caio", taskId },
+      { type: "assign-member", memberId: "founder-marina", taskId }
     );
     game = playUntilDone(game, taskId);
     const wing = game.parts.find((part) => part.type === "wing")!;
@@ -241,8 +242,8 @@ describe("efeitos de conclusão", () => {
     expect(partState(wing.condition)).toBe("new");
     expect(wing.quality).toBeGreaterThanOrEqual(estimate.min);
     expect(wing.quality).toBeLessThanOrEqual(estimate.max);
-    expect(member(game, "captain-struct").fabrication).toBeGreaterThan(20);
-    expect(member(game, "captain-struct").knowledge.structures).toBeGreaterThan(25);
+    expect(member(game, "founder-caio").fabrication).toBeGreaterThan(20);
+    expect(member(game, "founder-caio").knowledge.structures).toBeGreaterThan(25);
   });
 
   it("reparo recupera parte da condição da peça alvo", () => {
@@ -252,8 +253,8 @@ describe("efeitos de conclusão", () => {
     });
     game = run(game, { type: "start-action", actionId: "repair-part", targetId: "part-x" });
     const taskId = lastTask(game).id;
-    const estimate = estimateOutcome(game, "repair-part", ["captain-struct"], "part-x")!;
-    game = run(game, { type: "assign-member", memberId: "captain-struct", taskId });
+    const estimate = estimateOutcome(game, "repair-part", ["founder-caio"], "part-x")!;
+    game = run(game, { type: "assign-member", memberId: "founder-caio", taskId });
     game = playUntilDone(game, taskId);
     expect(game.parts[0]!.condition).toBeGreaterThanOrEqual(40 + Math.round(estimate.min));
     expect(game.parts[0]!.condition).toBeLessThanOrEqual(40 + Math.round(estimate.max));
@@ -278,10 +279,10 @@ describe("estados visíveis das peças", () => {
 describe("eventos e pausa automática", () => {
   it("pausa quando uma tarefa termina, com o motivo e a mensagem", () => {
     let game = run(newGame(), { type: "start-action", actionId: "outreach-social" });
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId: lastTask(game).id }, { type: "set-speed", speed: 4 });
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId: lastTask(game).id }, { type: "set-speed", speed: 4 });
     game = run(game, { type: "tick", realSeconds: 60 });
     expect(game.clock.speed).toBe(0);
-    expect(game.clock.hours).toBeLessThan(24);
+    expect(game.clock.hours - TEST_START_HOURS).toBeLessThan(24);
     expect(game.pause?.reason).toBe("task-done");
     const message = game.inbox.find((item) => item.id === game.pause?.messageId);
     expect(message?.title).toBe("Concluído: Post nas redes");
@@ -324,28 +325,28 @@ describe("motivação", () => {
     let game = newGame();
     game = run(game, { type: "start-action", actionId: "report-chapter", targetId: "aerodynamics" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId });
     game = play(game, 7);
-    expect(member(game, "captain-aero").motivation).toBe(80);
+    expect(member(game, "founder-marina").motivation).toBe(80);
 
     // Começa já perto do limite de sobrecarga.
     game = {
       ...game,
       members: game.members.map((item) =>
-        item.id === "captain-aero" ? { ...item, workStreakHours: BALANCE.motivation.overloadAfterHours } : item
+        item.id === "founder-marina" ? { ...item, workStreakHours: BALANCE.motivation.overloadAfterHours } : item
       )
     };
     game = play(game, 2);
-    expect(member(game, "captain-aero").motivation).toBeLessThan(80);
+    expect(member(game, "founder-marina").motivation).toBeLessThan(80);
   });
 
   it("sobe ao concluir a tarefa", () => {
     let game = run(newGame(), { type: "start-action", actionId: "unload-drill" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId });
     game = playUntilDone(game, taskId);
-    expect(member(game, "captain-aero").motivation).toBe(80 + BALANCE.motivation.completionBoost);
-    expect(member(game, "captain-aero").agility).toBeGreaterThan(40);
+    expect(member(game, "founder-marina").motivation).toBe(80 + BALANCE.motivation.completionBoost);
+    expect(member(game, "founder-marina").agility).toBeGreaterThan(40);
   });
 });
 
@@ -353,8 +354,8 @@ describe("equipe por tarefa (crew)", () => {
   it("recusa alocar acima do máximo da ação", () => {
     let game = run(newGame(), { type: "start-action", actionId: "report-chapter", targetId: "aerodynamics" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "rookie", taskId });
-    expect(game.tasks[0]!.assignees).toEqual(["captain-aero"]);
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId }, { type: "assign-member", memberId: "rookie", taskId });
+    expect(game.tasks[0]!.assignees).toEqual(["founder-marina"]);
     expect(member(game, "rookie").taskId).toBeNull();
     expect(game.warning?.text).toContain("uma pessoa");
   });
@@ -362,7 +363,7 @@ describe("equipe por tarefa (crew)", () => {
   it("abaixo do mínimo a tarefa não avança", () => {
     let game = run(newGame(), { type: "start-action", actionId: "outreach-freshers" });
     const taskId = lastTask(game).id;
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId });
     game = play(game, 2);
     expect(game.tasks[0]!.hoursDone).toBe(0);
     expect(estimateRemainingDays(game, taskId)).toBeNull();
@@ -374,8 +375,8 @@ describe("equipe por tarefa (crew)", () => {
     game = run(
       game,
       { type: "assign-member", memberId: "rookie", taskId },
-      { type: "assign-member", memberId: "captain-aero", taskId },
-      { type: "assign-member", memberId: "captain-struct", taskId }
+      { type: "assign-member", memberId: "founder-marina", taskId },
+      { type: "assign-member", memberId: "founder-caio", taskId }
     );
     game = play(game, 1);
     const extra = 2 * 0.9 * BALANCE.crew.extraEfficiency;
@@ -385,36 +386,33 @@ describe("equipe por tarefa (crew)", () => {
 
   it("estima a duração antes de iniciar e bate com a simulação", () => {
     const game = newGame();
-    const estimate = estimateTaskDays(game, "raffle", ["captain-aero"])!;
-    expect(estimateTaskDays(game, "raffle", ["captain-aero", "captain-struct"])!).toBeLessThan(estimate);
+    const estimate = estimateTaskDays(game, "raffle", ["founder-marina"])!;
+    expect(estimateTaskDays(game, "raffle", ["founder-marina", "founder-caio"])!).toBeLessThan(estimate);
     expect(estimateTaskDays(game, "raffle", [])).toBeNull();
-    expect(estimateTaskDays(game, "test-flight", ["captain-aero"])).toBeNull();
+    expect(estimateTaskDays(game, "test-flight", ["founder-marina"])).toBeNull();
 
     let started = run(game, { type: "start-action", actionId: "raffle" });
     const taskId = lastTask(started).id;
-    started = run(started, { type: "assign-member", memberId: "captain-aero", taskId });
+    started = run(started, { type: "assign-member", memberId: "founder-marina", taskId });
     expect(estimateRemainingDays(started, taskId)).toBeCloseTo(estimate);
     const done = playUntilDone(started, taskId);
-    expect(done.tasks[0]!.doneAt! / 24).toBeCloseTo(estimate, 1);
+    expect((done.tasks[0]!.doneAt! - done.tasks[0]!.startedAt) / 24).toBeCloseTo(estimate, 1);
   });
 
 });
 
-describe("presidente", () => {
-  it("coordena e não é alocado em tarefas", () => {
+describe("presidente (aluno)", () => {
+  it("trabalha como qualquer aluno: é alocado e gera horas", () => {
     let game = run(newGame(), { type: "start-action", actionId: "raffle" });
-    game = run(game, { type: "assign-member", memberId: "president", taskId: lastTask(game).id });
-    expect(member(game, "president").taskId).toBeNull();
-    expect(game.tasks[0]!.assignees).toEqual([]);
-    expect(game.warning?.text).toBe("O presidente coordena; escolha alguém da equipe.");
+    game = run(game, { type: "assign-member", memberId: "founder-bia", taskId: lastTask(game).id });
+    expect(member(game, "founder-bia").taskId).toBe(lastTask(game).id);
+    expect(game.tasks[0]!.assignees).toEqual(["founder-bia"]);
+    expect(memberHoursPerDay(member(game, "founder-bia"), clockToDate(game.clock.hours))).toBeGreaterThan(0);
   });
 
-  it("não gera horas, não desmotiva parado e não acumula sequência", () => {
-    const game = newGame();
-    expect(memberHoursPerDay(member(game, "president"), SEASON_START)).toBe(0);
-    const later = play(game, 10);
-    expect(member(later, "president").motivation).toBe(80);
-    expect(member(later, "president").workStreakHours).toBe(0);
+  it("parado, desmotiva como qualquer aluno", () => {
+    const later = play(newGame(), 10);
+    expect(member(later, "founder-bia").motivation).toBeLessThan(80);
   });
 });
 
@@ -425,26 +423,26 @@ describe("rendimento pela qualidade da equipe", () => {
   });
 
   it("equipe melhor rende mais e varia menos", () => {
-    const weak = withSkill(newGame(), "captain-aero", { communication: 10 });
-    const strong = withSkill(newGame(), "captain-aero", { communication: 90 });
-    const low = estimateOutcome(weak, "raffle", ["captain-aero"])!;
-    const high = estimateOutcome(strong, "raffle", ["captain-aero"])!;
+    const weak = withSkill(newGame(), "founder-marina", { communication: 10 });
+    const strong = withSkill(newGame(), "founder-marina", { communication: 90 });
+    const low = estimateOutcome(weak, "raffle", ["founder-marina"])!;
+    const high = estimateOutcome(strong, "raffle", ["founder-marina"])!;
     expect(high.expected).toBeGreaterThan(low.expected);
     expect((high.max - high.min) / high.expected).toBeLessThan((low.max - low.min) / low.expected);
     expect(low.text).toMatch(/^◆ \d+–\d+$/);
   });
 
   it("a qualidade é a habilidade ponderada pelas horas e pela motivação", () => {
-    const game = withSkill(newGame(), "captain-aero", { communication: 60 });
-    const estimate = estimateOutcome(game, "raffle", ["captain-aero"])!;
+    const game = withSkill(newGame(), "founder-marina", { communication: 60 });
+    const estimate = estimateOutcome(game, "raffle", ["founder-marina"])!;
     expect(estimate.quality).toBeCloseTo(60 * motivationFactor(80));
-    // Novato (2 h/dia, comunicação 30) pesa menos que o capitão (3 h/dia, 60).
-    const mixed = estimateOutcome(game, "raffle", ["captain-aero", "rookie"])!;
-    expect(mixed.quality).toBeCloseTo(((60 * 3 + 30 * 2) / 5) * motivationFactor(80));
+    // Novato (2 h/dia, comunicação de Marina antes do ajuste) pesa menos que a capitã (3 h/dia, 60).
+    const mixed = estimateOutcome(game, "raffle", ["founder-marina", "rookie"])!;
+    expect(mixed.quality).toBeCloseTo(((60 * 3 + member(game, "rookie").communication * 2) / 5) * motivationFactor(80));
   });
 
   it("patrocínio mostra chance e valor; o resultado real é sorteado com rngState", () => {
-    const estimate = estimateOutcome(newGame(), "sponsor-pitch", ["captain-aero"])!;
+    const estimate = estimateOutcome(newGame(), "sponsor-pitch", ["founder-marina"])!;
     expect(estimate.chance).toBeGreaterThan(BALANCE.sponsor.chanceAtZero);
     expect(estimate.text).toMatch(/% de chance de ◆/);
   });
@@ -452,15 +450,15 @@ describe("rendimento pela qualidade da equipe", () => {
   it("sem equipe válida ou sem resultado variável não há estimativa", () => {
     const game = newGame();
     expect(estimateOutcome(game, "raffle", [])).toBeNull();
-    expect(estimateOutcome(game, "study-aero", ["captain-aero"])).toBeNull();
-    expect(estimateOutcome(game, "document", ["captain-aero"])).toBeNull();
+    expect(estimateOutcome(game, "study-aero", ["founder-marina"])).toBeNull();
+    expect(estimateOutcome(game, "document", ["founder-marina"])).toBeNull();
   });
 
   it("o mesmo seed dá o mesmo resultado; seeds diferentes variam", () => {
     const raffle = (seed: number) => {
-      let game = run(withRookie(createGame({ seed, teamName: "T" })), { type: "start-action", actionId: "raffle" });
+      let game = run(withRookie(startedGame({ seed, teamName: "T" })), { type: "start-action", actionId: "raffle" });
       const taskId = lastTask(game).id;
-      game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+      game = run(game, { type: "assign-member", memberId: "founder-marina", taskId });
       return playUntilDone(game, taskId).credits;
     };
     expect(raffle(11)).toBe(raffle(11));
@@ -472,9 +470,9 @@ describe("divulgação", () => {
   it("soma alcance pela comunicação de quem divulga, e o alcance esfria com os dias", () => {
     let game = run(newGame(), { type: "start-action", actionId: "outreach-posters" });
     const taskId = lastTask(game).id;
-    const estimate = estimateOutcome(game, "outreach-posters", ["captain-aero"])!;
+    const estimate = estimateOutcome(game, "outreach-posters", ["founder-marina"])!;
     expect(estimate.text).toMatch(/^Alcance \+/);
-    game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId });
     game = playUntilDone(game, taskId);
     expect(game.outreach).toBeGreaterThanOrEqual(estimate.min - 0.1);
     expect(game.outreach).toBeLessThanOrEqual(estimate.max);
@@ -496,7 +494,7 @@ describe("dedicação", () => {
 
   it("estimativas comparam as opções: caprichado demora mais e rende melhor", () => {
     const game = newGame();
-    const team = ["captain-aero", "captain-struct"];
+    const team = ["founder-marina", "founder-caio"];
     const days = DEDICATIONS.map((item) => estimateTaskDays(game, "build-wing", team, item.id)!);
     expect(days[0]!).toBeLessThan(days[1]!);
     expect(days[1]!).toBeLessThan(days[2]!);
@@ -509,8 +507,8 @@ describe("dedicação", () => {
     const finish = (dedication: "rush" | "careful") => {
       let game = run(newGame(), { type: "start-action", actionId: "raffle", dedication });
       const taskId = lastTask(game).id;
-      const estimate = estimateOutcome(game, "raffle", ["captain-aero"], null, dedication)!;
-      game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
+      const estimate = estimateOutcome(game, "raffle", ["founder-marina"], null, dedication)!;
+      game = run(game, { type: "assign-member", memberId: "founder-marina", taskId });
       return { credits: playUntilDone(game, taskId).credits, estimate };
     };
     for (const dedication of ["rush", "careful"] as const) {

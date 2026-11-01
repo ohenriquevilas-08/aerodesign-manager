@@ -3,9 +3,10 @@
 // interrompe o tick no passo em que aconteceu e o resto do tempo real é descartado.
 // Nas janelas de voo da competição o relógio anda mais devagar (competition.ts, clockPace).
 
-import { advanceCompetition, clockPace } from "./competition";
+import { advancePlanned } from "./calendar";
+import { advanceCompetition, clockPace, standings } from "./competition";
 import { BALANCE } from "./content/balance";
-import { OFFICIAL_CALENDAR } from "./content/calendar2026";
+import { OFFICIAL_CALENDAR } from "./content/season2026";
 import { findAction } from "./content/actions";
 import { advanceFlightTests } from "./flightTests";
 import { crewRates } from "./crew";
@@ -13,10 +14,11 @@ import { overnightWeight, shiftEffects, workshopTaskRates } from "./workshop";
 import { reportEvents } from "./report";
 import { advanceShops } from "./shop";
 import { addNews } from "./news";
+import { awardReputation, resolveTrainees, trackAgenda } from "./season";
 import { addMessage, completeTask } from "./tasks";
 import { canWork, clamp, isOverloaded } from "./team";
 import { clockToDate, dateToHours, gameHoursForRealSeconds } from "./time";
-import type { GameState, Member, PauseInfo, PauseReason } from "./types";
+import { PLAYER_TEAM_ID, type GameState, type Member, type PauseInfo, type PauseReason } from "./types";
 
 const EPSILON = 1e-9;
 
@@ -154,9 +156,13 @@ export function step(state: GameState, dt: number): GameState {
         body: deadline.kind === "deadline" ? "O prazo passou." : "Marco do calendário oficial."
       });
       next = added.state;
-      pauses.push({ reason: "deadline-passed", messageId: added.id });
+      // Marcos de pré-temporada avisam na caixa de entrada, mas não pausam o relógio.
+      if (!deadline.quiet) pauses.push({ reason: "deadline-passed", messageId: added.id });
     }
   }
+
+  // 5a. Fim da etapa trainee (1/fev): cada trainee vira integrante ou desiste.
+  next = resolveTrainees(next, t0, t1);
 
   // 5b. Relatório: envio automático no prazo e apresentação oral (os marcos acima já pausam).
   next = reportEvents(next, t0, t1);
@@ -170,6 +176,20 @@ export function step(state: GameState, dt: number): GameState {
   const competition = advanceCompetition(next, t0, t1);
   next = competition.state;
   pauses.push(...competition.pauses);
+
+  // 5d. Ações agendadas no calendário começam sozinhas; as que não dão certo pausam e avisam.
+  const planned = advancePlanned(next, t1);
+  next = planned.state;
+  pauses.push(...planned.pauses);
+
+  // 5e. Agenda do presidente e reputação do orientador (Fase 6, S2).
+  next = trackAgenda(state, next, t0, t1);
+  if (!state.report.submittedAt && next.report.submittedAt) next = awardReputation(next, BALANCE.advisor.reportSubmitted);
+  if (state.competition?.phase !== "finished" && next.competition?.phase === "finished") {
+    const table = standings(next);
+    const position = table.find((row) => row.teamId === PLAYER_TEAM_ID)?.position ?? table.length;
+    next = awardReputation(next, BALANCE.advisor.competitionBase + (table.length - position) * BALANCE.advisor.competitionPerPlaceFromLast);
+  }
 
   // 6. Pausa automática: o relógio para e guarda o motivo do primeiro evento do passo.
   const first = pauses[0];

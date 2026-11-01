@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { drawCandidates, hireCandidate } from "../../src/sim/selection";
-import { createGame, drawLook, formationView, LOOK_OPTIONS, rosterMembers, TEAM_SHIRT_COLOR, type MemberLook } from "../../src/sim";
+import { drawLook, formationView, LOOK_OPTIONS, rosterMembers, TEAM_SHIRT_COLOR, type MemberLook } from "../../src/sim";
+import { startedGame } from "./helpers";
 
 function validLook(look: MemberLook) {
   const index = (value: number, count: number) => {
@@ -17,9 +18,9 @@ function validLook(look: MemberLook) {
 
 describe("aparência dos integrantes (S3)", () => {
   it("todo integrante inicial tem look sorteado pelo seed, determinístico", () => {
-    const game = createGame({ seed: 42, teamName: "T" });
+    const game = startedGame({ seed: 42, teamName: "T" });
     for (const member of game.members) validLook(member.look);
-    expect(createGame({ seed: 42, teamName: "T" }).members.map((m) => m.look)).toEqual(game.members.map((m) => m.look));
+    expect(startedGame({ seed: 42, teamName: "T" }).members.map((m) => m.look)).toEqual(game.members.map((m) => m.look));
   });
 
   it("o sorteio varia e às vezes traz acessório", () => {
@@ -37,7 +38,7 @@ describe("aparência dos integrantes (S3)", () => {
   });
 
   it("candidato da seletiva tem look e o leva ao ser convidado", () => {
-    const state = drawCandidates(createGame({ seed: 5, teamName: "T" }), "broad", 3);
+    const state = drawCandidates(startedGame({ seed: 5, teamName: "T" }), "broad", 3);
     expect(state.candidates.length).toBeGreaterThan(0);
     for (const candidate of state.candidates) validLook(candidate.look);
     const candidate = state.candidates[0]!;
@@ -46,13 +47,14 @@ describe("aparência dos integrantes (S3)", () => {
   });
 });
 
-describe("presidente fora das listas (S4)", () => {
-  it("rosterMembers tira o presidente; a formação também", () => {
-    const game = createGame({ seed: 1, teamName: "T" });
+describe("presidente é um aluno (Fase 6)", () => {
+  it("rosterMembers inclui o presidente; a formação o lista como qualquer aluno", () => {
+    const game = startedGame({ seed: 1, teamName: "T" });
     const roster = rosterMembers(game);
-    expect(roster.map((m) => m.id)).toEqual(["captain-aero", "captain-struct"]);
-    expect(roster.some((m) => m.role === "president")).toBe(false);
+    expect(roster.map((m) => m.id).sort()).toEqual(["founder-bia", "founder-caio", "founder-marina", "founder-rafa"]);
+    expect(roster.some((m) => m.role === "president")).toBe(true);
     const view = formationView({ ...game, members: game.members.map((m) => ({ ...m, area: null })) });
-    expect(view.unassigned).not.toContain("president");
+    expect(view.presidentId).toBe("founder-bia");
+    expect(view.unassigned).toContain("founder-bia");
   });
 });

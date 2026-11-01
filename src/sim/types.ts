@@ -36,7 +36,15 @@ export interface Clock {
   speed: ClockSpeed;
 }
 
-export type Role = "president" | "captain" | "member";
+/** Fase 6: o presidente é um aluno (NPC); o jogador é o orientador (GameState.advisor). */
+export type Role = "president" | "captain" | "member" | "trainee";
+
+/** Perfil do presidente (Fase 6, S2): o tipo de tarefa que ele puxa. */
+export type PresidentAgenda = "report" | "flight" | "funding" | "balanced";
+
+/** A "cara" de um fundador: o que gosta de fazer (content/founders.ts). */
+/** "management" e "marketing" são inclinações de gestão (sem área de negócio nem árvore de habilidades: Fase 7). */
+export type FounderFlair = "design" | "build" | "fly" | "organize" | "management" | "marketing";
 
 // ---------------------------------------------------------------------------
 // Escala da oficina (design §5.5).
@@ -87,6 +95,12 @@ export interface Member {
   area: Discipline | null;
   /** Aparência do boneco isométrico (Fase 5, S3), sorteada ao criar. */
   look: MemberLook;
+  /** Fase 6: perfil que o aluno traz se for eleito presidente; só vale para o presidente. */
+  agenda?: PresidentAgenda;
+  /** Fase 6: o que o fundador gosta de fazer. */
+  flair?: FounderFlair;
+  /** Fase 6: horas de treino acumuladas na etapa trainee (só trainee). */
+  trainingHours?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +190,8 @@ export interface Task {
   contributions: Record<string, number>;
   /** Alvo escolhido no start-action (peça, tarefa ou disciplina), se a ação exige. */
   targetId: string | null;
+  /** Momento (horas de jogo) em que a tarefa começou. */
+  startedAt: number;
   /** Momento (horas de jogo) da conclusão; null enquanto não termina. */
   doneAt: number | null;
   /** Rápido, normal ou caprichado: já aplicado em hoursTotal; vira bônus de qualidade na conclusão. */
@@ -204,7 +220,9 @@ export type PauseReason =
   | "order"
   | "flight"
   | "competition"
-  | "flight-test";
+  | "flight-test"
+  /** Fase 6: uma ação agendada não pôde começar (falta de gente, caixa ou pré-condição). */
+  | "scheduled";
 
 export interface PauseInfo {
   reason: PauseReason;
@@ -524,8 +542,37 @@ export interface Standing {
   position: number;
 }
 
+// ---------------------------------------------------------------------------
+// Fase 6: orientador, agenda do presidente e ações agendadas.
+// ---------------------------------------------------------------------------
+
+/** O jogador: professor orientador, permanente de ano para ano. Reputação 0–100, só exibida no Ano 1. */
+export interface Advisor {
+  name: string;
+  reputation: number;
+}
+
+/** Um dia do registro da agenda: houve alguma tarefa alinhada em andamento? */
+export interface AgendaDay {
+  /** Dia de jogo (Math.floor(horas / 24)). */
+  day: number;
+  hit: boolean;
+}
+
+/** Ação do catálogo marcada para começar sozinha em `startAt` (horas de jogo). */
+export interface PlannedAction {
+  id: string;
+  actionId: string;
+  /** Horas de jogo (use dateToHours para uma data); precisa estar no futuro ao agendar. */
+  startAt: number;
+  targetId: string | null;
+  dedication: TaskDedication;
+  /** Quem entra na tarefa ao começar; vazio = a tarefa nasce sem ninguém alocado. */
+  memberIds: string[];
+}
+
 export interface GameState {
-  version: 6;
+  version: 7;
   seed: number;
   rngState: number;
   clock: Clock;
@@ -569,6 +616,16 @@ export interface GameState {
   testLog: TestRecord[];
   /** Ensaios de voo agendados, feitos e cancelados (Fase 5, S2), na ordem em que foram marcados. */
   flightTests: FlightTest[];
+  /** Fase 6: o jogador, como professor orientador. */
+  advisor: Advisor;
+  /** Fase 6: true até o comando found-team (abertura); o relógio fica pausado. */
+  founding: boolean;
+  /** Fase 6: a tarefa "Leitura do regulamento" foi concluída. */
+  regulationRead: boolean;
+  /** Fase 6: ações agendadas, em ordem de criação; viram tarefa em `startAt`. */
+  plannedActions: PlannedAction[];
+  /** Fase 6: últimos dias da agenda do presidente (BALANCE.agenda.logDays). */
+  agendaLog: AgendaDay[];
 }
 
 // ---------------------------------------------------------------------------

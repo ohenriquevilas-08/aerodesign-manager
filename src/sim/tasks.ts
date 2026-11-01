@@ -10,9 +10,10 @@ import { addReportHours } from "./report";
 import { recordTest } from "./testlog";
 import { recordLedger } from "./ledger";
 import { nextRandom } from "./rng";
+import { actionProblem, agendaBoost, applyTraining } from "./season";
 import { drawCandidates, expectedApplicants, findSelectionFormat } from "./selection";
 import { DISCIPLINES } from "./state";
-import { canWork, clamp, DISCIPLINE_LABELS, learn } from "./team";
+import { clamp, DISCIPLINE_LABELS, learn } from "./team";
 import type { Discipline, GameState, InboxMessage, Part, Task } from "./types";
 
 /** Efeitos cujo resultado depende da qualidade da equipe (sim/outcome.ts). */
@@ -94,7 +95,10 @@ export function startAction(
   const action = findAction(actionId);
   if (!action) return warn(state, "Ação desconhecida.");
 
-  const problem = targetProblem(state, action, targetId) ?? (action.effect?.kind === "test" ? testProblem(state, action.effect.test) : null);
+  const problem =
+    actionProblem(state, action) ??
+    targetProblem(state, action, targetId) ??
+    (action.effect?.kind === "test" ? testProblem(state, action.effect.test) : null);
   if (problem) return warn(state, problem);
 
   for (const [item, amount] of Object.entries(action.requires ?? {}) as [StockItem, number][]) {
@@ -135,6 +139,7 @@ export function startAction(
     contributions: {},
     targetId: action.target ? targetId : null,
     dedication: action.cost.hours > 0 ? dedication : "normal",
+    startedAt: now,
     doneAt: null
   };
   const next: GameState = recordLedger(
@@ -170,7 +175,6 @@ function detach(state: GameState, memberId: string): GameState {
 export function assignMember(state: GameState, memberId: string, taskId: string): GameState {
   const member = state.members.find((item) => item.id === memberId);
   if (!member) return warn(state, "Integrante não encontrado.");
-  if (!canWork(member)) return warn(state, "O presidente coordena; escolha alguém da equipe.");
   const task = state.tasks.find((item) => item.id === taskId);
   if (!task || task.status === "done") return warn(state, "Essa tarefa não está mais aberta.");
   if (task.hoursTotal === 0) return warn(state, "Essa tarefa não usa horas da equipe: é só esperar.");
@@ -350,6 +354,16 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       body = tested.body;
       break;
     }
+    case "read-regulation":
+      next = { ...next, regulationRead: true };
+      body = "Regulamento lido. As mudanças de projeto ficam menos arriscadas na inspeção.";
+      break;
+    case "train": {
+      const trained = applyTraining(next, task);
+      next = trained.state;
+      body = trained.body;
+      break;
+    }
     case "outreach": {
       const reach = effect.amount * multiplier;
       next = { ...next, outreach: next.outreach + reach };
@@ -384,6 +398,7 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
         : member
     )
   };
+  next = agendaBoost(next, task.actionId);
   next = replaceTask(next, {
     ...task,
     hoursDone: task.hoursTotal,

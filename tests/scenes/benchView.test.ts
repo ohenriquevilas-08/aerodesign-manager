@@ -127,7 +127,8 @@ describe("integrantes no hangar", () => {
     expect(views.map((v) => [v.bench, v.slot])).toEqual([
       [null, 0],
       [null, 1],
-      [null, 2]
+      [null, 2],
+      [null, 3]
     ]);
   });
 });

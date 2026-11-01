@@ -4,7 +4,7 @@
 import type { GameState } from "./types";
 
 /** Versão do formato; sobe a cada mudança incompatível do GameState. */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 export function serializeState(state: GameState): string {
   return JSON.stringify(state);

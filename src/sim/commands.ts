@@ -2,7 +2,9 @@
 // applyCommand é puro (estado novo, sem mutar o anterior).
 
 import { setDesign } from "./aircraft";
+import { rescheduleAction, scheduleAction, unscheduleAction, type ScheduleActionRequest } from "./calendar";
 import { setArea } from "./formation";
+import { foundTeam, type FoundTeamRequest } from "./season";
 import { devStartCompetition, setBatteryPayload } from "./competition";
 import { cancelFlightTest, scheduleFlightTest, type ScheduleFlightTestRequest } from "./flightTests";
 import { tick } from "./loop";
@@ -47,13 +49,21 @@ export type Command =
   // Fase 5 (docs/phases/fase-5.md, S2): ensaio de voo como evento.
   /** day = dia de jogo (Math.floor(horas / 24)); pilot = integrante ou contratado. */
   | ({ type: "schedule-flight-test" } & ScheduleFlightTestRequest)
-  | { type: "cancel-flight-test"; testId: string };
+  | { type: "cancel-flight-test"; testId: string }
+  // Fase 6 (docs/phases/fase-6.md): orientador, fundação e calendário.
+  /** Eleição de fundação, só no estado `founding`: presidente, capitães por área e nome da equipe. */
+  | ({ type: "found-team" } & FoundTeamRequest)
+  /** startAt em horas de jogo (dateToHours); a ação vira tarefa sozinha nessa hora. */
+  | ({ type: "schedule-action" } & ScheduleActionRequest)
+  | { type: "reschedule-action"; plannedId: string; startAt: number }
+  | { type: "unschedule-action"; plannedId: string };
 
 export function applyCommand(state: GameState, command: Command): GameState {
   switch (command.type) {
     case "tick":
       return tick(state, command.realSeconds);
     case "set-speed":
+      if (state.founding && command.speed !== 0) return warn(state, "A equipe ainda não foi fundada: escolha o presidente e os capitães.");
       if (state.clock.speed === command.speed) return state;
       return {
         ...state,
@@ -103,5 +113,13 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return scheduleFlightTest(state, command);
     case "cancel-flight-test":
       return cancelFlightTest(state, command.testId);
+    case "found-team":
+      return foundTeam(state, command);
+    case "schedule-action":
+      return scheduleAction(state, command);
+    case "reschedule-action":
+      return rescheduleAction(state, command.plannedId, command.startAt);
+    case "unschedule-action":
+      return unscheduleAction(state, command.plannedId);
   }
 }

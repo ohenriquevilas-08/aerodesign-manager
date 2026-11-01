@@ -2,7 +2,6 @@
 
 import { MOCK_PLAYBACKS } from "../../src/scenes/flight/mockPlaybacks";
 import {
-  createGame,
   PLAYER_TEAM_ID,
   type BatteryResult,
   type CompetitionState,
@@ -11,9 +10,10 @@ import {
   type Part,
   type Task
 } from "../../src/sim";
+import { startedGame } from "../sim/helpers";
 
 export function baseState(): GameState {
-  return createGame({ seed: 7, teamName: "Equipe Teste" });
+  return startedGame({ seed: 7, teamName: "Equipe Teste" });
 }
 
 export function task(overrides: Partial<Task> & Pick<Task, "id" | "actionId">): Task {
@@ -27,6 +27,7 @@ export function task(overrides: Partial<Task> & Pick<Task, "id" | "actionId">): 
     assignees: [],
     contributions: {},
     targetId: null,
+    startedAt: 0,
     doneAt: null,
     dedication: "normal",
     ...overrides

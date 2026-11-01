@@ -13,7 +13,6 @@ import {
 } from "../../src/sim/aircraft";
 import {
   applyCommand,
-  createGame,
   dateToHours,
   DEFAULT_DESIGN,
   estimatePerformance,
@@ -22,6 +21,7 @@ import {
   type Part,
   type PartType
 } from "../../src/sim";
+import { startedGame } from "./helpers";
 
 const PART_TYPES: PartType[] = ["wing", "fuselage", "tail", "landingGear", "powertrain", "electronics"];
 
@@ -35,7 +35,7 @@ const part = (type: PartType, patch: Partial<Part> = {}): Part => ({
 });
 
 function withDesign(design: AircraftDesign = DEFAULT_DESIGN, seed = 7): GameState {
-  return applyCommand(createGame({ seed, teamName: "T" }), { type: "set-design", design });
+  return applyCommand(startedGame({ seed, teamName: "T" }), { type: "set-design", design });
 }
 
 const withParts = (state: GameState, parts: Part[] = PART_TYPES.map((type) => part(type))): GameState => ({ ...state, parts });
@@ -117,7 +117,7 @@ describe("desvios escondidos", () => {
 
 describe("estimatePerformance", () => {
   it("null sem projeto", () => {
-    expect(estimatePerformance(createGame({ seed: 1, teamName: "T" }), 1000)).toBeNull();
+    expect(estimatePerformance(startedGame({ seed: 1, teamName: "T" }), 1000)).toBeNull();
   });
 
   it("o valor real fica dentro da faixa estimada", () => {
@@ -160,7 +160,7 @@ describe("ensaios", () => {
     expect(state.tasks).toHaveLength(0);
     expect(state.warning?.text).toContain("asa");
     // Voo de ensaio virou evento (Fase 5): a recusa vem do agendamento.
-    const flight = { venueId: "farm", day: 10, pilot: { hired: true as const }, crew: ["captain-aero"], payloadPlanKg: [6] };
+    const flight = { venueId: "farm", day: 10, pilot: { hired: true as const }, crew: ["founder-marina"], payloadPlanKg: [6] };
     const none = applyCommand({ ...withDesign(), credits: 999 }, { type: "schedule-flight-test", ...flight });
     expect(none.warning?.text).toBe(
       "Avião incompleto para voar. Faltam a asa, a fuselagem, a empenagem, o trem de pouso, o grupo motopropulsor e a eletrônica."
