@@ -17,19 +17,19 @@ import {
   standSlots
 } from "./intro/staging";
 import { css, fonts, palette, shade } from "./palette";
-import { avatarShapes } from "./people/avatar";
-import { drawAvatarShapes } from "./people/draw";
+import { setSprite } from "./people/sprite/phaser";
 
 const WALL_H = 130;
-/** O boneco é desenhado um pouco maior que no hangar: a sala é pequena e eles são os protagonistas. */
-const AVATAR_SCALE = 1.6;
+/** Escala inteira do sprite em pixel art (48 px de arte = 96 px de tela). */
+const AVATAR_SCALE = 2;
+const SPRITE_HEIGHT_PX = 48 * AVATAR_SCALE;
 const ROOM_DEPTH = -1_000_000;
 const OVERLAY_DEPTH = 1_000_000;
 const BALLOON_H = 40;
 
 interface Figure {
   founder: IntroFounder;
-  gfx: Phaser.GameObjects.Graphics;
+  gfx: Phaser.GameObjects.Image;
   /** Facing com que o gfx foi desenhado; redesenha quando muda. */
   facing: 1 | -1;
   spot: Phaser.GameObjects.Graphics;
@@ -262,7 +262,7 @@ export class IntroScene extends Phaser.Scene {
     }
     this.figures = founders.map((founder) => {
       const spot = this.add.graphics();
-      const gfx = this.add.graphics();
+      const gfx = this.add.image(0, 0, "__DEFAULT").setScale(AVATAR_SCALE);
       const figure: Figure = { founder, gfx, spot, facing: 1, emphasis: 0 };
       this.paint(figure, 1);
       return figure;
@@ -275,8 +275,7 @@ export class IntroScene extends Phaser.Scene {
 
   private paint(figure: Figure, facing: 1 | -1) {
     figure.facing = facing;
-    figure.gfx.clear();
-    drawAvatarShapes(figure.gfx, avatarShapes(figure.founder.look, "stand", { facing }), 0, 0, AVATAR_SCALE);
+    setSprite(figure.gfx, figure.founder, facing, "stand");
   }
 
   private setSpeaker(index: number | null) {
@@ -338,7 +337,7 @@ export class IntroScene extends Phaser.Scene {
       const hop = figure.emphasis * -4;
       const scale = 1 + figure.emphasis * 0.1;
       const dim = arrived && this.speaker !== null && !speaking ? 0.6 : 1;
-      figure.gfx.setPosition(base.x, base.y + bob + hop).setScale(scale).setAlpha(dim).setDepth(base.y);
+      figure.gfx.setPosition(base.x, base.y + bob + hop).setAlpha(dim).setDepth(base.y);
 
       // Mancha de luz no piso sob quem fala.
       figure.spot.clear().setVisible(figure.emphasis > 0.02).setDepth(base.y - 1);
@@ -352,7 +351,7 @@ export class IntroScene extends Phaser.Scene {
     const slot = this.speaker !== null ? slots[this.speaker] : undefined;
     if (arrived && speakerFigure && slot) {
       const head = iso(slot.col, slot.row);
-      this.placeBalloon(head.x, head.y - 66 * AVATAR_SCALE - 6, speakerFigure.founder.name, balloonDots(this.t));
+      this.placeBalloon(head.x, head.y - SPRITE_HEIGHT_PX - 6, speakerFigure.founder.name, balloonDots(this.t));
     } else {
       this.balloon.setVisible(false);
     }

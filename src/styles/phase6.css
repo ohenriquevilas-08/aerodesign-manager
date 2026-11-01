@@ -1000,6 +1000,7 @@
 }
 
 .sheet-avatar {
+  object-fit: contain;
   max-height: 100%;
 }
 

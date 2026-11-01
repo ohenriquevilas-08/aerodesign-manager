@@ -20,6 +20,8 @@ export interface ReplayRequest {
   playback: FlightPlayback;
   /** Incrementa a cada pedido, para repetir o mesmo voo. */
   serial: number;
+  /** Voo solto de um ensaio (modo evento): usa o cenário do local em vez do da competição. */
+  venue?: { id: string; name: string };
 }
 
 type Listener = (request: ReplayRequest) => void;
@@ -36,9 +38,9 @@ function createReplayChannel() {
   let session: FlightTestSession | null = null;
 
   return {
-    play(playback: FlightPlayback) {
+    play(playback: FlightPlayback, venue?: { id: string; name: string }) {
       serial += 1;
-      current = { playback, serial };
+      current = { playback, serial, ...(venue ? { venue } : {}) };
       listeners.forEach((listener) => listener(current!));
     },
     /** Ensaio de voo: vinheta de chegada e as decolagens em sequência, no cenário do local. */

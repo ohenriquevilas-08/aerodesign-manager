@@ -72,6 +72,9 @@ const LEGS: Record<SpriteGender, readonly (readonly [LegsKind, number])[]> = {
   ]
 };
 
+/** Gênero da arte vindo da simulação (`MemberLook.female`; ausente = masculino). */
+export const genderOf = (look: MemberLook): SpriteGender => (look.female ? "f" : "m");
+
 /**
  * Aparência em pixel art de um integrante.
  * `gender` ausente: sorteado pelo id com FEMALE_SHARE. Ponto de troca: quando a simulação tiver

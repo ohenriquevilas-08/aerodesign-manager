@@ -2,7 +2,7 @@
 // people/avatar.ts; veja "Personagens em pixel art" em docs/architecture.md.
 
 export { composeSprite, SPRITE_HEIGHT, SPRITE_WIDTH, type ComposeOptions } from "./compose";
-export { FEMALE_SHARE, HAIRS_BY_GENDER, spriteLookFrom } from "./look";
+export { FEMALE_SHARE, genderOf, HAIRS_BY_GENDER, spriteLookFrom } from "./look";
 export { HAIRS } from "./parts/hair";
 export { addSpriteTexture, paintSprite, spriteCanvas } from "./render";
 export type * from "./types";

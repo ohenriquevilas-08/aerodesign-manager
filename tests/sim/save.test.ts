@@ -89,4 +89,16 @@ describe("app/save (localStorage)", () => {
     store.dispatch({ type: "set-speed", speed: 0 });
     expect(hasSave(storage)).toBe(false);
   });
+
+  it("autosaves each step of an open event, so a reload resumes where the player was", () => {
+    const storage = fakeStorage();
+    const store = createStore(devGame());
+    const stop = startAutosave(store, storage);
+    store.dispatch({ type: "enter-event" });
+    expect(loadSave(storage).state!.activeEvent!.entered).toBe(true);
+    store.dispatch({ type: "advance-event" });
+    const saved = loadSave(storage).state!.activeEvent!;
+    expect(saved.log.length).toBe(store.getState().activeEvent!.log.length);
+    stop();
+  });
 });

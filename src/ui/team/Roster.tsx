@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useGame } from "../../app/useGame";
 import { clockToDate, findAgenda, isOverloaded, memberHoursPerDay, rosterMembers, type Member } from "../../sim";
-import { Avatar } from "../components/Avatar";
+import { PixelAvatar } from "../components/PixelAvatar";
 import { Meter } from "../components/Controls";
 import { DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
 import {
@@ -121,7 +121,7 @@ export function Roster() {
                 >
                   <td>
                     <div class="cast-name-cell">
-                      <Avatar member={member} size={34} class="cast-portrait" />
+                      <PixelAvatar member={member} scale={1} class="cast-portrait" />
                       <span>{member.name}</span>
                     </div>
                   </td>
@@ -201,7 +201,7 @@ function Sheet({ member, tab, ctx }: { member: Member; tab: RosterTab; ctx: Rost
           <h2 class="sheet-name">{member.name}</h2>
           <div class="sheet-sub">
             <span class={`role-tag role-${member.role}`}>{ROLE_LABEL[member.role]}</span>
-            {member.role === "president" ? <span class="chip">Agenda: {findAgenda(member.agenda ?? "balanced").label}</span> : null}
+            {member.role === "president" ? <span class="chip" title={findAgenda(member.agenda ?? "balanced").text}>{findAgenda(member.agenda ?? "balanced").priority}</span> : null}
             <span class="muted">{member.area ? DISCIPLINE_LABEL[member.area] : "Sem área"}</span>
           </div>
         </div>
@@ -226,7 +226,7 @@ function Sheet({ member, tab, ctx }: { member: Member; tab: RosterTab; ctx: Rost
           })}
         </dl>
         <div class="sheet-figure">
-          <Avatar member={member} size={400} pose="stand" class="sheet-avatar" />
+          <PixelAvatar member={member} scale={8} pose="stand" class="sheet-avatar" />
         </div>
       </div>
       {tab === "development" ? <p class="small muted">Preferências e facilidades chegam na Fase 7.</p> : null}

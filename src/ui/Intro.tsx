@@ -4,7 +4,7 @@ import { store } from "../app/store";
 import { IntroScene } from "../scenes/IntroScene";
 import { introChannel } from "../scenes/intro/channel";
 import { DEFAULT_CATEGORY, findAgenda, FORMATIONS, FOUNDERS, type Discipline, type FounderFlair, type Member } from "../sim";
-import { Avatar } from "./components/Avatar";
+import { PixelAvatar } from "./components/PixelAvatar";
 import { DISCIPLINE_SHORT } from "./format";
 import { PhaserStage } from "./PhaserStage";
 
@@ -133,11 +133,11 @@ export function Intro({ seed, onDone }: { seed: number; onDone: () => void }) {
                 const def = founderDef(member);
                 return (
                   <article key={member.id} class="founder-card" onMouseEnter={() => setHovered(index)} onMouseLeave={() => setHovered(null)}>
-                    <Avatar member={member} size={72} class="founder-portrait" />
+                    <PixelAvatar member={member} scale={2} class="founder-portrait" />
                     <div>
                       <h2 class="founder-name">{member.name}</h2>
                       <span class="chip">{FLAIR_LABEL[member.flair ?? "design"]}</span>
-                      <span class="chip">Agenda: {findAgenda(member.agenda ?? "balanced").label}</span>
+                      <span class="chip" title={findAgenda(member.agenda ?? "balanced").text}>{findAgenda(member.agenda ?? "balanced").priority}</span>
                       <p class="small muted">{def?.likes}</p>
                       <p class="small">
                         Mais forte em <strong>{def ? DISCIPLINE_SHORT[def.focus] : "—"}</strong> · comunicação {Math.round(member.communication)} · fabricação{" "}
@@ -171,13 +171,13 @@ export function Intro({ seed, onDone }: { seed: number; onDone: () => void }) {
               <div class="pick-row" role="radiogroup" aria-label="Presidente">
                 {founders.map((member) => (
                   <button key={member.id} type="button" role="radio" aria-checked={member.id === presidentId} class="pick-chip" onClick={() => pickPresident(member.id)}>
-                    <Avatar member={member} size={44} />
+                    <PixelAvatar member={member} scale={1} />
                     {member.name}
                   </button>
                 ))}
               </div>
               <p class="small president-agenda">
-                <strong>Agenda: {agenda.label}.</strong> {agenda.description} Tarefas dessa frente dão ânimo à equipe; ficar 3 dias sem nenhuma desgasta o presidente. Nada é bloqueado.
+                <strong>{agenda.priority}</strong> · {agenda.effect}. {agenda.description} Ficar 3 dias seguidos sem tarefa dessa frente desgasta o presidente. Nada é bloqueado.
               </p>
             </div>
             <div class="field">

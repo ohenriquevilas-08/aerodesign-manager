@@ -9,7 +9,7 @@ import { sunElevation, sunProgress } from "../queue/queueView";
 import type {
   EventBlockKind,
   EventKind,
-  EventView,
+  StageView,
   InspectionItemView,
   InspectionStatus,
   SelectionGroupView
@@ -37,22 +37,26 @@ export function settingForEvent(kind: EventKind): StageSetting {
 export function focusForBlock(kind: EventBlockKind): StageFocus {
   switch (kind) {
     case "challenge":
-    case "setup":
-    case "exhibit":
-    case "repair":
+    case "assembly":
+    case "exhibition":
       return "work";
     case "inspection":
       return "bench";
-    case "queue":
-    case "flight":
+    case "flights":
+    case "takeoff":
       return "runway";
-    case "launch":
-      return "launch";
-    case "ceremony":
+    case "awards":
       return "podium";
     default:
       return "gathering";
   }
+}
+
+/** Foco do bloco atual do evento; na dinâmica, o bloco depois do desafio olha para a pista de lançamento. */
+export function focusForView(view: Pick<StageView, "kind" | "blocks" | "blockIndex" | "selection">): StageFocus {
+  const block = view.blocks[view.blockIndex];
+  if (view.selection && selectionPhase(view) === "launching") return "launch";
+  return block ? focusForBlock(block.kind) : "gathering";
 }
 
 /** Pontos de interesse do cenário; o foco que o cenário não tem cai em `gathering`. */
@@ -228,15 +232,16 @@ export function seatsAround(table: Cell, count: number): Seat[] {
 
 export type SelectionPhase = "kit" | "assembling" | "launching" | "landed";
 
-/** Em que ponto da dinâmica está o bloco atual: depende da ordem dos blocos do dia. */
-export function selectionPhase(view: Pick<EventView, "blocks" | "blockIndex">): SelectionPhase {
+/**
+ * Em que ponto da dinâmica está o bloco atual. A simulação resolve o desafio de uma vez (os
+ * planadores voam quando o jogador segue): enquanto o desafio é o bloco atual os grupos montam; no
+ * bloco seguinte os planadores são lançados; depois ficam pousados.
+ */
+export function selectionPhase(view: Pick<StageView, "blocks" | "blockIndex">): SelectionPhase {
   const challenge = view.blocks.findIndex((b) => b.kind === "challenge");
-  const launch = view.blocks.findIndex((b) => b.kind === "launch");
-  if (launch >= 0 && view.blockIndex > launch) return "landed";
-  if (launch >= 0 && view.blockIndex === launch) return "launching";
-  if (challenge >= 0 && view.blockIndex > challenge) return "launching";
-  if (challenge >= 0 && view.blockIndex === challenge) return "assembling";
-  return "kit";
+  if (challenge < 0 || view.blockIndex < challenge) return "kit";
+  if (view.blockIndex === challenge) return "assembling";
+  return view.blockIndex === challenge + 1 ? "launching" : "landed";
 }
 
 /** Segundos de cena que o grupo leva para montar o planador. */
@@ -329,9 +334,7 @@ export type FramedScene = "flight" | "queue";
 
 /** A cena do voo ou da fila que roda dentro da moldura neste bloco (null = só o cenário do evento). */
 export function framedSceneFor(kind: EventBlockKind): FramedScene | null {
-  if (kind === "flight") return "flight";
-  if (kind === "queue") return "queue";
-  return null;
+  return kind === "flights" || kind === "takeoff" ? "flight" : null;
 }
 
 /** Janela da cena embutida, em frações da tela. A UI posiciona o `PhaserStage` do voo/fila nela. */
@@ -343,10 +346,9 @@ export const FRAME_WINDOW = { x: 0.1, y: 0.13, w: 0.8, h: 0.62 } as const;
  * Tudo o que está em pé no cenário: a equipe, os candidatos em volta das mesas e os fiscais.
  * Puro: a EventStage só reconcilia estes planos com os bonecos que já existem.
  */
-export function planFigures(view: EventView): FigurePlan[] {
+export function planFigures(view: StageView): FigurePlan[] {
   const setting = settingForEvent(view.kind);
-  const block = view.blocks[view.blockIndex];
-  const focus = effectiveFocus(setting, block ? focusForBlock(block.kind) : "gathering");
+  const focus = effectiveFocus(setting, focusForView(view));
   const plans: FigurePlan[] = [];
 
   const slots = crewSlots(view.crew.length, setting, focus);

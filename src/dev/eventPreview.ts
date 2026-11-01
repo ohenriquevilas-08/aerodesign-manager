@@ -9,7 +9,7 @@ import { EventStage } from "../scenes/EventStage";
 import { FlightScene } from "../scenes/FlightScene";
 import { QueueScene } from "../scenes/QueueScene";
 import { eventChannel } from "../scenes/event/channel";
-import type { EventKind, EventView } from "../scenes/event/contract";
+import type { EventKind, StageView } from "../scenes/event/contract";
 import { mockEventView } from "../scenes/event/mock";
 import { FRAME_WINDOW, framedSceneFor } from "../scenes/event/stage";
 import { flightReplay } from "../scenes/flight/replayChannel";
@@ -61,7 +61,7 @@ const framed = document.getElementById("framed")!;
 let nested: Phaser.Game | null = null;
 let nestedKey: string | null = null;
 
-function syncNested(view: EventView) {
+function syncNested(view: StageView) {
   const block = view.blocks[view.blockIndex];
   const which = block ? framedSceneFor(block.kind) : null;
   if (which === nestedKey) return;
