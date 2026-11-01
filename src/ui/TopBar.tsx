@@ -2,12 +2,14 @@ import { useState } from "preact/hooks";
 import { newGame } from "../app/session";
 import { store } from "../app/store";
 import { useGame } from "../app/useGame";
-import { academicFactor, clockToDate, formatDate, formatTime, SPEEDS, type ClockSpeed } from "../sim";
+import { academicFactor, advisorView, clockToDate, formatDate, formatTime, SPEEDS, type ClockSpeed } from "../sim";
 import { pauseReasonLabel } from "./format";
 
 const SPEED_LABEL: Record<ClockSpeed, string> = { 0: "❚❚", 1: "▶", 2: "▶▶", 4: "▶▶▶" };
 
-export function TopBar() {
+export function TopBar({ onNewGame }: { onNewGame: (seed: number) => void }) {
+  const advisorTitle = useGame((state) => advisorView(state).title);
+  const reputation = useGame((state) => advisorView(state).reputation);
   const hours = useGame((state) => Math.floor(state.clock.hours * 6) / 6); // atualiza a cada 10 min de jogo
   const speed = useGame((state) => state.clock.speed);
   const teamName = useGame((state) => state.teamName);
@@ -21,6 +23,10 @@ export function TopBar() {
       <div class="brand">
         Aerodesign Manager
         <small>{teamName} · Ano 1 · Classe Regular</small>
+      </div>
+      <div class="advisor" title="Você é o professor orientador. Reputação sobe com resultados (ainda sem efeito no Ano 1).">
+        <strong>{advisorTitle}</strong>
+        <small>Reputação {reputation}</small>
       </div>
       <div class="topbar-spacer" />
       <div class="clock">
@@ -45,13 +51,13 @@ export function TopBar() {
         ))}
       </div>
       <div class="credits" title="Créditos em caixa">◆ {credits.toLocaleString("pt-BR")}</div>
-      <GameMenu />
+      <GameMenu onNewGame={onNewGame} />
     </header>
   );
 }
 
 /** Menu do jogo (U7): Novo jogo, com confirmação, porque apaga o save. */
-function GameMenu() {
+function GameMenu({ onNewGame }: { onNewGame: (seed: number) => void }) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const close = () => {
@@ -76,8 +82,8 @@ function GameMenu() {
                   type="button"
                   class="btn-primary"
                   onClick={() => {
-                    newGame();
                     close();
+                    onNewGame(newGame());
                   }}
                 >
                   Apagar e começar

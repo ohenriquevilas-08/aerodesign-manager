@@ -17,6 +17,7 @@ import {
   leadDaysRange,
   memberHoursPerDay,
   PART_STATE_LABELS,
+  regulationPublished,
   partState,
   SELECTION_FORMATS,
   type ActionCategory,
@@ -41,6 +42,7 @@ const GROUPS: { category: ActionCategory; title: string }[] = [
 ];
 
 export function Actions() {
+  const readDue = useGame((state) => regulationPublished(state) && !state.regulationRead);
   // Vindo do Relatório ("Escrever"): abre a ação já com o alvo escolhido.
   const [intent] = useState(takeIntent);
   const [selectedId, setSelectedId] = useState<string | null>(intent?.actionId ?? null);
@@ -68,6 +70,7 @@ export function Actions() {
                       key={action.id}
                       action={action}
                       selected={action.id === selectedId}
+                      highlight={readDue && action.id === "read-regulation"}
                       onSelect={() => setSelectedId(action.id === selectedId ? null : action.id)}
                     />
                   ))}

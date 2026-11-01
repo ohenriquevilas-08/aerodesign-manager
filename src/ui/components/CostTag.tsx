@@ -39,10 +39,13 @@ export function CostLegend() {
 export function ActionCard({
   action,
   selected,
+  highlight,
   onSelect
 }: {
   action: ActionDef;
   selected?: boolean;
+  /** Destaque do cartão (ex.: Leitura do regulamento no dia em que ele sai). */
+  highlight?: boolean;
   onSelect?: () => void;
 }) {
   const body = (
@@ -60,9 +63,10 @@ export function ActionCard({
       ) : null}
     </>
   );
-  if (!onSelect) return <article class="action-card">{body}</article>;
+  if (!onSelect) return <article class={`action-card${highlight ? " is-highlight" : ""}`}>{body}</article>;
   return (
-    <button type="button" class="action-card is-button" aria-pressed={selected} onClick={onSelect}>
+    <button type="button" class={`action-card is-button${highlight ? " is-highlight" : ""}`} aria-pressed={selected} onClick={onSelect}>
+      {highlight ? <span class="action-flag">Regulamento publicado: leia agora</span> : null}
       {body}
     </button>
   );
