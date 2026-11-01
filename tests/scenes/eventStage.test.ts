@@ -12,6 +12,7 @@ import {
   crewSlots,
   effectiveFocus,
   focusForBlock,
+  focusForView,
   formatDistance,
   framedSceneFor,
   gliderFrame,
@@ -30,6 +31,12 @@ import {
 import { palette } from "../../src/scenes/palette";
 
 describe("cenário e foco", () => {
+  it("o bloco depois do desafio da dinâmica olha para a pista de lançamento", () => {
+    const view = mockEventView("selection-day", 3);
+    expect(focusForView(view)).toBe("launch");
+    expect(focusForView(mockEventView("selection-day", 2))).toBe("work");
+  });
+
   it("escolhe o cenário pelo tipo de evento", () => {
     expect(settingForEvent("selection-day")).toBe("campus");
     expect(settingForEvent("flight-test")).toBe("aeroclub");
@@ -39,11 +46,11 @@ describe("cenário e foco", () => {
   it("mapeia o bloco para o foco da câmera", () => {
     expect(focusForBlock("challenge")).toBe("work");
     expect(focusForBlock("inspection")).toBe("bench");
-    expect(focusForBlock("flight")).toBe("runway");
-    expect(focusForBlock("queue")).toBe("runway");
-    expect(focusForBlock("launch")).toBe("launch");
-    expect(focusForBlock("ceremony")).toBe("podium");
-    expect(focusForBlock("interview")).toBe("gathering");
+    expect(focusForBlock("flights")).toBe("runway");
+    expect(focusForBlock("takeoff")).toBe("runway");
+    expect(focusForBlock("assembly")).toBe("work");
+    expect(focusForBlock("awards")).toBe("podium");
+    expect(focusForBlock("interviews")).toBe("gathering");
   });
 
   it("foco que o cenário não tem cai na reunião", () => {
@@ -103,14 +110,14 @@ describe("planFigures", () => {
 
   it("os fiscais só aparecem na inspeção técnica", () => {
     const inspectors = (index: number) => planFigures(mockEventView("competition", index)).filter((p) => p.role === "inspector");
-    expect(inspectors(1)).toHaveLength(INSPECTOR_LOOKS.length);
+    expect(inspectors(2)).toHaveLength(INSPECTOR_LOOKS.length);
     expect(inspectors(0)).toHaveLength(0);
     expect(inspectors(4)).toHaveLength(0);
   });
 
   it("a equipe trabalha no foco work e fica de pé no resto", () => {
     const pose = (index: number) => planFigures(mockEventView("competition", index)).find((p) => p.role === "crew")!.pose;
-    expect(pose(2)).toBe("work");
+    expect(pose(1)).toBe("work");
     expect(pose(4)).toBe("stand");
   });
 
@@ -212,9 +219,9 @@ describe("inspeção", () => {
 });
 
 describe("janela do voo e da fila", () => {
-  it("só voo e fila rodam dentro da moldura", () => {
-    expect(framedSceneFor("flight")).toBe("flight");
-    expect(framedSceneFor("queue")).toBe("queue");
+  it("só o voo roda dentro da moldura", () => {
+    expect(framedSceneFor("flights")).toBe("flight");
+    expect(framedSceneFor("takeoff")).toBe("flight");
     expect(framedSceneFor("inspection")).toBeNull();
     expect(framedSceneFor("challenge")).toBeNull();
   });

@@ -1,9 +1,9 @@
 // Eventos de mentira para conferir a moldura sem a simulação (montagem /event-dev.html e testes).
-// Mesmo formato do EventView de ./contract.ts; os números são escolhidos à mão.
+// Mesmo formato do StageView de ./contract.ts; os números são escolhidos à mão.
 
 import type { MemberLook } from "../../sim";
 import { palette } from "../palette";
-import type { EventBlock, EventPerson, EventView } from "./contract";
+import type { EventBlock, EventPerson, StageView } from "./contract";
 
 const SHIRT = palette.highlight;
 const CANDIDATE_SHIRTS = [palette.inkMuted, palette.accent, palette.ok, palette.ink, palette.warn, palette.inkDim];
@@ -61,33 +61,31 @@ const block = (id: string, startsAt: number, label: string, kind: EventBlock["ki
 });
 
 export const MOCK_SELECTION_BLOCKS: EventBlock[] = [
-  block("reception", 8, "Recepção", "briefing"),
-  block("presentation", 9, "Apresentação da equipe", "presentation"),
-  block("challenge", 10, "Desafio: planador de balsa", "challenge"),
-  block("launch", 11.5, "Lançamentos", "launch"),
-  block("interview", 13, "Entrevistas rápidas", "interview"),
-  block("deliberation", 15, "Deliberação", "deliberation")
+  block("reception", 9, "Recepção", "reception"),
+  block("presentation", 10, "Apresentação da equipe", "presentation"),
+  block("challenge", 11, "Desafio: planador de balsa", "challenge"),
+  block("interviews", 14, "Entrevistas rápidas", "interviews"),
+  block("deliberation", 16, "Deliberação", "deliberation")
 ];
 
 export const MOCK_FLIGHT_TEST_BLOCKS: EventBlock[] = [
-  block("travel", 7, "Viagem e chegada", "arrival"),
-  block("setup", 8.5, "Montagem e checagem", "setup"),
-  block("flight-1", 10, "Decolagem 1", "flight"),
-  block("flight-2", 11, "Decolagem 2", "flight"),
-  block("teardown", 13, "Desmontagem", "teardown")
+  block("travel", 5, "Viagem e chegada", "travel"),
+  block("assembly", 6.5, "Montagem e checagem", "assembly"),
+  block("takeoff-1", 8, "Decolagem 1", "takeoff"),
+  block("takeoff-2", 9, "Decolagem 2", "takeoff"),
+  block("teardown", 10.5, "Desmontagem", "teardown")
 ];
 
 export const MOCK_COMPETITION_BLOCKS: EventBlock[] = [
   block("arrival", 8, "Chegada ao pátio", "arrival"),
-  block("inspection", 9, "Inspeção técnica", "inspection"),
-  block("exhibit", 11, "Exposição", "exhibit"),
-  block("queue", 13, "Fila da bateria 1", "queue"),
-  block("flight", 14, "Bateria 1", "flight"),
-  block("repair", 16, "Reparo", "repair"),
-  block("ceremony", 17.5, "Premiação", "ceremony")
+  block("exhibition", 9, "Exposição do avião", "exhibition"),
+  block("inspection", 13, "Inspeção técnica", "inspection"),
+  block("briefing", 16.5, "Reunião técnica", "briefing"),
+  block("flights", 8.5, "Janela de voo", "flights"),
+  block("awards", 17.5, "Premiação", "awards")
 ];
 
-export function mockEventView(kind: EventView["kind"], blockIndex = 0): EventView {
+export function mockEventView(kind: StageView["kind"], blockIndex = 0): StageView {
   if (kind === "selection-day") {
     return {
       id: "mock-selection",

@@ -43,9 +43,6 @@ export const palette = {
   /** Tons de pele e de cabelo dos bonecos (MemberLook), espelhados em --skin-N e --hair-N. */
   skin: [0xffdcbd, 0xf0b48a, 0xd08b5b, 0xa66a3f, 0x7a4a2b, 0x52301c],
   hair: [0x1c1410, 0x4a2c17, 0x8a5a2b, 0xd2a45a, 0xb5472b, 0x9aa5ad],
-  /** Roupa e acabamento do boneco, espelhados em --avatar-pants e --avatar-shoe. */
-  pants: 0x1f4762, // --avatar-pants (igual a --border)
-  shoe: 0x08121c, // --avatar-shoe (igual a --bg)
   /** Pixel art dos personagens (scenes/people/sprite), espelhados em --sprite-*. */
   sprite: {
     ink: 0x1d1622, // --sprite-ink (contorno, olhos)

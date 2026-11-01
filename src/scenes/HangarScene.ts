@@ -618,7 +618,7 @@ ${now.blocked}`).setColor(css(palette.warn)).setVisible(true);
       let person = this.people.get(view.memberId);
       if (!person) {
         // Nasce já no posto: só quem muda de tarefa anda pelo hangar.
-        const worker = new Worker(this, view.look, this.spawned, spot.x, spot.y, spot.facingLeft);
+        const worker = new Worker(this, view.memberId, view.look, this.spawned, spot.x, spot.y, spot.facingLeft);
         this.spawned += 1;
         person = { worker, key: "" };
         this.people.set(view.memberId, person);

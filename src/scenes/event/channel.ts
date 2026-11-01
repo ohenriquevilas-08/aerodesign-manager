@@ -1,16 +1,15 @@
-// Canal provisório do EventView, no molde do introChannel: enquanto `eventView(state)` não existe na
-// sim, a UI/dev entrega a leitura por aqui. Quando a sim entrar, source.ts passa a ler do estado e
-// este canal fica só para a montagem de desenvolvimento.
+// Canal do StageView só para a montagem de desenvolvimento (/event-dev.html); no jogo, source.ts
+// lê do estado.
 
-import type { EventView } from "./contract";
+import type { StageView } from "./contract";
 
-type Listener = (view: EventView | null) => void;
+type Listener = (view: StageView | null) => void;
 
 function createEventChannel() {
-  let view: EventView | null = null;
+  let view: StageView | null = null;
   const listeners = new Set<Listener>();
   return {
-    show(next: EventView | null) {
+    show(next: StageView | null) {
       view = next;
       listeners.forEach((listener) => listener(next));
     },

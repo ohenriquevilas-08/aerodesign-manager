@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useGame } from "../../app/useGame";
 import { clockToDate, findAgenda, isOverloaded, memberHoursPerDay, rosterMembers, type Member } from "../../sim";
-import { Avatar } from "../components/Avatar";
+import { PixelAvatar } from "../components/PixelAvatar";
 import { Meter } from "../components/Controls";
 import { DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
 import {
@@ -121,7 +121,7 @@ export function Roster() {
                 >
                   <td>
                     <div class="cast-name-cell">
-                      <Avatar member={member} size={34} class="cast-portrait" />
+                      <PixelAvatar member={member} scale={1} class="cast-portrait" />
                       <span>{member.name}</span>
                     </div>
                   </td>
@@ -226,7 +226,7 @@ function Sheet({ member, tab, ctx }: { member: Member; tab: RosterTab; ctx: Rost
           })}
         </dl>
         <div class="sheet-figure">
-          <Avatar member={member} size={400} pose="stand" class="sheet-avatar" />
+          <PixelAvatar member={member} scale={8} pose="stand" class="sheet-avatar" />
         </div>
       </div>
       {tab === "development" ? <p class="small muted">Preferências e facilidades chegam na Fase 7.</p> : null}

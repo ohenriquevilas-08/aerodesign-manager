@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "preact/hooks";
-import { composeSprite, paintSprite, spriteLookFrom, type SpriteGender, type SpriteLook, type SpritePose, type SpriteView } from "../../scenes/people/sprite";
+import { composeSprite, paintSprite, genderOf, spriteLookFrom, type SpriteGender, type SpriteLook, type SpritePose, type SpriteView } from "../../scenes/people/sprite";
 import type { MemberLook } from "../../sim";
 
 /**
@@ -24,7 +24,7 @@ export function PixelAvatar({
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const resolved = useMemo(
-    () => look ?? (member ? spriteLookFrom(member.look, member.gender, member.id) : undefined),
+    () => look ?? (member ? spriteLookFrom(member.look, member.gender ?? genderOf(member.look), member.id) : undefined),
     [look, member?.id, member?.look, member?.gender]
   );
   const grid = useMemo(() => (resolved ? composeSprite(resolved, view, pose) : undefined), [resolved, view, pose]);

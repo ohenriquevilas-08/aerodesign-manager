@@ -3,7 +3,7 @@ import { useState } from "preact/hooks";
 import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import { BALANCE, findAgenda, formationView, traineeProgress, type Discipline, type FormationAreaView, type Member } from "../../sim";
-import { Avatar } from "../components/Avatar";
+import { PixelAvatar } from "../components/PixelAvatar";
 import { DISCIPLINE_SHORT, formatNumber, motivationLabel } from "../format";
 import { useDerived } from "../hooks";
 
@@ -110,7 +110,7 @@ export function Formation() {
               const progress = traineeProgress(member);
               return (
                 <article key={id} class="trainee-card" title={`${member.name}: ${Math.round(progress * 100)}% do treinamento`}>
-                  <Avatar member={member} size={56} />
+                  <PixelAvatar member={member} scale={1} />
                   <div class="trainee-info">
                     <strong>{member.name}</strong>
                     <span class="small muted">
@@ -268,7 +268,7 @@ function PlayerCard({
     >
       <span class="fm-rating">{formatNumber(rating)}</span>
       <span class="fm-pos">{discipline ? DISCIPLINE_SHORT[discipline].slice(0, 3).toUpperCase() : "—"}</span>
-      <Avatar member={member} size={78} class="fm-portrait" />
+      <PixelAvatar member={member} scale={2} class="fm-portrait" />
       <span class="fm-name">{member.name}</span>
       <span class="fm-mot" aria-hidden="true">
         <span class={`fm-mot-fill tone-${motivationTone(member.motivation)}`} style={{ width: `${Math.round(member.motivation)}%` }} />

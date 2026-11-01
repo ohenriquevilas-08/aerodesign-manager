@@ -8,8 +8,7 @@ import Phaser from "phaser";
 import type { GameStore } from "../app/store";
 import type { BatteryResult, GameState } from "../sim";
 import type { FlightTestSession } from "./flight/replayChannel";
-import { avatarShapes } from "./people/avatar";
-import { drawAvatarShapes } from "./people/draw";
+import { setSprite } from "./people/sprite/phaser";
 import { AircraftSprite } from "./flight/AircraftSprite";
 import { ParticleField } from "./flight/particles";
 import { FLIGHT_RULES, OUTCOME_LABEL, type FlightPlayback } from "./flight/playback";
@@ -23,7 +22,7 @@ import { css, fonts, palette } from "./palette";
 /** Pixels por metro no mundo. */
 const S = 20;
 const px = (m: number) => m * S;
-/** Escala dos bonecos da equipe no mundo (o avatar tem ~46 px; 1,7 m = 34 px). */
+/** Escala dos bonecos da equipe no mundo (o sprite tem 48 px; 1,7 m = 34 px). */
 const CREW_SCALE = 0.75;
 const py = (h: number) => -h * S;
 
@@ -89,7 +88,7 @@ export class FlightScene extends Phaser.Scene {
   /** Ensaio de voo em andamento (C3): vinheta de chegada e depois uma decolagem por carga. */
   private session: { data: FlightTestSession; index: number; nextAt: number | null; serial: number } | null = null;
   private arrival: { t: number } | null = null;
-  private crewG!: Phaser.GameObjects.Graphics;
+  private crewG!: Phaser.GameObjects.Container;
   private vanG!: Phaser.GameObjects.Graphics;
 
   private script: FlightScript | null = null;
@@ -146,7 +145,7 @@ export class FlightScene extends Phaser.Scene {
     this.windsock = this.add.graphics().setDepth(10);
     this.unloadG = this.add.graphics().setDepth(30);
     this.vanG = this.add.graphics().setDepth(20);
-    this.crewG = this.add.graphics().setDepth(35);
+    this.crewG = this.add.container(0, 0).setDepth(35);
     this.worldLayer.add([this.field, this.obstacle, this.windsock, this.vanG, this.unloadG, this.crewG]);
     this.aircraft = new AircraftSprite(this);
     this.aircraft.root.setDepth(40);
@@ -228,7 +227,7 @@ export class FlightScene extends Phaser.Scene {
     if (!this.session && !this.arrival && this.scenery === COMPETITION_SCENERY) return;
     this.session = null;
     this.arrival = null;
-    this.crewG.clear();
+    this.crewG.removeAll(true);
     this.vanG.clear();
     this.aircraft.root.setVisible(true);
     this.setScenery(COMPETITION_SCENERY);
@@ -328,20 +327,24 @@ export class FlightScene extends Phaser.Scene {
   /** Equipe: carregando o avião na vinheta, depois parada vendo o voo. */
   private drawCrew(frame: ArrivalFrame | null) {
     const session = this.session;
-    const g = this.crewG;
-    g.clear();
-    if (!session) return;
+    const crew = this.crewG;
+    if (!session) {
+      crew.removeAll(true);
+      return;
+    }
+    // Uma Image por pessoa, reaproveitada entre quadros; o id só semeia roupa e cabelo.
+    while (crew.length > session.data.crew.length) crew.removeAt(crew.length - 1, true);
+    while (crew.length < session.data.crew.length) crew.add(this.add.image(0, 0, "__DEFAULT").setScale(CREW_SCALE));
     session.data.crew.forEach((look, i) => {
-      const watching = !frame;
+      const image = crew.getAt(i) as Phaser.GameObjects.Image;
       const person = frame?.crew[i];
+      image.setVisible(!person || person.visible);
       if (person && !person.visible) return;
       const x = person ? person.x : CREW_WATCH_X - i * 1.1;
       const walking = person?.walking ?? false;
       const bob = walking ? Math.abs(Math.sin(this.elapsed * 9 + i)) * 1.4 : 0;
-      const pose = person?.carrying ? "work" : "stand";
-      const shapes = avatarShapes(look, pose, { facing: person?.facing ?? 1, phase: person?.carrying ? 0.25 : 0 });
-      drawAvatarShapes(g, shapes, px(x), -bob, CREW_SCALE);
-      void watching;
+      setSprite(image, { id: `crew-${i}`, look }, person?.facing ?? 1, person?.carrying ? "work" : "stand");
+      image.setPosition(px(x), -bob);
     });
   }
 

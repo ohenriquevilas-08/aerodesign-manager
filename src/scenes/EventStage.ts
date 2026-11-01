@@ -3,13 +3,13 @@
 // equipe presente, a dinâmica da seletiva (grupos montando planadores, destaque do grupo observado,
 // lançamentos) e a bancada de inspeção com fiscais. A janela do voo e da fila fica na moldura
 // (FRAME_WINDOW): a UI monta o PhaserStage de FlightScene/QueueScene nela.
-// Só anima; o EventView chega por source.ts (ver contract.ts). Tempo real: os eventos pausam o relógio.
+// Só anima; o StageView chega por source.ts (ver contract.ts). Tempo real: os eventos pausam o relógio.
 // A lógica (foco, lugares, trajetórias) é pura e vive em event/stage.ts.
 
 import Phaser from "phaser";
 import type { GameStore } from "../app/store";
 import { sceneryForVenue } from "./flight/scenery";
-import type { EventBlock, EventView } from "./event/contract";
+import type { EventBlock, StageView } from "./event/contract";
 import { eventChannel } from "./event/channel";
 import { readEventView } from "./event/source";
 import {
@@ -22,7 +22,7 @@ import {
   anchorFor,
   assemblyParts,
   effectiveFocus,
-  focusForBlock,
+  focusForView,
   formatDistance,
   framedSceneFor,
   gliderFrame,
@@ -40,10 +40,9 @@ import {
 } from "./event/stage";
 import { iso, isoBox, rowWallQuad, vec } from "./hangar/iso";
 import { css, fonts, palette, shade } from "./palette";
-import { avatarShapes } from "./people/avatar";
-import { drawAvatarShapes } from "./people/draw";
+import { setSprite } from "./people/sprite/phaser";
 
-const AVATAR_SCALE = 1.4;
+const AVATAR_SCALE = 2;
 const WALK_SPEED = 3.2; // casas por segundo
 const HORIZON = -10;
 const GROUND_DEPTH = -1_000_000;
@@ -58,7 +57,7 @@ const mix = (a: number, b: number, k: number) => {
 
 interface Figure {
   plan: FigurePlan;
-  gfx: Phaser.GameObjects.Graphics;
+  gfx: Phaser.GameObjects.Image;
   col: number;
   row: number;
   drawnKey: string;
@@ -73,7 +72,7 @@ interface TableView {
 }
 
 export class EventStage extends Phaser.Scene {
-  private view: EventView | null = null;
+  private view: StageView | null = null;
   private setting: StageSetting | null = null;
   private worldLayer!: Phaser.GameObjects.Layer;
   private hudLayer!: Phaser.GameObjects.Layer;
@@ -187,7 +186,7 @@ export class EventStage extends Phaser.Scene {
     return this.view?.blocks[this.view.blockIndex];
   }
 
-  private refresh(view: EventView | null) {
+  private refresh(view: StageView | null) {
     const previous = this.view;
     this.view = view;
     this.idleText.setVisible(!view);
@@ -233,7 +232,7 @@ export class EventStage extends Phaser.Scene {
         continue;
       }
       // Quem chega entra pela borda esquerda do pátio, andando até o lugar.
-      const gfx = this.world(this.add.graphics());
+      const gfx = this.world(this.add.image(0, 0, "__DEFAULT").setScale(AVATAR_SCALE));
       const enters = !instant && plan.role !== "inspector";
       this.figures.set(plan.id, { plan, gfx, col: enters ? -1 : plan.col, row: plan.row, drawnKey: "" });
     }
@@ -260,7 +259,7 @@ export class EventStage extends Phaser.Scene {
     this.tablesKey = "";
   }
 
-  private syncTables(view: EventView) {
+  private syncTables(view: StageView) {
     const groups = view.selection?.groups ?? [];
     const key = groups.map((g) => `${g.id}:${g.label}`).join("|");
     if (key === this.tablesKey) return;
@@ -490,10 +489,10 @@ export class EventStage extends Phaser.Scene {
     this.updateTables(view);
   }
 
-  private moveCamera(view: EventView, dt: number) {
+  private moveCamera(view: StageView, dt: number) {
     const setting = settingForEvent(view.kind);
     const block = this.block();
-    const focus = effectiveFocus(setting, block ? focusForBlock(block.kind) : "gathering");
+    const focus = effectiveFocus(setting, focusForView(view));
     const cell = anchorFor(setting, focus);
     const anchor = iso(cell.col, cell.row);
     const { width, height } = this.scale;
@@ -537,18 +536,17 @@ export class EventStage extends Phaser.Scene {
       const key = `${facing}:${walking ? "s" : plan.pose}:${Math.round(phase * 8)}:${plan.look.shirt}`;
       if (key !== figure.drawnKey) {
         figure.drawnKey = key;
-        figure.gfx.clear();
-        drawAvatarShapes(figure.gfx, avatarShapes(plan.look, working ? "work" : "stand", { facing, phase }), 0, 0, AVATAR_SCALE);
+        setSprite(figure.gfx, { id: plan.id, look: plan.look }, facing, working ? "work" : "stand");
       }
       const base = iso(figure.col, figure.row);
       const bob = walking ? -Math.abs(Math.sin(this.t * 11)) * 3 : 0;
       const dim = observed && plan.role === "candidate" && plan.groupId !== observed ? 0.65 : 1;
-      figure.gfx.setPosition(base.x, base.y + bob).setDepth(base.y).setAlpha(dim);
+      figure.gfx.setPosition(base.x + (working ? Math.round(phase) * facing : 0), base.y + bob).setDepth(base.y).setAlpha(dim);
     }
   }
 
   /** Bancada de inspeção (competição) ou de checagem (aeroclube): o avião e as luzes do que falta. */
-  private updateBench(view: EventView) {
+  private updateBench(view: StageView) {
     const g = this.benchGfx;
     const lights = this.benchLights;
     g.clear();
@@ -590,7 +588,7 @@ export class EventStage extends Phaser.Scene {
   }
 
   /** Mesas dos grupos, planadores em montagem, destaque do grupo observado e os lançamentos. */
-  private updateTables(view: EventView) {
+  private updateTables(view: StageView) {
     const groups = view.selection?.groups ?? [];
     const observed = view.selection?.observedGroupId ?? null;
     const phase = selectionPhase(view);
@@ -688,7 +686,7 @@ export class EventStage extends Phaser.Scene {
 
   // ------------------------------------------------------------------ HUD
 
-  private drawHud(view: EventView) {
+  private drawHud(view: StageView) {
     const block = this.block();
     const hour = block?.startsAt ?? 12;
     const hh = Math.floor(hour);
