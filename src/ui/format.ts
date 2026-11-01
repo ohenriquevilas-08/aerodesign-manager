@@ -136,6 +136,7 @@ export const PAUSE_REASON_LABEL: Record<string, string> = {
   flight: "Seu voo",
   competition: "Competição",
   "flight-test": "Ensaio de voo",
+  "selection-day": "Dinâmica da seletiva",
   scheduled: "Ação agendada"
 };
 

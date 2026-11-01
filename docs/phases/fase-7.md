@@ -22,6 +22,48 @@ Escopo: **modo evento** (dinâmica da seletiva, dia de ensaio de voo e competiç
 
 Ordem: Simulação e Cenas juntas; UI depois do merge.
 
+## Status
+
+| Item | Estado |
+|---|---|
+| S1 motor de eventos | **feito** (branch de Simulação; falta revisão do Henrique e merge) |
+| S2 dia da dinâmica | **feito** |
+| S3 dia de ensaio de voo | **feito** |
+| S4 competição em vários dias | **feito** |
+| S5 correções (gênero, prioridade do presidente, `taskEta`) | **feito** |
+| C1–C3 Cenas | em outra frente |
+| U1–U5 UI | pendente; há um painel provisório em `src/ui/ProvisionalEvent.tsx` para jogar os eventos até lá |
+
+### Contrato como implementado (Simulação)
+
+Tipos em `src/sim/types.ts`, leitura e comandos exportados por `src/sim/index.ts`. Nomes do contrato mantidos: `ActiveEvent`, `EventBlock`, `EventDecision`, `EventLogEntry`, `EventSummary`, comandos `enter-event`, `advance-event`, `decide-event { optionId }`, `close-event`, leitura `eventView(state)`, `taskEta(state, taskId)`, `BALANCE.people.femaleShare`.
+
+Acréscimos ao contrato (campos novos, nada renomeado):
+
+- `ActiveEvent` ganhou `title`, `venueId?`, `entered` (false = só a chamada), `totalDays`, `startsAtDay` (meia-noite do dia 1, horas de jogo) e `context` (dados do tipo de evento: `SelectionDayContext`, `FlightTestContext`, `CompetitionEventContext`). `day` vai de 1 a `totalDays`; `blocks` são os blocos **do dia atual** e trocam a cada dia.
+- `EventDecision.options[]` ganhou `blocked?` (motivo; a opção não pode ser escolhida). `Cost.hours` nas opções são horas de trabalho do dia e cansam a equipe (`FATIGUE_PER_HOUR`).
+- `EventSummary = { title, lines, points, damage, knowledge, creditsSpent }`; o resumo preenchido marca o fim do dia, e `close-event` só vale com ele.
+- `EventView` (leitura): `stage` (`call` · `running` · `summary`), `dayLabel`, `blocks` com `status` (`done` · `current` · `upcoming`), `currentBlock`, `hourOfDay` (para o céu), `decision`, `log`, `summary`, `canAdvance`, `presentIds`, `lastPlayback` (seu último voo no evento, para a `FlightScene`) e `headline`.
+- `GameState.selectionDay: { at, format } | null` (dia da dinâmica marcado) e `GameState.activeEvent`. `PauseReason` ganhou `"selection-day"`. `Candidate` ganhou `observations?` e `verdict?` (`strong` · `promising` · `unclear`). `MemberLook.female?`. `CompetitionState` ganhou `waivedIssues?` e `payloadDeclaredFor?`.
+- Agendas: `AgendaDef` e `PresidentView` ganharam `priority`, `effect` e `text` (`priorityText` na view); `label` agora é curto e sem prefixo ("Fazer o avião voar").
+- `taskEta` devolve `{ finishesAt, daysLeft, percent, workHoursLeft }` (`finishesAt` e `daysLeft` são `null` com a tarefa parada).
+
+Regras do motor (`src/sim/events.ts`):
+
+- A chamada abre sozinha no `step` do relógio (`loop.ts`): ensaio 3 h antes da primeira decolagem (pausa `flight-test`), dinâmica no dia seguinte à conclusão da seletiva às 9h (pausa `selection-day`), competição no marco de 22/out (pausa `competition`). Com `activeEvent` aberto, `tick` não anda e `set-speed` diferente de 0 é recusado.
+- `advance-event` resolve o bloco atual; um bloco pode parar no meio (decisão pendente, ou **seu voo na competição**, para a cena tocar o replay), e o próximo `advance-event` continua dele. Eventos de vários dias trocam `blocks` e `day` ao acabar o último bloco do dia.
+- O relógio da gestão acompanha a hora do bloco durante o evento (sem andar sozinho); ao fechar fica pausado (`pause.reason` = `manual`) e o resumo vai para a inbox. Tarefas, motivação e pedidos não rendem durante o evento (o dia é contado como parado).
+- `dev-start-competition` abre o evento da competição (chamada, relógio em 22/out).
+
+### Desvios do contrato
+
+- **Competição com 4 dias no evento** (1 de chegada e inspeção + 3 de voo, `BALANCE.competition.flightDays` = 3), não "dias 2 e 3": com 2 dias de voo as 7 baterias da Tabela 10.1 não cabem (a fila da bateria 1 tem 31 equipes).
+- O gatilho do ensaio é a chamada 3 h antes da primeira decolagem (5h), não às 8h, para caber a viagem e a montagem; o horário das decolagens (8h, a cada 30 min) e o agendamento não mudam. Esperar o vento atrasa as decolagens seguintes em 30 min.
+- O dia da dinâmica **não adia** (a spec dizia "onde a regra permitir"; aqui nenhum evento permite adiar).
+- Na seletiva os candidatos continuam sendo sorteados quando a tarefa conclui (como na Fase 6); a dinâmica é o que os revela melhor. Convidar antes da dinâmica continua possível.
+- Efeitos do fechamento: ensaio (histórico, evidência, conhecimento, vídeo) e dinâmica (anotações, parecer) só entram em `close-event`; a competição aplica resultados e peças ao longo do dia (a fila precisa) e o fechamento dá a reputação do orientador e o conhecimento tácito.
+- `clockPace` e a lentidão do relógio nas janelas de voo foram removidos (o evento no lugar); `inFlightWindow` continua exportado só para consulta.
+
 ## O modo evento
 
 Um evento é um dia (ou vários) que tira o jogador da gestão:

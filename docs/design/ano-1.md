@@ -184,9 +184,19 @@ O jogador pode marcar ações no calendário (estilo FIFA): `schedule-action` p�
 
 **Fundação:** um grupo de **4 alunos fundadores** (`content/founders.ts`), sem cargo, conhecimento inicial baixo, cada um com uma "cara" (o que gosta de fazer) e um perfil de agenda, convida o orientador. O comando `found-team { presidentId, captains, teamName? }` (só no estado `founding`; o relógio fica pausado até lá) é a eleição: o orientador sugere quem preside e quem capitaneia o quê. Os capitães são opcionais (o organograma de fundação não é rígido); cada fundador assume um só cargo; só áreas da formação têm capitão. Fundadores podem ter inclinação de gestão ou marketing, não só de engenharia (áreas de negócio ficam para a Fase 7).
 
-**Presidente:** um aluno NPC. Trabalha, tem horas, área e carta, e uma `agenda`: `report`, `flight`, `funding` ou `balanced` (**[PROPOSTA]**). Tarefa concluída da agenda dá +1 de motivação a toda a equipe; 3 dias seguidos sem tarefa da agenda tiram 3 de motivação do presidente por dia (`BALANCE.agenda`). Nada é bloqueado. `presidentView` mostra a agenda e como o mês (30 dias) está para ela.
+**Presidente:** um aluno NPC. Trabalha, tem horas, área e carta, e uma `agenda`: `report`, `flight`, `funding` ou `balanced` (**[PROPOSTA]**). Tarefa concluída da agenda dá +1 de motivação a toda a equipe; 3 dias seguidos sem tarefa da agenda tiram 3 de motivação do presidente por dia (`BALANCE.agenda`). Nada é bloqueado. `presidentView` mostra a agenda e como o mês (30 dias) está para ela. Os rótulos são **prioridades com o efeito** (Fase 7), no conteúdo: "Prioridade: fazer o avião voar · tarefas de fabricação e ensaio animam a equipe"; do mesmo jeito, entregar o relatório, levantar caixa e gente, equilibrar as três frentes (`AgendaDef.priority`, `effect`, `text`).
 
 **Seletiva (novembro):** escolha de formato (ampla, técnica, por indicação, desafio prático), pareceres dos capitães, convites gratuitos. Só até 30/nov. Elenco mínimo para o projeto: Aerodinâmica, Estruturas e uma terceira pessoa.
+
+**Dia da dinâmica (Fase 7, evento) [PROPOSTA]:** a seletiva tem duas partes. A divulgação e a inscrição continuam sendo tarefa; quando ela conclui, os inscritos aguardam e a **dinâmica fica marcada para a manhã seguinte, às 9h** (`GameState.selectionDay`; sem adiar). Na hora o relógio pausa e abre o **modo evento** com cinco blocos: 9h recepção, 10h apresentação da equipe, 11h desafio prático em grupos (planador de balsa), 14h entrevistas rápidas, 16h deliberação. Os candidatos (até 9) se dividem em grupos de até 3. Decisões:
+
+1. **De que grupo você chega perto** (no desafio): o grupo observado ganha anotações detalhadas nas fichas (mão firme ou torta, tempo disponível por dia).
+2. **Segunda chance a quem travou** (sorteado, com 60% de chance, entre quem tem menos motivação e conversa): custa meia hora dos capitães; a pessoa se recupera com chance de motivação + 10%.
+3. **Quem entra na lista:** seguir a recomendação dos capitães (pesam conhecimento no foco, mão na oficina e conversa) ou a sua leitura (pesam motivação, agilidade, o planador do grupo e o que você viu).
+
+Cada grupo lança o planador a `distância base × (0,6 + 0,9 × fabricação + 0,3 × agilidade)` m, com ruído; o resultado vem pronto da simulação para a cena. No fechamento as anotações e o parecer (`strong`, `promising`, `unclear`) vão para `Candidate.observations` e `Candidate.verdict`; convidar continua sendo `hire-candidate`. Seguir os capitães anima um pouco os capitães.
+
+**Proporção de gênero (Fase 7) [DECIDIDO]:** o sorteio de nome e aparência de fundadores, candidatos e trainees segue `BALANCE.people.femaleShare` = 0,2, a proporção real da engenharia aeronáutica, sem diversidade forçada (`drawPerson`; `MemberLook.female`).
 
 **Etapa trainee (1/dez a 1/fev):** quem entra pela seletiva chega como `trainee`. A tarefa "Treinamento de trainees" (horas do trainee e de um capitão; sem capitão rende 50%) dá horas de treino e conhecimento. Em 1/fev cada trainee vira integrante ou desiste, com chance de ficar entre 40% (motivação 0) e 95% (100), multiplicada por 0,5 a 1 conforme o treino (**[PROPOSTA]**, `BALANCE.trainee`).
 
@@ -383,7 +393,7 @@ Internamente, condição de 0 a 100. Na tela:
 - **Piloto:** integrante com pilotagem ≥ 30 (treina pilotagem no ensaio) ou piloto contratado (◆ 150, pilotagem 80, não deixa conhecimento). Para um integrante chegar a 30 há a ação "Treino de pilotagem" (10 h, ◆ 20).
 - **Recusa:** avião incompleto, caixa curto, dia fora da semana do local, antecedência curta, tripulação vazia ou acima de 6, alguém já em outro ensaio no mesmo dia, data depois da competição.
 - **Cancelar:** devolve 50 % do pago.
-- **No dia (8h):** o relógio pausa e avisa. Transporte: 0,2 % por km de chance de danificar uma peça (10–25 de condição). O clima é o da região com a pressão do campo (Apêndice 4 dá a Hρ). Cada carga, a cada 30 min, é uma decolagem do motor da competição (`resolveFlight`) com `FlightPlayback`; pouso duro e queda danificam como na competição, queda encerra o dia, toda decolagem desgasta 3 pontos de cada peça. Voo que sai do chão vira ponto (Hρ, carga) da reta. Evidência por decolagem: voo (carga 0,4 · decolagem 0,3 · estabilidade 0,5) ou no limite, sem decolar ou rompendo a fita (0,6 · 0,5 · 0,2). A tripulação ganha 6 h de Desempenho (meia taxa em Aerodinâmica e Estabilidade). Filmado com um voo limpo até 27/set vale como vídeo oficial.
+- **No dia (evento, Fase 7):** a chamada vem 3 h antes da primeira decolagem (5h) e abre o modo evento; o agendamento não muda. Blocos: viagem (transporte), montagem e checagem, uma decolagem por carga planejada (a cada 30 min a partir das 8h) e desmontagem. Decisões: **peça com folga** na checagem (40% de chance, a peça de pior condição: trocar o parafuso gasta 1 h e ◆ 10 e melhora a peça em 15, ou voar assim, o que tira 15 de condição efetiva em todas as decolagens); **rajada de vento** antes de uma decolagem (35% por decolagem, 5 a 8 m/s de través: voar agora perde 20 de pilotagem efetiva, esperar 30 min a faz passar com 70% de chance, tirar 1 kg da carga perde 8 de pilotagem); e **depois de um pouso duro ou queda**, encerrar o dia (tira as decolagens que faltam) ou seguir. O histórico (`testLog`), a evidência, o conhecimento e o `FlightTest.takeoffs` só entram no fechamento (`close-event`); peças já se danificam durante o dia. Valores em `BALANCE.flightTests`, **[PROPOSTA]**. Abaixo, as regras que seguem iguais: Transporte: 0,2 % por km de chance de danificar uma peça (10–25 de condição). O clima é o da região com a pressão do campo (Apêndice 4 dá a Hρ). Cada carga, a cada 30 min, é uma decolagem do motor da competição (`resolveFlight`) com `FlightPlayback`; pouso duro e queda danificam como na competição, queda encerra o dia, toda decolagem desgasta 3 pontos de cada peça. Voo que sai do chão vira ponto (Hρ, carga) da reta. Evidência por decolagem: voo (carga 0,4 · decolagem 0,3 · estabilidade 0,5) ou no limite, sem decolar ou rompendo a fita (0,6 · 0,5 · 0,2). A tripulação ganha 6 h de Desempenho (meia taxa em Aerodinâmica e Estabilidade). Filmado com um voo limpo até 27/set vale como vídeo oficial.
 - `upcomingEvents`: ensaios agendados e a competição, do mais próximo ao mais distante.
 
 Cada ensaio gera **conhecimento tácito** para quem participou, desgasta as peças usadas e pode danificá-las ou quebrá-las. Ensaios em dias diferentes (frio/calor) dão pontos em altitudes densidade diferentes e melhoram a reta de previsão. Equipamentos (balança, bancada, telemetria) aumentam o aprendizado e reduzem o risco.
@@ -498,6 +508,8 @@ Comprar não é um botão "Comprar motor": é abrir o **navegador do jogo** e es
 
 Dois blocos, como na regra real: **Competição de Projeto** e **Competição de Voo**.
 
+**A competição é um evento de vários dias (Fase 7) [PROPOSTA]:** no marco do calendário o relógio pausa e abre o modo evento, que dura 4 dias (`BALANCE.competition.flightDays` = 3 dias de voo): **dia 1** chegada (8h), exposição (9h), inspeção técnica (13h) e reunião técnica com a fila da bateria 1 (16h30); **dias 2 a 4** briefing com a previsão do tempo (6h30) e cinco janelas de voo de 2 h (7h às 17h, 10 decolagens por janela, uma equipe a cada 12 min); **no fim** placar e premiação (17h do último dia, ou antes se as baterias acabam). A fila, o clima, os rivais e a Tabela 10.1 são os da Fase 3. A tela Competição passa a ser só histórico e regulamento. Enquanto o evento roda o resto da equipe fica parado (o dia é contado como parado).
+
 ### 9.1 Competição de Projeto: 225 pontos
 
 | Item | Máximo |
@@ -516,7 +528,9 @@ A nota de cada capítulo depende de **conhecimento documentado + horas investida
 
 ### 9.2 Inspeção de segurança **[PROPOSTA]**
 
-Checklist com itens reais simplificados (fixação da carga, cablagem, servos comerciais, arm plug, identificação). Itens reprovados exigem correção na hora, com o relógio correndo e a fila andando. Pode impedir de voar.
+Checklist com itens reais simplificados (fixação da carga, cablagem, servos comerciais, arm plug, identificação). Itens reprovados exigem correção na hora, com a fila esperando. Pode impedir de voar.
+
+**No evento (Fase 7), cada pendência é uma decisão do bloco de inspeção** (`inspectionFindings`): *avião incompleto*: improvisar as peças na oficina móvel (10 h, ◆ 100, peças de qualidade 45) ou ficar de fora dos voos; *sem vídeo de voo*: pedir liberação condicional (15 pontos de penalidade) ou ficar no chão; *eletrônica falsificada*: comprar a certificada no pátio (3 h, ◆ 120) ou voar assim com 10 pontos de penalidade e a peça falsificada no avião. As horas das opções cansam a equipe (motivação). Sem avião não há decisão: a equipe só acompanha.
 
 ### 9.3 Baterias de voo: fórmulas reais da Classe Regular 2026
 
@@ -556,18 +570,18 @@ T0 = 288,15 K · P0 = 1013,25 hPa
 
 ### 9.4 A decisão de cada bateria (o momento "Into Space")
 
-Tudo acontece com o relógio correndo. A fila anda, o sol sobe, o ar fica menos denso. Antes de cada bateria o jogador vê:
+Tudo acontece dentro do evento (Fase 7): a fila anda a cada bloco de voo, o sol sobe, o ar fica menos denso. Antes de cada bateria o jogador vê:
 
 - a **altitude densidade** do momento (manhã fria = ar denso = mais carga; tarde quente = menos);
 - a estimativa de carga máxima **para essas condições**, com a margem de erro da equipe;
 - o valor da sua reta de previsão nesse ponto (o PAC pune quem se afasta dela);
 - o estado das peças.
 
-E escolhe **quanta carga colocar**. Na fila, pode revisar a carga desde que haja pelo menos 3 equipes à frente (regra real R[10.1.5.3]); depois disso, é aquilo.
+E escolhe **quanta carga colocar**. No evento isso é **a decisão do bloco**: quando a bateria abre e você está nela, o cartão oferece seguir a previsão da reta, subir a carga (+8%) ou aliviar (−8%), com o limite estimado do dia e a margem de erro. A carga declarada fica valendo para a bateria; `set-battery-payload` continua existindo para revisar na fila, desde que haja pelo menos 3 equipes à frente (regra real R[10.1.5.3]); depois disso, é aquilo.
 
 O voo é uma cena: corrida → obstáculo de 0,9 m aos 55 m → circuito padrão → pouso → **retirada rápida de carga cronometrada** (quadrado de 3×3 m, até duas pessoas). A física por trás é simplificada; a tensão é real.
 
-Resultados possíveis: voo válido · não passou o obstáculo (inválido) · rompeu a fita · pouso fora da pista (sem BPO) · dano · queda (peças danificadas ou quebradas, talvez sem avião para a próxima bateria). Entre baterias, a equipe pode reparar no hangarete, com o relógio correndo.
+Resultados possíveis: voo válido · não passou o obstáculo (inválido) · rompeu a fita · pouso fora da pista (sem BPO) · dano · queda (peças danificadas ou quebradas, talvez sem avião para a próxima bateria). Entre baterias, a equipe pode reparar no hangarete: depois de um voo seu com dano, o cartão oferece reparo completo (6 h, ◆ 60, peças a 85), remendo (2 h, ◆ 15, +25 de condição) ou seguir sem reparar.
 
 ---
 
@@ -638,6 +652,15 @@ Direção visual: imagens geradas pelo Gemini (painel escuro, ciano e laranja, �
 | 14 | Pré-temporada (nov a fev): seletiva em novembro, etapa trainee de dez a jan, férias de verão com horas reduzidas |
 | 15 | A Prancheta e a leitura do regulamento abrem em 9/fev; sem a leitura, a penalidade por alteração tardia de projeto na inspeção é multiplicada (`BALANCE.season.unreadPenaltyFactor`, **[PROPOSTA]**) |
 | 16 | Calendário anual no estilo FIFA com ações agendadas (seção 4.5) |
+
+### Fechadas em 01/11/2026 (Fase 7, Simulação)
+
+| # | Decisão |
+|---|---|
+| 17 | Dinâmica da seletiva, ensaio de voo e competição são **eventos imersivos** (modo evento): comandos `enter-event`, `advance-event`, `decide-event`, `close-event`; o relógio fica parado enquanto `activeEvent` existe |
+| 18 | A competição tem 4 dias no evento (chegada e inspeção, 3 dias de voo), com a carga de cada bateria como decisão; o dia 1 e as janelas de 2 h são **[PROPOSTA]** |
+| 19 | A equipe segue a proporção real da engenharia aeronáutica: `BALANCE.people.femaleShare` = 0,2 |
+| 20 | A agenda do presidente vira prioridade com texto do efeito, no conteúdo; a duração da tarefa tem leitura `taskEta` |
 
 ### Ainda abertas
 

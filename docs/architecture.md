@@ -144,6 +144,10 @@ Entrada em `src/scenes/tests/testEntry.ts`: `TestEntry = BenchTestEntry | Flight
 - Em dev, `window.__hangarScene.seekBenchTest(t)` pula a animação; `playTest` pode ser chamado do console com `await import('/src/scenes/tests/testEntry.ts')`.
 - Tela Ensaios (`src/ui/screens/Tests.tsx`): escolhe o ensaio (abre a ação em Ações), mostra a cena (Bancada = `HangarScene`, Voo = `FlightScene`, trocadas por `PhaserStage`), o histórico com "Rever" e o gráfico Hρ × carga. Um ensaio que termina com a tela aberta toca sozinho.
 
+### Modo evento (Fase 7)
+
+Dinâmica da seletiva, ensaio de voo e competição são eventos: `GameState.activeEvent` (tipos em `sim/types.ts`, motor em `sim/events.ts`, ferramentas em `sim/eventCore.ts`, um arquivo por evento: `eventSelection.ts`, `eventFlightTest.ts`, `eventCompetition.ts`). UI e cenas só mandam `enter-event`, `advance-event`, `decide-event { optionId }` e `close-event` e leem `eventView(state)`; o relógio da gestão fica parado com o evento aberto. Detalhes e desvios em [`docs/phases/fase-7.md`](phases/fase-7.md).
+
 ## Convenções
 
 - Identificadores, arquivos e commits em inglês; textos do jogo e comentários em PT-BR.
