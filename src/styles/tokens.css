@@ -32,6 +32,11 @@
   --cost-lead: #b58cff;
   --cost-risk: #ff5a5f;
 
+  /* Escala da oficina (design §5.5): madrugada tem cor própria. Só UI por enquanto;
+     se o hangar pintar a madrugada, espelhar em scenes/palette.ts. */
+  --shift-night: #9b8cff;
+  --shift-night-soft: rgb(155 140 255 / 0.12);
+
   /* Tipografia */
   --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
