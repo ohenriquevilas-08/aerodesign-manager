@@ -1,0 +1,14 @@
+/* Telas da Fase 3 (Prancheta ligada à simulação, Relatório, Navegador, Competição).
+   Só tokens de tokens.css; as cores de cada loja ficam em tokens --shop-*. */
+
+/* Estimativas "valor ± margem" (design §6.2) */
+.estimate-margin {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.estimate-empty {
+  color: var(--text-dim);
+}
