@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ARRIVAL_S, CREW_WATCH_X, PLANE_READY_X, VAN_PARK_X, arrivalFrame, sessionProgress, sessionTitle } from "../../src/scenes/flight/session";
+import { TEST_VENUES } from "../../src/sim";
 import { COMPETITION_SCENERY, SCENERY_IDS, sceneryForVenue } from "../../src/scenes/flight/scenery";
 
 describe("vinheta de chegada", () => {
@@ -52,5 +53,10 @@ describe("cenário do local", () => {
     expect(sceneryForVenue("nao-existe").id).toBe("aeroclub");
     expect(sceneryForVenue("farm").backdrop).toBe("barn");
     expect(COMPETITION_SCENERY.backdrop).toBe("hills");
+  });
+
+  it("todo local de ensaio da simulação tem cenário (model-field usa a pista)", () => {
+    for (const venue of TEST_VENUES) expect(SCENERY_IDS).toContain(sceneryForVenue(venue.id).id);
+    expect(sceneryForVenue("model-field").id).toBe("airstrip");
   });
 });

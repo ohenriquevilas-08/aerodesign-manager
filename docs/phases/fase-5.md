@@ -97,6 +97,13 @@ Três colunas: decisões (com os parâmetros novos, agrupados por subsistema), b
 
 Na tela Ensaios: botão "Agendar ensaio de voo" abre um fluxo de 3 passos (local e dia, piloto e tripulação, cargas planejadas), com custo total no formato `Cost`. Lista de eventos agendados com contagem regressiva e cancelar. No dia, a cena C3 toca e o gráfico Hρ × carga recebe os pontos. Bancada continua como hoje.
 
+**Status da UI: feito (branch `claude/ui-phase5-2666f9`).** Stubs de `scenes/phase5.ts` trocados pelos tipos reais (arquivo removido).
+
+- U1: `ui/team/Formation.tsx` (cartas FIFA sobre o avião em SVG; área vazia apaga a parte; aviso só em tooltip; "Sem área" só com novatos; estilos em `styles/phase5.css`).
+- U2: `Team.tsx` usa `rosterMembers` e `Avatar`; o presidente aparece só como "Você" no cabeçalho.
+- U3: `Drafting.tsx` passa a ter **rascunho local** (o projeto só vira estado em "Gravar projeto", via `set-design`); abas Requisitos (carga-alvo, Hρ), Massa e Comparar (`compareDesigns`, gravado em traço apagado no blueprint). Trocar para trem baixo encolhe a hélice ao máximo permitido.
+- U4: `FlightTestPlanner.tsx` (3 passos, custo no formato `Cost`, validação por `scheduleProblem`); `Tests.tsx` ganhou "Próximos eventos" (`upcomingEvents`, cancelar), "Rever voos" e toca a sessão C3 (`flightReplay.playSession`) quando o ensaio acontece ou ao entrar na tela. `entryFromHistory` usa o `playback` real quando o registro tem.
+
 ## Verificação
 
 - `npm run check` verde em cada frente.
