@@ -9,14 +9,29 @@ import { canWork, clockToDate, type GameState } from "../../sim";
 
 export type Shift = "morning" | "afternoon" | "evening" | "overnight";
 
+/** Dia da semana (0 = domingo), como Date.getUTCDay. */
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Formato de `currentShift`. */
 export interface ShiftSlot {
-  /** Dia da semana (0 = domingo), como Date.getUTCDay. */
-  day: number;
+  day: Weekday;
   shift: Shift;
 }
 
+/** Célula da grade da escala, ex.: "1-morning". */
+export type SlotKey = `${Weekday}-${Shift}`;
+
+export function slotKey(slot: ShiftSlot): SlotKey {
+  return `${slot.day}-${slot.shift}`;
+}
+
+/** Turno de um SlotKey ("1-morning" → "morning"). */
+export function shiftOfSlot(key: SlotKey | null): Shift | null {
+  return key ? (key.slice(key.indexOf("-") + 1) as Shift) : null;
+}
+
 export interface WorkshopNow {
-  slot: ShiftSlot | null;
+  slot: SlotKey | null;
   /** Integrantes na oficina agora. */
   present: string[];
   open: boolean;
@@ -38,14 +53,14 @@ export function shiftForHour(hour: number): Shift | null {
 export function currentShift(state: GameState): ShiftSlot | null {
   const date = new Date(clockToDate(state.clock.hours));
   const shift = shiftForHour(date.getUTCHours() + date.getUTCMinutes() / 60);
-  return shift ? { day: date.getUTCDay(), shift } : null;
+  return shift ? { day: date.getUTCDay() as Weekday, shift } : null;
 }
 
 /** Sem escala ainda: em qualquer turno, quem trabalha está na oficina. */
 export function workshopNow(state: GameState): WorkshopNow {
-  const slot = currentShift(state);
-  const present = slot ? state.members.filter(canWork).map((member) => member.id) : [];
-  return { slot, present, open: present.length > 0, blocked: null };
+  const shift = currentShift(state);
+  const present = shift ? state.members.filter(canWork).map((member) => member.id) : [];
+  return { slot: shift ? slotKey(shift) : null, present, open: present.length > 0, blocked: null };
 }
 
 // ---------------------------------------------------------------- iluminação
@@ -69,10 +84,10 @@ export interface WorkshopLighting {
  * fora das luminárias, com café e pizza. Oficina fechada (ninguém) fica escura; se for noite
  * lá fora, as janelas também.
  */
-export function lightingFor(slot: ShiftSlot | null, open: boolean, hour: number): WorkshopLighting {
+export function lightingFor(shift: Shift | null, open: boolean, hour: number): WorkshopLighting {
   const nightOutside = hour >= 18.5 || hour < 6;
   if (!open) return { mode: "closed", dim: nightOutside ? 0.62 : 0.4, darkWindows: nightOutside, lampsOn: false, overnightProps: false };
-  switch (slot?.shift) {
+  switch (shift) {
     case "evening":
       return { mode: "evening", dim: 0.22, darkWindows: true, lampsOn: true, overnightProps: false };
     case "overnight":
@@ -88,10 +103,7 @@ export function lightingFor(slot: ShiftSlot | null, open: boolean, hour: number)
  * De madrugada, alguém cochila no canto: o primeiro presente que não está trabalhando numa
  * bancada (na área livre). Se todo mundo está numa bancada, ninguém cochila.
  */
-export function overnightNapper(
-  slot: ShiftSlot | null,
-  workers: readonly { memberId: string; bench: string | null }[]
-): string | null {
-  if (slot?.shift !== "overnight") return null;
+export function overnightNapper(shift: Shift | null, workers: readonly { memberId: string; bench: string | null }[]): string | null {
+  if (shift !== "overnight") return null;
   return workers.find((worker) => worker.bench === null)?.memberId ?? null;
 }

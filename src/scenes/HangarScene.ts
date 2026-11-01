@@ -40,7 +40,7 @@ import {
   WALL_H
 } from "./hangar/hangarArt";
 import { packagesAtDoor, recentDeliveries, type PackageView } from "./hangar/packages";
-import { lightingFor, overnightNapper, workshopNow, type WorkshopLighting, type WorkshopNow } from "./hangar/workshop";
+import { lightingFor, overnightNapper, shiftOfSlot, workshopNow, type WorkshopLighting, type WorkshopNow } from "./hangar/workshop";
 import { hourOfDay } from "./queue/queueView";
 import { iso } from "./hangar/iso";
 import { Worker } from "./hangar/Worker";
@@ -234,7 +234,7 @@ export class HangarScene extends Phaser.Scene {
     const now = workshopNow(state);
     this.refreshCards(state);
     this.refreshPeople(state, now);
-    this.refreshLight(lightingFor(now.slot, now.open, hourOfDay(state.clock.hours)), now);
+    this.refreshLight(lightingFor(shiftOfSlot(now.slot), now.open, hourOfDay(state.clock.hours)), now);
     this.refreshPackages(state);
     const view = aircraftViewFromState(state);
     const key = JSON.stringify(view);
@@ -504,7 +504,7 @@ ${now.blocked}`).setColor(css(palette.warn)).setVisible(true);
   /** Cria quem chegou ao turno, tira quem saiu e leva cada um ao seu posto. */
   private refreshPeople(state: GameState, now: WorkshopNow) {
     const views = workerViewsFromState(state, now.present);
-    const napper = overnightNapper(now.slot, views);
+    const napper = overnightNapper(shiftOfSlot(now.slot), views);
     const present = new Set(views.map((view) => view.memberId));
     this.people.forEach((person, id) => {
       if (present.has(id)) return;
