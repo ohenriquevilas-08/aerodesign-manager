@@ -21,7 +21,7 @@ export {
   type StockItem
 } from "./content/actions";
 export { BALANCE } from "./content/balance";
-export { DEFAULT_DESIGN, DESIGN_LIMITS, estimatePerformance } from "./aircraft";
+export { DEFAULT_DESIGN, DESIGN_LIMITS, estimatePerformance, installedParts, missingParts, PART_TYPE_LABELS } from "./aircraft";
 export { estimateReportScore } from "./report";
 export { listingPrice, listingStock, type OrderRequest } from "./shop";
 export { currentDensityAltitude, MIN_TEAMS_AHEAD_TO_REVISE, standings, teamsAhead } from "./competition";

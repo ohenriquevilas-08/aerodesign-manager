@@ -22,6 +22,8 @@ export type EquipmentItem = "scale" | "thrust-stand";
  * - agility: treino que aumenta agilidade de quem participou.
  * - outreach: soma alcance de divulgação (GameState.outreach), que a seletiva consome.
  * - selection: sorteia candidatos da seletiva no formato escolhido ao iniciar (design §5.2).
+ * - test: ensaio (design §7.3); estreita margens, cita nos capítulos, desgasta peças (sim/aircraft.ts).
+ * - report-chapter / drawings / oral-practice: horas que entram no relatório e na apresentação (sim/report.ts).
  */
 export type ActionEffect =
   | { kind: "credits"; amount: number }
@@ -35,7 +37,11 @@ export type ActionEffect =
   | { kind: "expedite"; remainingFactor: number }
   | { kind: "agility" }
   | { kind: "selection" }
-  | { kind: "outreach"; amount: number };
+  | { kind: "outreach"; amount: number }
+  | { kind: "test"; test: "structural" | "thrust" | "flight" | "video" }
+  | { kind: "report-chapter" }
+  | { kind: "drawings" }
+  | { kind: "oral-practice" };
 
 /** Alvo exigido no comando start-action. */
 export type ActionTarget = "part" | "waiting-task" | "discipline" | "selection-format";
@@ -103,7 +109,16 @@ const defs: Omit<ActionDef, "category">[] = [
   { id: "outreach-classroom", label: "Passar em sala de aula", cost: cost(3, 0), crew: crew(1, 2, 2), skill: "communication", effect: { kind: "outreach", amount: 6 } },
   { id: "outreach-freshers", label: "Stand na recepção de calouros", cost: cost(6, 0), crew: crew(2, 2, 3), skill: "communication", effect: { kind: "outreach", amount: 12 } },
   { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), crew: crew(1, 2, 3), skill: "knowledge", discipline: "aerodynamics" },
-  { id: "report-chapter", label: "Escrever capítulo do relatório", cost: cost(30, 0), crew: crew(1, 1, 1) },
+  // Relatório (design §9.1): o capítulo é a disciplina escolhida; as horas entram na nota.
+  {
+    id: "report-chapter",
+    label: "Escrever capítulo do relatório",
+    cost: cost(30, 0), crew: crew(1, 1, 1), skill: "knowledge",
+    effect: { kind: "report-chapter" },
+    target: "discipline"
+  },
+  { id: "drawings", label: "Desenhar plantas", cost: cost(20, 0), crew: crew(1, 1, 2), skill: "knowledge", discipline: "conceptual", effect: { kind: "drawings" } },
+  { id: "oral-rehearsal", label: "Ensaiar apresentação oral", cost: cost(6, 0), crew: crew(1, 2, 3), skill: "communication", effect: { kind: "oral-practice" } },
   { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), crew: crew(1, 1, 1), skill: "knowledge", effect: { kind: "document" }, target: "discipline" },
   { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), crew: crew(1, 3, 4), skill: "communication", effect: { kind: "credits", amount: 500 } },
   { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), crew: crew(1, 1, 2), skill: "communication", effect: { kind: "sponsor" } },
@@ -139,9 +154,36 @@ const defs: Omit<ActionDef, "category">[] = [
     effect: { kind: "fabricate", part: "wing", label: "Asa (balsa)" },
     requires: { balsa: 1 }
   },
+  {
+    id: "build-fuselage",
+    label: "Fabricar fuselagem (balsa)",
+    cost: cost(40, 120), crew: crew(1, 2, 3), skill: "fabrication",
+    discipline: "structures",
+    effect: { kind: "fabricate", part: "fuselage", label: "Fuselagem" },
+    requires: { "balsa-hard": 1 }
+  },
+  {
+    id: "build-tail",
+    label: "Fabricar empenagem (balsa)",
+    cost: cost(24, 60), crew: crew(1, 2, 2), skill: "fabrication",
+    discipline: "stability",
+    effect: { kind: "fabricate", part: "tail", label: "Empenagem" },
+    requires: { "balsa-light": 1 }
+  },
+  {
+    id: "build-gear",
+    label: "Fabricar trem de pouso",
+    cost: cost(16, 80), crew: crew(1, 1, 2), skill: "fabrication",
+    discipline: "loads",
+    effect: { kind: "fabricate", part: "landingGear", label: "Trem de pouso" },
+    requires: { "carbon-fiber": 1 }
+  },
   { id: "repair-part", label: "Reparar peça", cost: cost(10, 60), crew: crew(1, 1, 2), skill: "fabrication", effect: { kind: "repair", amount: 30 }, target: "part" },
-  { id: "test-flight", label: "Voo com carga incremental", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting", discipline: "performance" },
-  { id: "flight-video", label: "Voo filmado (vídeo oficial)", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting" }
+  // Ensaios (design §7.3): exigem as peças no hangar (sim/aircraft.ts, testProblem).
+  { id: "test-structural", label: "Ensaio estrutural de bancada", cost: cost(8, 20, 0, "medium"), crew: crew(2, 2, 3), skill: "knowledge", discipline: "structures", effect: { kind: "test", test: "structural" } },
+  { id: "test-thrust", label: "Ensaio de motor e hélice", cost: cost(4, 10, 0, "low"), crew: crew(1, 2, 2), skill: "knowledge", discipline: "electrical", effect: { kind: "test", test: "thrust" } },
+  { id: "test-flight", label: "Voo com carga incremental", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting", discipline: "performance", effect: { kind: "test", test: "flight" } },
+  { id: "flight-video", label: "Voo filmado (vídeo oficial)", cost: cost(12, 30, 0, "medium"), crew: crew(2, 3, 4), skill: "piloting", effect: { kind: "test", test: "video" } }
 ];
 
 export const ACTIONS: readonly ActionDef[] = defs.map((def) => ({ ...def, category: categoryOf(def.cost) }));

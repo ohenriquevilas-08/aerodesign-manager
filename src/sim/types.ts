@@ -95,6 +95,11 @@ export interface Part {
   quality: number;
   /** 0–100. */
   condition: number;
+  /**
+   * Veio fora da especificação de uma loja (ex.: servo falsificado). A equipe só descobre na
+   * inspeção de segurança da competição (design §9.2) ou no relatório final.
+   */
+  counterfeit?: boolean;
 }
 
 /** waiting: esperando prazo ⌛ (readyAt); active: consome horas; done: concluída (fica como histórico). */
@@ -138,7 +143,16 @@ export interface InboxMessage {
 }
 
 /** Motivo da pausa atual. "start": jogo recém-criado; "manual": jogador pausou. */
-export type PauseReason = "start" | "manual" | "task-done" | "deadline-soon" | "deadline-passed";
+/** "order": pedido retido ou entregue; "flight": seu voo na competição (replay); "competition": evento da competição ou da CT. */
+export type PauseReason =
+  | "start"
+  | "manual"
+  | "task-done"
+  | "deadline-soon"
+  | "deadline-passed"
+  | "order"
+  | "flight"
+  | "competition";
 
 export interface PauseInfo {
   reason: PauseReason;
@@ -202,8 +216,20 @@ export interface Estimate {
 export interface AircraftHidden {
   /** Multiplicador do peso vazio real sobre o nominal (ex.: 1,08 = 8% mais pesado). */
   emptyWeightFactor: number;
-  /** Multiplicador da carga máxima real sobre a nominal. */
+  /** Multiplicador da capacidade de sustentação real (e daí a carga máxima) sobre a nominal. */
   payloadFactor: number;
+  /**
+   * Erro da opinião da equipe, de −1 a 1, em frações da margem: a estimativa fica em
+   * real + bias × margem × BALANCE.aircraft.biasShare. Ensaios sorteiam de novo. Ausente = 0.
+   */
+  bias?: { emptyWeight: number; payload: number; takeoff: number };
+}
+
+/** Ensaios acumulados que estreitam a margem de cada estimativa (design §7.3). */
+export interface AircraftEvidence {
+  emptyWeight: number;
+  payload: number;
+  takeoff: number;
 }
 
 export interface Aircraft {
@@ -211,6 +237,10 @@ export interface Aircraft {
   hidden: AircraftHidden;
   /** Mudanças de projeto depois do prazo de 27/set (Apêndice 6: penalidade). */
   lateChanges: number;
+  /** Ensaios feitos; ausente = nenhum. */
+  evidence?: AircraftEvidence;
+  /** Momento (horas de jogo) do voo filmado válido; sem ele não voa na competição. */
+  flightVideoAt?: number | null;
 }
 
 /** Estimativa de desempenho para uma altitude densidade (design §6.2 e §9.4). */
@@ -252,6 +282,8 @@ export interface ReportState {
   score: number | null;
   /** Nota da apresentação oral (0–40), dada em 17/out. */
   oralScore: number | null;
+  /** Horas de ensaio da apresentação oral; ausente = 0. */
+  oralPracticeHours?: number;
 }
 
 /** Status de um pedido de loja (design §8.4). */
@@ -398,6 +430,8 @@ export interface CompetitionState {
   penalties: Record<string, number>;
   /** Itens da inspeção de segurança reprovados que ainda precisam de correção (design §9.2). */
   inspectionIssues: string[];
+  /** Equipes fora de uma bateria (id → número da bateria), ex.: abortou com trem alto e rompeu a fita. */
+  suspended?: Record<string, number>;
 }
 
 /** Linha do placar (design §9.3: melhor bateria + BCF + projeto − penalidades). */

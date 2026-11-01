@@ -354,7 +354,7 @@ describe("motivação", () => {
 
   it("não cai para quem trabalha dentro do limite e cai para quem está sobrecarregado", () => {
     let game = newGame();
-    game = run(game, { type: "start-action", actionId: "report-chapter" });
+    game = run(game, { type: "start-action", actionId: "report-chapter", targetId: "aerodynamics" });
     const taskId = lastTask(game).id;
     game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
     game = play(game, 7);
@@ -383,7 +383,7 @@ describe("motivação", () => {
 
 describe("equipe por tarefa (crew)", () => {
   it("recusa alocar acima do máximo da ação", () => {
-    let game = run(newGame(), { type: "start-action", actionId: "report-chapter" });
+    let game = run(newGame(), { type: "start-action", actionId: "report-chapter", targetId: "aerodynamics" });
     const taskId = lastTask(game).id;
     game = run(game, { type: "assign-member", memberId: "captain-aero", taskId }, { type: "assign-member", memberId: "rookie", taskId });
     expect(game.tasks[0]!.assignees).toEqual(["captain-aero"]);
@@ -392,7 +392,7 @@ describe("equipe por tarefa (crew)", () => {
   });
 
   it("abaixo do mínimo a tarefa não avança", () => {
-    let game = run(newGame({ credits: 100 }), { type: "start-action", actionId: "test-flight" });
+    let game = run(newGame(), { type: "start-action", actionId: "outreach-freshers" });
     const taskId = lastTask(game).id;
     game = run(game, { type: "assign-member", memberId: "captain-aero", taskId });
     game = play(game, 2);
