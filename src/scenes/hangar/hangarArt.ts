@@ -345,3 +345,56 @@ export function drawAircraft(g: Phaser.GameObjects.Graphics, view: AircraftView)
 export function aircraftAnchor() {
   return iso(AIRCRAFT.col, AIRCRAFT.row);
 }
+
+/** Lado e altura de uma caixa de pedido, em tiles e pixels. */
+export const CRATE = { size: 0.42, height: 13 };
+/**
+ * Caixas encostadas na parede, ao lado esquerdo do portão (o lado direito fica sob o cartão
+ * da fuselagem): três no piso e mais três empilhadas por cima.
+ */
+export const DOOR_CRATE_SLOTS: readonly { col: number; row: number; z: number }[] = [
+  { col: 3.75, row: -0.35, z: 0 },
+  { col: 3.25, row: -0.35, z: 0 },
+  { col: 3.55, row: 0.15, z: 0 },
+  { col: 3.75, row: -0.35, z: CRATE.height },
+  { col: 3.25, row: -0.35, z: CRATE.height },
+  { col: 3.55, row: 0.15, z: CRATE.height }
+];
+/** Onde a caixa entregue é aberta: na frente das outras, fora da zona de montagem. */
+export const UNPACK_SPOT = { col: 3.3, row: 0.6 };
+
+/** Papelão: o laranja da paleta escurecido. */
+const CARDBOARD = shade(palette.highlight, 0.35);
+
+/** Caixa de papelão com fita; retida na fiscalização ganha faixa de aviso. Sem tampa se `open`. */
+export function drawCrate(g: Phaser.GameObjects.Graphics, col: number, row: number, z: number, held: boolean, open = false) {
+  const c1 = col + CRATE.size;
+  const r1 = row + CRATE.size;
+  const h = CRATE.height;
+  isoBox(g, col, c1, row, r1, z, h, { top: open ? shade(CARDBOARD, 0.6) : CARDBOARD, left: shade(CARDBOARD, 0.2), right: shade(CARDBOARD, 0.4) });
+  if (!open) {
+    // Fita no meio da tampa.
+    const mid = col + CRATE.size / 2;
+    const a = iso(mid, row, z + h);
+    const b = iso(mid, r1, z + h);
+    g.lineStyle(2, palette.ink, 0.7);
+    g.lineBetween(a.x, a.y, b.x, b.y);
+  }
+  if (held) {
+    // Faixa de aviso nas duas faces visíveis.
+    g.fillStyle(palette.warn, 0.95);
+    g.fillPoints(vec([iso(col, r1, z + 4), iso(c1, r1, z + 4), iso(c1, r1, z + 8), iso(col, r1, z + 8)]), true);
+    g.fillPoints(vec([iso(c1, row, z + 4), iso(c1, r1, z + 4), iso(c1, r1, z + 8), iso(c1, row, z + 8)]), true);
+  }
+}
+
+/** Tampa solta da caixa (para a animação de abertura), centrada na origem do Graphics. */
+export function drawCrateLid(g: Phaser.GameObjects.Graphics) {
+  const half = CRATE.size / 2;
+  isoBox(g, -half, half, -half, half, 0, 2, { top: CARDBOARD, left: shade(CARDBOARD, 0.2), right: shade(CARDBOARD, 0.4) });
+  const a = iso(0, -half, 2);
+  const b = iso(0, half, 2);
+  g.lineStyle(2, palette.ink, 0.7);
+  g.lineBetween(a.x, a.y, b.x, b.y);
+}
+

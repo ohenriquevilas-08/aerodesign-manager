@@ -2,6 +2,7 @@
 // de cada disciplina, o avião no cavalete e os integrantes trabalhando nos seus postos.
 // Cada bancada tem um cartão com a tarefa em andamento e as peças (ver hangar/benchView.ts);
 // cada integrante vai para a bancada da tarefa em que está alocado, ou fica na área livre.
+// Pedidos das lojas a caminho viram caixas no portão; o entregue é aberto (hangar/packages.ts).
 // Profundidade: quem está mais à frente (maior y na tela) desenha por cima.
 // Lê o store; nunca muda o estado. O tempo da cena segue clock.speed.
 
@@ -16,7 +17,24 @@ import {
   type BenchView,
   type WorkerView
 } from "./hangar/benchView";
-import { aircraftAnchor, BENCH_LEN, BENCH_TOP, benchHotspot, COLS, drawAircraft, drawBench, drawRoom, ROWS, WALL_H } from "./hangar/hangarArt";
+import {
+  aircraftAnchor,
+  BENCH_LEN,
+  BENCH_TOP,
+  benchHotspot,
+  COLS,
+  CRATE,
+  DOOR_CRATE_SLOTS,
+  drawAircraft,
+  drawBench,
+  drawCrate,
+  drawCrateLid,
+  drawRoom,
+  ROWS,
+  UNPACK_SPOT,
+  WALL_H
+} from "./hangar/hangarArt";
+import { packagesAtDoor, recentDeliveries, type PackageView } from "./hangar/packages";
 import { iso } from "./hangar/iso";
 import { Worker } from "./hangar/Worker";
 import { css, fonts, palette } from "./palette";
@@ -72,6 +90,19 @@ const PART_COLOR: Record<PartState, number> = {
   broken: palette.danger
 };
 
+/** Caixa entregue sendo aberta. Anima em tempo real (como um aviso), mesmo com o relógio pausado. */
+interface Opening {
+  t: number;
+  /** y da tampa fechada, em pixels do mundo. */
+  top: number;
+  body: Phaser.GameObjects.Graphics;
+  lid: Phaser.GameObjects.Graphics;
+  label: Phaser.GameObjects.Text;
+  peanuts: { dot: Phaser.GameObjects.Arc; vx: number; vy: number }[];
+}
+
+const OPENING_SECONDS = 2.2;
+
 interface BenchCard {
   container: Phaser.GameObjects.Container;
   bar: Phaser.GameObjects.Graphics;
@@ -92,6 +123,12 @@ export class HangarScene extends Phaser.Scene {
   private aircraft!: Phaser.GameObjects.Graphics;
   private aircraftKey = "";
   private unsubscribe: (() => void) | null = null;
+  private crates: Phaser.GameObjects.Graphics[] = [];
+  private cratesKey = "";
+  private crateCaption!: Phaser.GameObjects.Text;
+  /** Pedidos já abertos nesta cena, para cada entrega abrir uma vez só. */
+  private opened = new Set<string>();
+  private openings: Opening[] = [];
 
   constructor() {
     super("hangar");
@@ -105,6 +142,12 @@ export class HangarScene extends Phaser.Scene {
     drawRoom(this.add.graphics().setDepth(ROOM_DEPTH));
     BENCHES.forEach((bench) => this.createBench(bench));
     this.aircraft = this.add.graphics().setDepth(aircraftAnchor().y);
+    const caption = iso(3.6, -0.5, 52);
+    this.crateCaption = this.add
+      .text(caption.x, caption.y, "", { fontFamily: fonts.mono, fontSize: "9px", color: palette.textMuted })
+      .setOrigin(0.5)
+      .setResolution(2)
+      .setDepth(ROOM_DEPTH + 1);
     this.refresh(this.store.getState());
     this.startAmbient();
 
@@ -153,6 +196,7 @@ export class HangarScene extends Phaser.Scene {
   private refresh(state: GameState) {
     this.refreshCards(state);
     this.refreshPeople(state);
+    this.refreshPackages(state);
     const view = aircraftViewFromState(state);
     const key = JSON.stringify(view);
     if (key === this.aircraftKey) return;
@@ -278,6 +322,91 @@ export class HangarScene extends Phaser.Scene {
         .setResolution(2);
       card.parts.add(more);
     }
+  }
+
+  /** Caixas no portão (redesenha só quando muda) e abertura das entregas novas. */
+  private refreshPackages(state: GameState) {
+    const door = packagesAtDoor(state);
+    const key = door.map((p) => `${p.orderId}:${p.held}`).join("|");
+    if (key !== this.cratesKey) {
+      this.cratesKey = key;
+      this.crates.forEach((g) => g.destroy());
+      this.crates = door.slice(0, DOOR_CRATE_SLOTS.length).map((pack, i) => {
+        const slot = DOOR_CRATE_SLOTS[i]!;
+        const g = this.add.graphics();
+        drawCrate(g, slot.col, slot.row, slot.z, pack.held);
+        return g.setDepth(iso(slot.col + CRATE.size, slot.row + CRATE.size).y + slot.z / 100);
+      });
+      const held = door.filter((p) => p.held).length;
+      const transit = door.length - held;
+      const parts = [transit > 0 ? `${transit} A CAMINHO` : "", held > 0 ? `${held} RETIDO${held > 1 ? "S" : ""}` : ""];
+      this.crateCaption.setText(parts.filter(Boolean).join(" · "));
+    }
+    recentDeliveries(state).forEach((pack, i) => {
+      if (this.opened.has(pack.orderId)) return;
+      this.opened.add(pack.orderId);
+      this.startOpening(pack, i);
+    });
+  }
+
+  private startOpening(pack: PackageView, index: number) {
+    const { col, row } = UNPACK_SPOT;
+    const body = this.add.graphics();
+    drawCrate(body, col, row, 0, false, true);
+    body.setDepth(iso(col + CRATE.size, row + CRATE.size).y);
+    const center = iso(col + CRATE.size / 2, row + CRATE.size / 2, CRATE.height);
+    const lid = this.add.graphics().setPosition(center.x, center.y).setDepth(body.depth + 1);
+    drawCrateLid(lid);
+    const label = this.add
+      .text(center.x, center.y - 30, `Chegou: ${pack.label}`, {
+        fontFamily: fonts.body,
+        fontSize: "10px",
+        color: palette.text,
+        backgroundColor: css(palette.panel),
+        padding: { x: 6, y: 3 }
+      })
+      .setOrigin(0.5, 1)
+      .setResolution(2)
+      .setDepth(CARD_DEPTH);
+    const peanuts = Array.from({ length: 7 }, (_, i) => ({
+      dot: this.add.circle(center.x, center.y, 1.6, i % 2 ? palette.ink : palette.inkMuted).setDepth(body.depth + 2).setVisible(false),
+      vx: Phaser.Math.FloatBetween(-28, 28),
+      vy: Phaser.Math.FloatBetween(-70, -40)
+    }));
+    // Várias entregas no mesmo instante abrem uma depois da outra.
+    const opening: Opening = { t: -index * OPENING_SECONDS, top: center.y, body, lid, label, peanuts };
+    [body, lid, label].forEach((obj) => obj.setAlpha(0));
+    this.openings.push(opening);
+  }
+
+  update(_time: number, deltaMs: number) {
+    if (this.openings.length === 0) return;
+    const dt = Math.min(0.05, deltaMs / 1000);
+    this.openings = this.openings.filter((o) => {
+      o.t += dt;
+      if (o.t < 0) return true;
+      const t = o.t;
+      const at = (t0: number, t1: number) => Phaser.Math.Clamp((t - t0) / (t1 - t0), 0, 1);
+      // Caixa cai no lugar, a tampa sobe girando, o enchimento pula, o rótulo sobe e tudo some.
+      const drop = 1 - Phaser.Math.Easing.Bounce.Out(at(0, 0.35));
+      const fade = 1 - at(1.7, OPENING_SECONDS);
+      o.body.setAlpha(at(0, 0.1) * fade).setY(-drop * 24);
+      const lift = Phaser.Math.Easing.Quadratic.Out(at(0.45, 1.0));
+      const top = o.top;
+      o.lid
+        .setAlpha(at(0, 0.1) * (1 - at(0.8, 1.2)))
+        .setY(top - drop * 24 - lift * 26)
+        .setRotation(lift * 0.7);
+      o.label.setAlpha(at(0.5, 0.75) * (1 - at(1.8, OPENING_SECONDS))).setY(top - 30 - at(0.5, OPENING_SECONDS) * 18);
+      o.peanuts.forEach((p) => {
+        const pt = t - 0.5;
+        p.dot.setVisible(pt > 0 && pt < 1.1).setAlpha(1 - at(1.2, 1.6));
+        if (pt > 0) p.dot.setPosition(o.lid.x + p.vx * pt, top + p.vy * pt + 90 * pt * pt);
+      });
+      if (t < OPENING_SECONDS) return true;
+      [o.body, o.lid, o.label, ...o.peanuts.map((p) => p.dot)].forEach((obj) => obj.destroy());
+      return false;
+    });
   }
 
   /** Cria quem entrou na equipe, tira quem saiu e leva cada um ao seu posto. */
