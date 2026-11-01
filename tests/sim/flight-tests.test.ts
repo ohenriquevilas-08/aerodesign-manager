@@ -17,7 +17,7 @@ import {
   type Part,
   type PartType
 } from "../../src/sim";
-import { startedGame, TEST_START_HOURS } from "./helpers";
+import { playEvent, startedGame, TEST_START_HOURS } from "./helpers";
 
 /** Dia de jogo de hoje no começo do teste. */
 const TODAY = Math.floor(TEST_START_HOURS / 24);
@@ -49,13 +49,13 @@ const request = (patch: Partial<Schedule> = {}): Schedule => ({
   ...patch
 });
 
-/** Roda o relógio até o ensaio acontecer (outras pausas são retomadas). */
-function runUntilDone(state: GameState, testId: string): GameState {
+/** Roda o relógio até a chamada do ensaio e joga o evento até o fechamento. */
+function runUntilDone(state: GameState, testId: string, pick?: Parameters<typeof playEvent>[1]): GameState {
   let next = state;
-  for (let i = 0; i < 500 && next.flightTests.find((test) => test.id === testId)!.status === "scheduled"; i += 1) {
+  for (let i = 0; i < 500 && !next.activeEvent && next.flightTests.find((test) => test.id === testId)!.status === "scheduled"; i += 1) {
     next = applyCommand(applyCommand(next, { type: "set-speed", speed: 4 }), { type: "tick", realSeconds: 5 });
   }
-  return next;
+  return next.activeEvent ? playEvent(next, pick) : next;
 }
 
 describe("locais de ensaio (S2)", () => {
@@ -130,8 +130,9 @@ describe("o dia do ensaio (S2)", () => {
     const scheduled = applyCommand(hangar(), request({ payloadPlanKg: [5, 7, 9] }));
     const id = scheduled.flightTests[0]!.id;
     const state = runUntilDone(scheduled, id);
-    expect(state.pause?.reason).toBe("flight-test");
-    expect(state.clock.hours).toBeCloseTo(scheduled.flightTests[0]!.at, 6);
+    expect(state.activeEvent).toBeNull();
+    expect(state.clock.speed).toBe(0);
+    expect(state.clock.hours).toBeGreaterThanOrEqual(scheduled.flightTests[0]!.at);
     const test = state.flightTests[0]!;
     expect(test.status).toBe("done");
     expect(test.takeoffs.length).toBeGreaterThan(0);
@@ -141,7 +142,7 @@ describe("o dia do ensaio (S2)", () => {
       expect(takeoff.playback.venueId).toBe("farm");
       expect(takeoff.playback.battery).toBe(index + 1);
       expect(takeoff.playback.payloadKg).toBe(takeoff.payloadKg);
-      expect(takeoff.at).toBeCloseTo(test.at + index * F.intervalHours, 9);
+      expect(takeoff.at).toBeGreaterThanOrEqual(test.at + index * F.intervalHours - 1e-9);
     });
     const records = state.testLog.filter((record) => record.flightTestId === id);
     expect(records).toHaveLength(test.takeoffs.length);

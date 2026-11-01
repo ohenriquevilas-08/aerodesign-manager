@@ -120,6 +120,8 @@ export interface MemberLook {
   shirt: number;
   /** Ausente = nenhum. */
   accessory?: Accessory;
+  /** Fase 7: gênero sorteado com o nome (BALANCE.people.femaleShare); ausente = masculino. */
+  female?: boolean;
 }
 
 /** Candidato da seletiva (design §5.2): vira Member com role "member" ao ser convidado. */
@@ -143,7 +145,14 @@ export interface Candidate {
   classSlots: SlotKey[];
   /** Aparência; passa para o integrante ao contratar. */
   look: MemberLook;
+  /** Fase 7: anotações do dia da dinâmica (vazio até lá). */
+  observations?: string[];
+  /** Fase 7: parecer final depois da dinâmica. */
+  verdict?: CandidateVerdict;
 }
+
+/** Fase 7: leitura final de um candidato depois do dia da dinâmica. */
+export type CandidateVerdict = "strong" | "promising" | "unclear";
 
 export type PartType = "wing" | "fuselage" | "tail" | "landingGear" | "powertrain" | "electronics";
 
@@ -221,6 +230,8 @@ export type PauseReason =
   | "flight"
   | "competition"
   | "flight-test"
+  /** Fase 7: dia da dinâmica da seletiva (evento). */
+  | "selection-day"
   /** Fase 6: uma ação agendada não pôde começar (falta de gente, caixa ou pré-condição). */
   | "scheduled";
 
@@ -526,6 +537,10 @@ export interface CompetitionState {
   penalties: Record<string, number>;
   /** Itens da inspeção de segurança reprovados que ainda precisam de correção (design §9.2). */
   inspectionIssues: string[];
+  /** Fase 7: pendências da inspeção aceitas com penalidade (ids de inspectionFindings); não travam o voo. */
+  waivedIssues?: string[];
+  /** Fase 7: bateria em que você declarou a carga (a decisão do bloco). */
+  payloadDeclaredFor?: number;
   /** Equipes fora de uma bateria (id → número da bateria), ex.: abortou com trem alto e rompeu a fita. */
   suspended?: Record<string, number>;
 }
@@ -572,7 +587,7 @@ export interface PlannedAction {
 }
 
 export interface GameState {
-  version: 7;
+  version: 8;
   seed: number;
   rngState: number;
   clock: Clock;
@@ -626,6 +641,10 @@ export interface GameState {
   plannedActions: PlannedAction[];
   /** Fase 6: últimos dias da agenda do presidente (BALANCE.agenda.logDays). */
   agendaLog: AgendaDay[];
+  /** Fase 7: evento imersivo em andamento (ou esperando a chamada); o relógio fica parado. */
+  activeEvent: ActiveEvent | null;
+  /** Fase 7: dia da dinâmica da seletiva, marcado quando a seletiva (tarefa) conclui; null = nenhum. */
+  selectionDay: SelectionDaySchedule | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -798,4 +817,182 @@ export interface UpcomingEvent {
   /** Dias inteiros até o evento (0 = hoje). */
   daysLeft: number;
   venueId?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Fase 7, S1: modo evento (docs/phases/fase-7.md).
+// ---------------------------------------------------------------------------
+
+export type EventKind = "selection-day" | "flight-test" | "competition";
+
+export type EventBlockKind =
+  | "arrival"
+  | "briefing"
+  | "exhibition"
+  | "inspection"
+  | "flights"
+  | "awards"
+  | "reception"
+  | "presentation"
+  | "challenge"
+  | "interviews"
+  | "deliberation"
+  | "travel"
+  | "assembly"
+  | "takeoff"
+  | "teardown";
+
+/** Um bloco da programação do dia. `startsAt` = hora do dia (0–24, fracionária). */
+export interface EventBlock {
+  id: string;
+  startsAt: number;
+  label: string;
+  kind: EventBlockKind;
+}
+
+export interface EventOption {
+  id: string;
+  label: string;
+  /** Custo no formato da casa; `hours` aqui são horas de trabalho do dia (cansam a equipe). */
+  cost: Cost;
+  hint: string;
+  /** Preenchido quando a opção não pode ser escolhida (ex.: falta caixa); o texto é o motivo. */
+  blocked?: string;
+}
+
+export interface EventDecision {
+  id: string;
+  prompt: string;
+  options: EventOption[];
+}
+
+export interface EventLogEntry {
+  /** Horas de jogo (relógio do evento). */
+  at: number;
+  /** Id do bloco em que aconteceu. */
+  blockId: string;
+  text: string;
+  tone: "info" | "good" | "bad";
+}
+
+export interface EventSummary {
+  title: string;
+  lines: string[];
+  /** Pontos da sua equipe no evento (competição: melhor bateria); null quando não se aplica. */
+  points: number | null;
+  /** Peças afetadas (rótulos com o estado). */
+  damage: string[];
+  /** O que a equipe aprendeu ou ficou sabendo. */
+  knowledge: string[];
+  /** ◆ gastos nas decisões do evento (o que foi pago antes, como o local do ensaio, não entra). */
+  creditsSpent: number;
+}
+
+/** Grupo da dinâmica da seletiva (desafio prático). */
+export interface DynamicsGroup {
+  id: string;
+  name: string;
+  candidateIds: string[];
+  /** Distância do planador na vinda da simulação, m; null antes do desafio. */
+  gliderDistanceM: number | null;
+}
+
+export interface SelectionDayContext {
+  kind: "selection-day";
+  candidateIds: string[];
+  groups: DynamicsGroup[];
+  /** Grupo que você observou de perto; null = nenhum. */
+  watchedGroupId: string | null;
+  /** Quem travou no desafio; null = ninguém. */
+  frozeId: string | null;
+  /** true/false depois da decisão; null = não houve. */
+  secondChance: boolean | null;
+  /** Anotações por candidato. */
+  notes: Record<string, string[]>;
+  /** Candidatos que os capitães recomendam (ordem de preferência). */
+  captainsPick: string[];
+  /** Quem você prefere, pelo que viu. */
+  yourPick: string[];
+  /** Escolha final: "captains" | "mine"; null = ainda não. */
+  followed: "captains" | "mine" | null;
+  verdicts: Record<string, CandidateVerdict>;
+}
+
+export interface FlightTestContext {
+  kind: "flight-test";
+  testId: string;
+  /** Decolagens já resolvidas (viram `FlightTest.takeoffs` no fechamento). */
+  takeoffs: FlightTestTakeoff[];
+  records: TestRecord[];
+  transportDamage: string[];
+  /** Índice da decolagem cuja rajada já foi tratada; -1 = nenhuma. */
+  gustHandled: number;
+  /** Rajada em curso: m/s e o que ela faz com o piloto até ser resolvida. */
+  gustMs: number;
+  /** Ajustes das decisões, valem para a próxima decolagem. */
+  pilotPenalty: number;
+  payloadCutKg: number;
+  /** Atraso acumulado (h) das esperas: vira o relógio do dia. */
+  delayHours: number;
+  /** Peça com folga que o jogador decidiu não trocar: piora a condição dos voos. */
+  loosePart: boolean;
+  checkHandled: boolean;
+  /** Decisão "encerrar o dia" já oferecida para o índice. */
+  damageHandled: number;
+  endedEarly: boolean;
+  creditsSpent: number;
+  /** Linhas do dia, na ordem: viram `FlightTest.summary`. */
+  lines: string[];
+  /** Condição de cada peça antes do dia (para o resumo de dano). */
+  partsBefore: Record<string, number>;
+}
+
+export interface CompetitionEventContext {
+  kind: "competition";
+  /** Próximo slot de voo (índice absoluto de 12 min); null antes do primeiro dia de voo. */
+  nextSlot: number | null;
+  /** Inspeção: ids de pendências já decididas. */
+  inspectionHandled: string[];
+  creditsSpent: number;
+  /** Condição das peças no começo do evento. */
+  partsBefore: Record<string, number>;
+  /** Último replay seu, para as cenas (null = nenhum ainda). */
+  lastPlayback: FlightPlayback | null;
+  /** Bateria da última decisão de reparo oferecida. */
+  repairHandled: number;
+  knowledge: string[];
+}
+
+export type EventContext = SelectionDayContext | FlightTestContext | CompetitionEventContext;
+
+export interface ActiveEvent {
+  id: string;
+  kind: EventKind;
+  title: string;
+  /** Local (ensaio de voo); ausente nos outros. */
+  venueId?: string;
+  /** false = só a chamada está na tela ("Hoje: ..."); enter-event põe true. */
+  entered: boolean;
+  /** Dia do evento, de 1 a `totalDays`. */
+  day: number;
+  totalDays: number;
+  /** Horas de jogo da meia-noite do dia 1. */
+  startsAtDay: number;
+  /** Blocos do dia atual (nos eventos de vários dias, trocam a cada dia). */
+  blocks: EventBlock[];
+  /** Bloco atual: o próximo a ser resolvido. */
+  blockIndex: number;
+  pendingDecision: EventDecision | null;
+  log: EventLogEntry[];
+  /** Preenchido quando o dia (ou o último dia) acabou; close-event só vale com ele. */
+  summary: EventSummary | null;
+  context: EventContext;
+}
+
+/** Fase 7, S2: dia da dinâmica marcado depois da divulgação e da inscrição. */
+export interface SelectionDaySchedule {
+  /** Horas de jogo da primeira hora do evento. */
+  at: number;
+  /** Formato da seletiva que gerou os candidatos. */
+  format: string;
 }

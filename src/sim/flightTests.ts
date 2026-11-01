@@ -163,7 +163,7 @@ export function cancelFlightTest(state: GameState, testId: string): GameState {
   return refund > 0 ? recordLedger(next, { credits: refund, kind: "action", label: `Reembolso do ensaio: ${findVenue(test.venueId)?.name ?? test.venueId}` }) : next;
 }
 
-const OUTCOME_TEXT: Record<FlightOutcome, string> = {
+export const OUTCOME_TEXT: Record<FlightOutcome, string> = {
   valid: "voo válido",
   "no-takeoff": "não decolou",
   "tape-break": "passou baixo no obstáculo",
@@ -172,194 +172,19 @@ const OUTCOME_TEXT: Record<FlightOutcome, string> = {
   crash: "caiu"
 };
 
-const FLEW: ReadonlySet<FlightOutcome> = new Set(["valid", "landing-out", "damage"]);
+export const FLEW: ReadonlySet<FlightOutcome> = new Set(["valid", "landing-out", "damage"]);
 
-const changedLabels = (before: GameState, after: GameState) =>
-  after.parts
-    .filter((part) => {
-      const old = before.parts.find((item) => item.id === part.id);
-      return !!old && part.condition < old.condition;
-    })
-    .map((part) => part.label);
+/** Fim do prazo do vídeo oficial (27/set): o voo filmado só vale até aqui. */
+export const FLIGHT_VIDEO_DEADLINE = VIDEO_DEADLINE;
 
-/** O dia do ensaio: transporte, decolagens, evidência, conhecimento, inbox. */
-function runFlightTest(state: GameState, test: FlightTest): { state: GameState; messageId: string } {
-  const venue = findVenue(test.venueId)!;
-  let next = state;
-  let rng = state.rngState;
-  const roll = () => {
-    const r = nextRandom(rng);
-    rng = r.state;
-    return r.value;
-  };
-  const lines: string[] = [];
-  const transportDamage: string[] = [];
+export const isHiredPilot = isHired;
 
-  // Transporte: a estrada pode danificar uma peça (design §7.3).
-  if (missingPartsText(next) === null && roll() < venue.distanceKm * F.transportRiskPerKm) {
-    const installed = Object.values(installedParts(next)).filter((part): part is Part => !!part);
-    const hit = installed[Math.floor(roll() * installed.length)]!;
-    const [min, max] = F.transportDamage;
-    const amount = min + (max - min) * roll();
-    next = damageParts(next, new Set([hit.id]), () => amount);
-    transportDamage.push(hit.label);
-    lines.push(`${hit.label} sacudiu na estrada e chegou danificada.`);
-  }
+/** Hora de jogo da chamada do evento do ensaio: antes da primeira decolagem (viagem e montagem). */
+export const flightTestCallAt = (test: Pick<FlightTest, "at">): number => test.at - F.callLeadHours;
 
-  const pilotSkill = isHired(test.pilot) ? F.hiredPilot : (next.members.find((m) => m.id === (test.pilot as { memberId: string }).memberId)?.piloting ?? 0);
-  const unload = playerUnloadSeconds(next);
-  const evidence = { emptyWeight: 0, payload: 0, takeoff: 0, stability: 0, ...(next.aircraft?.evidence ?? {}) };
-  const takeoffs: FlightTestTakeoff[] = [];
-  const records: TestRecord[] = [];
-
-  for (let i = 0; i < test.payloadPlanKg.length; i += 1) {
-    const problem = missingPartsText(next);
-    if (problem) {
-      lines.push(i === 0 ? `Sem voo: ${problem}` : `Fim dos voos: ${problem}`);
-      break;
-    }
-    const payloadKg = test.payloadPlanKg[i]!;
-    const at = test.at + i * F.intervalHours;
-    const weather = venueWeather(next.seed, venue, at);
-    const hrho = densityAltitude(weather.temperatureK, weather.pressureHpa);
-    const model = playerFlightModel(next)!;
-    const resolved = resolveFlight(model, payloadKg, weather, pilotSkill, unload, rng);
-    rng = resolved.rngState;
-    const flight = resolved.flight;
-    const before = next;
-
-    // Desgaste de cada decolagem; pouso duro e queda danificam como na competição.
-    const used = new Set(Object.values(installedParts(next)).filter((part): part is Part => !!part).map((part) => part.id));
-    next = damageParts(next, used, () => F.wearPerTakeoff);
-    let damagedParts: string[] = [];
-    if (flight.outcome === "crash" || flight.outcome === "damage") {
-      const damaged = damagePlayerParts({ ...next, rngState: rng }, flight.outcome === "crash");
-      next = damaged.state;
-      rng = damaged.state.rngState;
-      damagedParts = damaged.labels;
-    }
-
-    const gain = FLEW.has(flight.outcome) ? F.validEvidence : F.limitEvidence;
-    evidence.payload += gain.payload;
-    evidence.takeoff += gain.takeoff;
-    evidence.stability += gain.stability;
-
-    const playback: FlightPlayback = {
-      battery: i + 1,
-      teamName: next.teamName,
-      payloadKg,
-      densityAltitudeM: hrho,
-      headwindMs: weather.headwindMs,
-      ...flight,
-      ...(damagedParts.length ? { damagedParts } : {}),
-      venueId: venue.id
-    };
-    takeoffs.push({ payloadKg, outcome: flight.outcome, densityAltitudeM: hrho, at, playback });
-    const text = `Decolagem ${i + 1} com ${payloadKg.toFixed(1)} kg: ${OUTCOME_TEXT[flight.outcome]}.`;
-    lines.push(damagedParts.length ? `${text} Danos: ${damagedParts.join(", ")}.` : text);
-    records.push({
-      at,
-      test: "flight",
-      densityAltitudeM: hrho,
-      ok: flight.outcome === "valid" || flight.outcome === "landing-out",
-      summary: text,
-      affectedParts: changedLabels(before, next),
-      // Ponto da reta de previsão: a carga que de fato voou nessa Hρ (11.6).
-      payloadKg: FLEW.has(flight.outcome) ? payloadKg : null,
-      playback,
-      flightTestId: test.id
-    });
-    if (flight.outcome === "crash") break;
-  }
-
-  // Ensaio feito: a opinião da equipe é sorteada de novo, mais perto do real (margem menor).
-  if (next.aircraft && takeoffs.length) {
-    const bias = { emptyWeight: 0, payload: 0, takeoff: 0, ...(next.aircraft.hidden.bias ?? {}) };
-    bias.payload = 2 * roll() - 1;
-    bias.takeoff = 2 * roll() - 1;
-    bias.stability = 2 * roll() - 1;
-    next = { ...next, aircraft: { ...next.aircraft, evidence, hidden: { ...next.aircraft.hidden, bias } } };
-    next = citeTest(next, "flight");
-  }
-
-  // Voo filmado: vale como vídeo oficial com um voo limpo até 27/set.
-  const clean = takeoffs.find((item) => item.outcome === "valid" || item.outcome === "landing-out");
-  if (test.filmed && next.aircraft) {
-    const inTime = test.at <= VIDEO_DEADLINE;
-    if (clean && inTime) {
-      next = { ...next, aircraft: { ...next.aircraft, flightVideoAt: clean.at } };
-      lines.push("Vídeo oficial gravado e enviado à Comissão Técnica.");
-    } else {
-      lines.push(clean ? "O voo foi bom, mas o prazo do vídeo (27/set) já passou: a CT não aceita." : "Nenhum voo limpo para o vídeo oficial.");
-    }
-    records.push({
-      at: test.at,
-      test: "video",
-      densityAltitudeM: takeoffs[0]?.densityAltitudeM ?? venueDensityAltitude(next.seed, venue, test.at),
-      ok: !!clean && inTime,
-      summary: clean && inTime ? "Voo filmado válido." : "Voo filmado sem vídeo válido.",
-      affectedParts: [],
-      payloadKg: null,
-      flightTestId: test.id
-    });
-  }
-
-  // Conhecimento tácito para quem foi ao campo; o piloto integrante treina pilotagem.
-  if (takeoffs.length) {
-    const crew = new Set(test.crew);
-    const pilotId = isHired(test.pilot) ? null : test.pilot.memberId;
-    const hours = F.crewHours;
-    next = {
-      ...next,
-      members: next.members.map((member) => {
-        let updated = member;
-        if (crew.has(member.id) || member.id === pilotId) {
-          updated = {
-            ...updated,
-            knowledge: {
-              ...updated.knowledge,
-              performance: learn(updated.knowledge.performance, hours, F.knowledgePerHour),
-              aerodynamics: learn(updated.knowledge.aerodynamics, hours, F.knowledgePerHour / 2),
-              stability: learn(updated.knowledge.stability, hours, F.knowledgePerHour / 2)
-            }
-          };
-        }
-        if (member.id === pilotId) updated = { ...updated, piloting: learn(updated.piloting, hours, BALANCE.tests.pilotingPerHour) };
-        return updated;
-      })
-    };
-  }
-
-  const summary = lines.join(" ");
-  const done: FlightTest = {
-    ...test,
-    status: "done",
-    takeoffs,
-    densityAltitudeM: takeoffs[0]?.densityAltitudeM ?? null,
-    transportDamage,
-    summary
-  };
-  next = {
-    ...next,
-    rngState: rng,
-    testLog: [...next.testLog, ...records],
-    flightTests: next.flightTests.map((item) => (item.id === test.id ? done : item))
-  };
-  const added = addMessage(next, { from: "Equipe", title: `Ensaio de voo: ${venue.name}`, body: summary || "Ensaio sem decolagens." });
-  return { state: added.state, messageId: added.id };
-}
-
-/** Ensaios cujo horário cai neste passo do relógio; cada um pausa com "flight-test". */
-export function advanceFlightTests(state: GameState, t0: number, t1: number): { state: GameState; pauses: { reason: PauseReason; messageId: string }[] } {
-  const due = state.flightTests.filter((test) => test.status === "scheduled" && t0 < test.at && test.at <= t1);
-  let next = state;
-  const pauses: { reason: PauseReason; messageId: string }[] = [];
-  for (const test of due) {
-    const ran = runFlightTest(next, next.flightTests.find((item) => item.id === test.id)!);
-    next = ran.state;
-    pauses.push({ reason: "flight-test", messageId: ran.messageId });
-  }
-  return { state: next, pauses };
+/** Ensaios agendados cuja chamada cai neste passo do relógio (loop.ts abre o evento do primeiro). */
+export function dueFlightTests(state: GameState, t0: number, t1: number): FlightTest[] {
+  return state.flightTests.filter((test) => test.status === "scheduled" && t0 < flightTestCallAt(test) && flightTestCallAt(test) <= t1);
 }
 
 /** Próximos eventos (ensaios agendados e a competição), do mais próximo ao mais distante. */

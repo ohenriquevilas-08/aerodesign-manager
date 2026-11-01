@@ -11,7 +11,7 @@ import {
 } from "./content/selection";
 import { TRAINEE_END } from "./content/season2026";
 import { drawLook } from "./looks";
-import { drawPersonName } from "./naming";
+import { drawPerson } from "./naming";
 import { dateToHours } from "./time";
 import { nextRandom } from "./rng";
 import { DISCIPLINES, zeroKnowledge } from "./state";
@@ -53,7 +53,7 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
   let nextId = state.nextId;
   const drawn: Candidate[] = [];
   for (let i = 0; i < count; i += 1) {
-    const drawnName = drawPersonName(rng, taken);
+    const drawnName = drawPerson(rng, taken);
     rng = drawnName.rngState;
     const name = drawnName.name;
     taken.add(name);
@@ -63,7 +63,7 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
     const fabrication = between(format.fabrication);
     const classes = drawClassSlots(rng);
     rng = classes.rngState;
-    const looks = drawLook(rng);
+    const looks = drawLook(rng, drawnName.female);
     rng = looks.rngState;
     drawn.push({
       id: `cand-${nextId}`,

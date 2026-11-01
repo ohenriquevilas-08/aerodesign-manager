@@ -100,7 +100,7 @@ export function foundTeam(state: GameState, request: FoundTeamRequest): GameStat
   return addMessage(next, {
     from: "Equipe",
     title: `${next.teamName} fundada`,
-    body: `${chosen.name} preside a equipe, com a agenda ${findAgenda(chosen.agenda ?? "balanced").label.toLowerCase()}. A temporada começou: processo seletivo em novembro, trainees até janeiro e o regulamento em 9/fev.`
+    body: `${chosen.name} preside a equipe, com a ${findAgenda(chosen.agenda ?? "balanced").priority.toLowerCase()}. A temporada começou: processo seletivo em novembro, trainees até janeiro e o regulamento em 9/fev.`
   }).state;
 }
 
@@ -132,6 +132,11 @@ export interface PresidentView {
   name: string;
   agenda: PresidentAgenda;
   agendaLabel: string;
+  /** "Prioridade: fazer o avião voar" e o efeito ("tarefas de fabricação e ensaio animam a equipe"). */
+  priority: string;
+  effect: string;
+  /** `${priority} · ${effect}`, pronto para a UI. */
+  priorityText: string;
   description: string;
   /** Dias do registro (até BALANCE.agenda.logDays) em que houve tarefa da agenda. */
   alignedDays: number;
@@ -160,6 +165,9 @@ export function presidentView(state: GameState): PresidentView | null {
     name: president.name,
     agenda: agenda.id,
     agendaLabel: agenda.label,
+    priority: agenda.priority,
+    effect: agenda.effect,
+    priorityText: agenda.text,
     description: agenda.description,
     alignedDays,
     loggedDays: log.length,

@@ -18,7 +18,8 @@ export const LOOK_OPTIONS = {
 /** Chance de ter um acessório. */
 const ACCESSORY_CHANCE = 0.4;
 
-export function drawLook(rngState: number): { look: MemberLook; rngState: number } {
+/** `female` (Fase 7): o gênero sorteado com o nome; a arte usa para escolher o corte de cabelo e o corpo. */
+export function drawLook(rngState: number, female = false): { look: MemberLook; rngState: number } {
   let rng = rngState;
   const roll = () => {
     const r = nextRandom(rng);
@@ -30,7 +31,8 @@ export function drawLook(rngState: number): { look: MemberLook; rngState: number
     skin: index(LOOK_OPTIONS.skins),
     hair: index(LOOK_OPTIONS.hairs),
     hairColor: index(LOOK_OPTIONS.hairColors),
-    shirt: TEAM_SHIRT_COLOR
+    shirt: TEAM_SHIRT_COLOR,
+    ...(female ? { female: true } : {})
   };
   if (roll() < ACCESSORY_CHANCE) look.accessory = LOOK_OPTIONS.accessories[index(LOOK_OPTIONS.accessories.length)]!;
   return { look, rngState: rng };

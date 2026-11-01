@@ -11,6 +11,7 @@ import { recordTest } from "./testlog";
 import { recordLedger } from "./ledger";
 import { nextRandom } from "./rng";
 import { actionProblem, agendaBoost, applyTraining } from "./season";
+import { selectionDayAt } from "./eventSelection";
 import { drawCandidates, expectedApplicants, findSelectionFormat } from "./selection";
 import { DISCIPLINES } from "./state";
 import { clamp, DISCIPLINE_LABELS, learn } from "./team";
@@ -379,10 +380,11 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
         const before = next.candidates.length;
         next = drawCandidates(next, format.id, applicants.count);
         const drawn = next.candidates.length - before;
+        if (drawn > 0) next = { ...next, selectionDay: { at: selectionDayAt(next.clock.hours), format: format.id } };
         body =
           drawn === 0
             ? "Ninguém se inscreveu. Divulgue antes da próxima seletiva (cartazes, redes, sala de aula, stand)."
-            : `${drawn} ${drawn === 1 ? "inscrito aguarda" : "inscritos aguardam"} convite. Veja os pareceres dos capitães.`;
+            : `${drawn} ${drawn === 1 ? "inscrito aguarda" : "inscritos aguardam"} convite. Veja os pareceres dos capitães. A dinâmica da seletiva é amanhã às 9h: lá dá para conhecê-los melhor.`;
       }
       break;
     }

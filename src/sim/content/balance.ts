@@ -322,7 +322,27 @@ export const BALANCE = {
     /** Acima da sustentação disponível o avião estola: chance de queda por fração de excesso de massa. */
     stallPerExcess: 4,
     /** Penalidade por alteração de projeto depois de 27/set (Apêndice 6). Provisório. */
-    lateChangePenalty: 5
+    lateChangePenalty: 5,
+    /** Fase 7, S4: decisões do evento da competição. PROPOSTA. */
+    event: {
+      /** Cada bloco de voo cobre este tanto de horas (5 slots de 12 min por hora). */
+      flightBlockHours: 2,
+      /** Inspeção: avião incompleto, peças improvisadas no pátio. */
+      improviseParts: { hours: 10, credits: 100, quality: 45 },
+      /** Inspeção: eletrônica falsificada, trocada por uma certificada. */
+      certifiedElectronics: { hours: 3, credits: 120 },
+      /** Penalidade (pontos) por voar com liberação condicional sem o vídeo, ou com a eletrônica falsificada. */
+      noVideoPenalty: 15,
+      counterfeitPenalty: 10,
+      /** Carga da bateria: sobre a previsão da equipe. */
+      boldShare: 1.08,
+      safeShare: 0.92,
+      /** Reparo entre baterias: completo leva a peça a `to`; remendo soma `gain`. */
+      repairFull: { hours: 6, credits: 60, to: 85 },
+      repairPatch: { hours: 2, credits: 15, gain: 25 },
+      /** Conhecimento tácito por bateria voada (horas-equivalentes) em Desempenho e Estabilidade. */
+      knowledgeHoursPerFlight: 2
+    }
   },
 
   /**
@@ -331,6 +351,21 @@ export const BALANCE = {
   flightTests: {
     /** Hora da primeira decolagem e intervalo entre decolagens (h). */
     startHour: 8,
+    /** A chamada do evento vem este tanto de horas antes da primeira decolagem (viagem e montagem). */
+    callLeadHours: 3,
+    /** Rajada: chance por decolagem, força (m/s) e perda de pilotagem efetiva enquanto dura. */
+    gustChance: 0.35,
+    gustMs: [5, 8] as const,
+    gustPilotPenalty: 20,
+    /** Esperar 30 min: chance de a rajada passar; tirar carga: perda de pilotagem que sobra. */
+    gustPassesChance: 0.7,
+    reducedLoadPenalty: 8,
+    /** Peça com folga na checagem: chance de aparecer, custo de trocar e perda de condição se voar assim. */
+    looseChance: 0.4,
+    looseFixHours: 1,
+    looseFixCredits: 10,
+    looseFixGain: 15,
+    looseConditionPenalty: 15,
     intervalHours: 0.5,
     /** Horas que a tripulação passa no campo (conhecimento tácito). */
     crewHours: 6,
@@ -354,6 +389,37 @@ export const BALANCE = {
     limitEvidence: { payload: 0.6, takeoff: 0.5, stability: 0.2 },
     /** Conhecimento por hora para a tripulação (Desempenho, Aerodinâmica, Estabilidade). */
     knowledgePerHour: 0.4
+  },
+
+  /** Pessoas (Fase 7, S5): proporção realista da engenharia aeronáutica, sem diversidade forçada. */
+  people: {
+    /** Chance de cada aluno sorteado (fundadores, candidatos, trainees) ter nome e aparência femininos. */
+    femaleShare: 0.2
+  },
+
+  /** Dia da dinâmica da seletiva (Fase 7, S2). PROPOSTA. */
+  selectionDay: {
+    /** Hora do dia em que o evento é chamado, no dia seguinte à conclusão da seletiva. */
+    startHour: 9,
+    /** No máximo isto de candidatos participa; os grupos têm até groupSize pessoas. */
+    maxCandidates: 9,
+    groupSize: 3,
+    /** Limiares das anotações. */
+    talkative: 45,
+    shy: 25,
+    eager: 75,
+    knowsLot: 30,
+    knowsSome: 15,
+    steadyHands: 35,
+    clumsyHands: 15,
+    /** Planador: distância base (m), ruído (m) e chance de alguém travar no desafio. */
+    gliderBase: 14,
+    gliderNoise: 3,
+    freezeChance: 0.6,
+    /** Chance de se recuperar na segunda chance = motivação/100 + isto. */
+    recoverBonus: 0.1,
+    /** Capitães seguidos na lista ganham este tanto de motivação. */
+    captainsHeardBoost: 3
   },
 
   /** Formação por área (Fase 4, S3; design §5.1). */

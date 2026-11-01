@@ -85,3 +85,35 @@ export function leadDaysRange(actionId: string): { min: number; promised: number
   const days = action.cost.leadDays;
   return { min: days * BALANCE.lead.minFactor, promised: days, max: days * BALANCE.lead.maxFactor };
 }
+
+/** Fase 7, S5: prazo, percentual e horas de trabalho de uma tarefa para a UI. */
+export interface TaskEta {
+  /** Momento previsto da conclusão (horas de jogo); null se a tarefa está parada (sem gente ou sem escala). */
+  finishesAt: number | null;
+  /** Dias inteiros que faltam (arredondado para cima; 0 = hoje); null se parada. */
+  daysLeft: number | null;
+  /** 0–100: horas feitas sobre o total; sem horas (compras), o tempo corrido do prazo prometido (trava em 99). */
+  percent: number;
+  /** Horas-pessoa de trabalho que faltam (o detalhe; o prazo é o que a UI destaca). */
+  workHoursLeft: number;
+}
+
+/** Leitura `taskEta`: usa só o que a equipe sabe (o prazo prometido, nunca o `readyAt` real). */
+export function taskEta(state: GameState, taskId: string): TaskEta | null {
+  const task = state.tasks.find((item) => item.id === taskId);
+  if (!task) return null;
+  if (task.status === "done") return { finishesAt: task.doneAt ?? state.clock.hours, daysLeft: 0, percent: 100, workHoursLeft: 0 };
+  const now = state.clock.hours;
+  const days = estimateRemainingDays(state, taskId);
+  let percent = 0;
+  if (task.hoursTotal > 0) percent = (task.hoursDone / task.hoursTotal) * 100;
+  else if (task.expectedReadyAt !== null && task.expectedReadyAt > task.startedAt) {
+    percent = Math.min(99, ((now - task.startedAt) / (task.expectedReadyAt - task.startedAt)) * 100);
+  }
+  return {
+    finishesAt: days === null ? null : now + days * 24,
+    daysLeft: days === null ? null : Math.ceil(days - 1e-9),
+    percent: Math.max(0, Math.min(100, Math.round(percent))),
+    workHoursLeft: Math.max(0, task.hoursTotal - task.hoursDone)
+  };
+}
