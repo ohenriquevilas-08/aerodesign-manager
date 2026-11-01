@@ -62,16 +62,26 @@ export function clearSave(storage: SaveStorage | null = defaultStorage()): void 
   }
 }
 
-/** Salva a cada virada de dia de jogo e quando o relógio pausa. Retorna a função que desliga. */
+/** Onde o evento aberto está (Fase 7): o relógio fica parado nele, então o progresso também dispara o save. */
+const eventKey = (state: GameState): string | null => {
+  const event = state.activeEvent;
+  if (!event) return null;
+  return `${event.id}:${event.entered}:${event.day}:${event.blockIndex}:${event.pendingDecision?.id ?? ""}:${event.log.length}:${event.summary !== null}`;
+};
+
+/** Salva a cada virada de dia de jogo, quando o relógio pausa e a cada passo de um evento. Retorna a função que desliga. */
 export function startAutosave(store: GameStore, storage: SaveStorage | null = defaultStorage()): () => void {
   const initial = store.getState();
   let day = Math.floor(initial.clock.hours / 24);
   let paused = initial.clock.speed === 0;
+  let event = eventKey(initial);
   return store.subscribe((next) => {
     const nextDay = Math.floor(next.clock.hours / 24);
     const nowPaused = next.clock.speed === 0;
-    if (nextDay !== day || (nowPaused && !paused)) writeSave(next, storage);
+    const nextEvent = eventKey(next);
+    if (nextDay !== day || (nowPaused && !paused) || nextEvent !== event) writeSave(next, storage);
     day = nextDay;
     paused = nowPaused;
+    event = nextEvent;
   });
 }

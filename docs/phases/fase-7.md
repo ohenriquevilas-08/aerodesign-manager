@@ -31,8 +31,8 @@ Ordem: Simulação e Cenas juntas; UI depois do merge.
 | S3 dia de ensaio de voo | **feito** |
 | S4 competição em vários dias | **feito** |
 | S5 correções (gênero, prioridade do presidente, `taskEta`) | **feito** |
-| C1–C3 Cenas | em outra frente |
-| U1–U5 UI | pendente; há um painel provisório em `src/ui/ProvisionalEvent.tsx` para jogar os eventos até lá |
+| C1–C3 Cenas | **feito** (stubs trocados pelos tipos da sim; pixel art no lugar dos bonecos voxel) |
+| U1–U5 UI | **feito** (`src/ui/EventMode.tsx`; falta revisão do Henrique) |
 
 ### Contrato como implementado (Simulação)
 
@@ -63,6 +63,14 @@ Regras do motor (`src/sim/events.ts`):
 - Na seletiva os candidatos continuam sendo sorteados quando a tarefa conclui (como na Fase 6); a dinâmica é o que os revela melhor. Convidar antes da dinâmica continua possível.
 - Efeitos do fechamento: ensaio (histórico, evidência, conhecimento, vídeo) e dinâmica (anotações, parecer) só entram em `close-event`; a competição aplica resultados e peças ao longo do dia (a fila precisa) e o fechamento dá a reputação do orientador e o conhecimento tácito.
 - `clockPace` e a lentidão do relógio nas janelas de voo foram removidos (o evento no lugar); `inFlightWindow` continua exportado só para consulta.
+
+### UI como implementada
+
+- `EventMode` (montado pela `App` por cima de tudo, sem menu): `EventStage` ao fundo, linha do tempo do dia no topo, log e anotações da dinâmica à direita, cartão de decisão no centro, "Seguir" (ou Enter) embaixo; chamada e resumo são modais. A `FlightScene` roda na janela `FRAME_WINDOW` nos blocos `flights` e `takeoff` e enquanto o último replay não foi seguido (`flightReplay.play(playback, venue?)`: no ensaio usa o cenário do local).
+- `scenes/event/source.ts` monta o `StageView` (equipe presente, grupos da dinâmica, luzes da inspeção) a partir de `eventView(state)`. A `QueueScene` não entra na moldura: a fila aparece só no log.
+- O autosave também grava a cada passo do evento (o relógio fica parado nele); recarregar no meio retoma no mesmo bloco.
+- Tela Competição = histórico: replay dos seus voos, placar e peças.
+- U5: `Prioridade: …` com o efeito na Central, na abertura e no Elenco; a tarefa mostra "termina em N dias (data)", o percentual e, no detalhe, as horas de trabalho que faltam (`taskEta`).
 
 ## O modo evento
 

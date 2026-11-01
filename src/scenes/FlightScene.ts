@@ -160,7 +160,9 @@ export class FlightScene extends Phaser.Scene {
     this.unsubscribe = flightReplay.subscribe(
       (request) => {
         this.endSession();
+        if (request.venue) this.setScenery(sceneryForVenue(request.venue.id));
         this.start(request);
+        if (request.venue) this.hudTitle.setText(sessionTitle(request.venue.name));
       },
       () => this.updateSpeedLabel(),
       (session) => this.startSession(session)

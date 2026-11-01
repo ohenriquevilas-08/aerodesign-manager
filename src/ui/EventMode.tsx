@@ -47,7 +47,8 @@ function EventScreen({ view }: { view: EventView }) {
     seen.current = playKey;
     setWatching(true);
     const playback = view.lastPlayback!;
-    const timer = window.setTimeout(() => flightReplay.play(playback), 500);
+    const venue = view.kind === "flight-test" && view.venueId ? { id: view.venueId, name: view.title.replace(/^Ensaio de voo: /, "") } : undefined;
+    const timer = window.setTimeout(() => flightReplay.play(playback, venue), 500);
     return () => window.clearTimeout(timer);
   }, [playKey]);
 
@@ -210,10 +211,10 @@ function Summary({ view, summary }: { view: EventView; summary: NonNullable<Even
         </dl>
         {summary.damage.length > 0 ? (
           <div class="event-summary-block">
-            <h3>Danos</h3>
+            <h3>Estado das peças</h3>
             <ul>
               {summary.damage.map((item) => (
-                <li key={item} class="is-bad">
+                <li key={item} class={item.endsWith(": nova") ? undefined : "is-bad"}>
                   {item}
                 </li>
               ))}
