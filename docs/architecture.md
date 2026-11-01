@@ -161,7 +161,7 @@ Este arquivo é o núcleo. O contrato e as regras de cada fase vivem em `docs/ph
 - [`docs/phases/fase-3.md`](phases/fase-3.md): avião, relatório, lojas, competição e escala da oficina.
 - [`docs/phases/fase-4.md`](phases/fase-4.md): save, correções do playtest (madrugada, escalação, blueprint, relatório, navegador), telas Ensaios e Finanças.
 - [`docs/phases/fase-5.md`](phases/fase-5.md): escalação sobre o avião, personagens isométricos, Prancheta com engenharia de sistemas, ensaio de voo como evento.
-- [`docs/phases/fase-6.md`](phases/fase-6.md): professor orientador, temporada desde novembro com abertura dos fundadores, calendário anual e ações agendadas.
+- [`docs/phases/fase-6.md`](phases/fase-6.md): professor orientador, temporada desde novembro com abertura dos fundadores, calendário anual e ações agendadas, e a UI (abertura, Calendário, Central do Elenco).
 
 ## Comandos
 

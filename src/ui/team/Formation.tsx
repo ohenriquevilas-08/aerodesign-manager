@@ -2,14 +2,14 @@ import type { JSX } from "preact";
 import { useState } from "preact/hooks";
 import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
-import { BALANCE, formationView, type Discipline, type FormationAreaView, type Member } from "../../sim";
+import { BALANCE, findAgenda, formationView, traineeProgress, type Discipline, type FormationAreaView, type Member } from "../../sim";
 import { Avatar } from "../components/Avatar";
 import { DISCIPLINE_SHORT, formatNumber, motivationLabel } from "../format";
 import { useDerived } from "../hooks";
 
 // Escalação da equipe (Fase 5, U1): o campo é o avião visto de cima e cada área fica na parte que
 // cuida. Cartas no estilo FIFA (retrato isométrico, overall da área, nome, motivação); capitão com
-// faixa. Área vazia = parte apagada, com o aviso só em tooltip. O presidente não aparece aqui.
+// faixa. Área vazia = parte apagada, com o aviso só em tooltip. O presidente é um aluno como os outros, com faixa.
 // Arrastar a carta chama set-area.
 
 type Drop = { area: Discipline | null; captain: boolean };
@@ -66,12 +66,14 @@ export function Formation() {
       drop(target);
     }
   });
+  const agendaOf = (member: Member) => (member.role === "president" ? findAgenda(member.agenda ?? "balanced").label : null);
   const cardOf = (member: Member, discipline: Discipline | null) => (
     <PlayerCard
       key={member.id}
       member={member}
       discipline={discipline}
       task={tasks.find((task) => task.id === member.taskId)?.label ?? null}
+      agenda={agendaOf(member)}
       dragging={dragging === member.id}
       onDragStart={() => setDragging(member.id)}
       onDragEnd={() => {
@@ -97,6 +99,34 @@ export function Formation() {
           ) : null;
         })}
       </div>
+
+      {view.trainees.length > 0 ? (
+        <div class="trainee-strip" data-testid="trainee-strip">
+          <h3 class="pitch-col-title">Trainees · etapa de treino até 1/fev</h3>
+          <div class="trainee-cards">
+            {view.trainees.map((id) => {
+              const member = byId(id);
+              if (!member) return null;
+              const progress = traineeProgress(member);
+              return (
+                <article key={id} class="trainee-card" title={`${member.name}: ${Math.round(progress * 100)}% do treinamento`}>
+                  <Avatar member={member} size={56} />
+                  <div class="trainee-info">
+                    <strong>{member.name}</strong>
+                    <span class="small muted">
+                      {tasks.find((task) => task.id === member.taskId)?.label ?? "Sem treino agora"} · {Math.round(member.trainingHours ?? 0)} h
+                    </span>
+                    <span class="fm-mot" aria-hidden="true">
+                      <span class="fm-mot-fill tone-accent" style={{ width: `${Math.round(progress * 100)}%` }} />
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <p class="small muted">No fim da etapa, cada trainee vira integrante ou desiste. Só então entram na escalação.</p>
+        </div>
+      ) : null}
 
       {view.unassigned.length > 0 ? (
         <div class={`bench-strip${over === key({ area: null, captain: false }) ? " is-over" : ""}`} {...zone({ area: null, captain: false })}>
@@ -208,6 +238,7 @@ function PlayerCard({
   member,
   discipline,
   task,
+  agenda,
   dragging,
   onDragStart,
   onDragEnd
@@ -215,6 +246,8 @@ function PlayerCard({
   member: Member;
   discipline: Discipline | null;
   task: string | null;
+  /** Rótulo da agenda do presidente; null para os demais. */
+  agenda: string | null;
   dragging: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
@@ -223,10 +256,10 @@ function PlayerCard({
   const captain = member.role === "captain" && discipline !== null;
   return (
     <article
-      class={`fm-card tier-${tier(rating)}${captain ? " is-captain" : ""}${dragging ? " is-dragging" : ""}`}
+      class={`fm-card tier-${tier(rating)}${captain ? " is-captain" : ""}${agenda ? " is-president" : ""}${dragging ? " is-dragging" : ""}`}
       draggable
       data-member={member.id}
-      title={`${member.name} · ${motivationLabel(member.motivation)} · ${task ? `em tarefa: ${task}` : "livre"}`}
+      title={`${member.name}${agenda ? ` · Presidente (agenda ${agenda.toLowerCase()})` : ""} · ${motivationLabel(member.motivation)} · ${task ? `em tarefa: ${task}` : "livre"}`}
       onDragStart={(event) => {
         event.dataTransfer?.setData("text/plain", member.id);
         onDragStart();
@@ -241,6 +274,11 @@ function PlayerCard({
         <span class={`fm-mot-fill tone-${motivationTone(member.motivation)}`} style={{ width: `${Math.round(member.motivation)}%` }} />
       </span>
       {captain ? <span class="fm-captain">C</span> : null}
+      {agenda ? (
+        <span class="fm-president" title={`Agenda: ${agenda}`}>
+          Presidente · {agenda}
+        </span>
+      ) : null}
     </article>
   );
 }

@@ -2,7 +2,7 @@ import { continueGame, initialSave, newGame } from "../app/session";
 import { clockToDate, formatDate } from "../sim";
 
 /** Tela de abertura (U7): Continuar, se há save, ou Novo jogo. */
-export function StartScreen({ onStart }: { onStart: () => void }) {
+export function StartScreen({ onContinue, onNew }: { onContinue: () => void; onNew: (seed: number) => void }) {
   const saved = initialSave.state;
   return (
     <div class="start">
@@ -21,7 +21,7 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
               class="btn-primary"
               onClick={() => {
                 continueGame();
-                onStart();
+                onContinue();
               }}
             >
               Continuar
@@ -34,8 +34,7 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
             type="button"
             class={saved ? "btn-ghost start-new" : "btn-primary"}
             onClick={() => {
-              newGame();
-              onStart();
+              onNew(newGame());
             }}
           >
             Novo jogo

@@ -5,6 +5,7 @@ import { SPEEDS } from "../sim";
 import { Actions } from "./screens/Actions";
 import { Browser } from "./screens/Browser";
 import { Central } from "./screens/Central";
+import { Calendar } from "./screens/Calendar";
 import { Competition } from "./screens/Competition";
 import { Drafting } from "./screens/Drafting";
 import { Finance } from "./screens/Finance";
@@ -21,6 +22,7 @@ import { WarningToast } from "./WarningToast";
 const SCREENS: readonly { id: string; label: string; key: string; view?: FunctionComponent }[] = [
   { id: "central", label: "Central", key: "C", view: Central },
   { id: "actions", label: "Ações", key: "A", view: Actions },
+  { id: "calendar", label: "Calendário", key: "L", view: Calendar },
   { id: "team", label: "Equipe", key: "E", view: Team },
   { id: "drafting", label: "Prancheta", key: "P", view: Drafting },
   { id: "tests", label: "Ensaios", key: "S", view: Tests },
@@ -40,7 +42,7 @@ function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.isContentEditable;
 }
 
-export function App() {
+export function App({ onNewGame }: { onNewGame: (seed: number) => void }) {
   const [screen, setScreen] = useState("central");
 
   useEffect(() => {
@@ -71,7 +73,7 @@ export function App() {
 
   return (
     <div class="shell">
-      <TopBar />
+      <TopBar onNewGame={onNewGame} />
       <nav class="nav" aria-label="Telas">
         {SCREENS.map((item) => (
           <button

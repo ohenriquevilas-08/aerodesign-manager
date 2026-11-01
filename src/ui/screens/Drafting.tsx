@@ -3,6 +3,10 @@ import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import {
   aspectRatio,
+  daysToRegulation,
+  formatDate,
+  REGULATION_DATE,
+  regulationPublished,
   compareDesigns,
   DEFAULT_DESIGN,
   defaultTargetPayload,
@@ -35,6 +39,7 @@ import { Segmented, Slider } from "../components/Controls";
 import { EstimateRow } from "../components/EstimateRow";
 import { formatNumber } from "../format";
 import { useDerived } from "../hooks";
+import { navigate } from "../nav";
 import { blueprintChannel } from "../../scenes/blueprint/channel";
 import { BlueprintScene } from "../../scenes/BlueprintScene";
 import { PhaserStage } from "../PhaserStage";
@@ -176,6 +181,8 @@ const draftKey = (design: AircraftDesign) => JSON.stringify(design);
 const unitDigits = (unit: string) => (unit === "kg" ? 2 : unit === "W" ? 0 : 1);
 
 export function Drafting() {
+  const published = useGame((state) => regulationPublished(state));
+  const daysLeft = useGame((state) => daysToRegulation(state));
   const saved = useGame((state) => state.aircraft?.design ?? null);
   const [draft, setDraftState] = useState<AircraftDesign>(() => savedDraft ?? saved ?? DEFAULT_DESIGN);
   const [tab, setTabState] = useState(savedTab);
@@ -236,6 +243,33 @@ export function Drafting() {
   const perEE = 50 * 1.1 * multiplier;
   const alerts = alertsFor(draft);
   const maxProp = maxPropDiameterIn(draft.gear);
+
+  // Fase 6 (U4): antes de 9/fev o regulamento não saiu e a Prancheta fica travada.
+  if (!published) {
+    return (
+      <div class="screen">
+        <header class="screen-head">
+          <h1 class="screen-title">Prancheta</h1>
+        </header>
+        <section class="panel locked-panel" data-testid="drafting-locked">
+          <div class="locked-icon" aria-hidden="true">🔒</div>
+          <h2 class="locked-title">Aguardando regulamento (9/fev)</h2>
+          <p class="muted">
+            O regulamento 2026 sai em {formatDate(REGULATION_DATE)}, daqui a {daysLeft} {daysLeft === 1 ? "dia" : "dias"}. Sem as regras não há
+            projeto para fechar. Até lá a equipe estuda, faz a seletiva e o treino dos trainees, capta recursos e compra material.
+          </p>
+          <div class="locked-actions">
+            <button type="button" class="btn-primary" onClick={() => navigate("actions")}>
+              Ver ações
+            </button>
+            <button type="button" class="btn-ghost" onClick={() => navigate("calendar")}>
+              Abrir calendário
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div class="screen">

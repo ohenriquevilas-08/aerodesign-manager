@@ -15,7 +15,7 @@ Escopo: o jogador vira **professor orientador**, a temporada começa em **novemb
 
 ## Status
 
-- **Simulação S1 a S4: feita** (branch `claude/sim-phase6-f4681d`, sem merge). Cenas C1 e UI U1 a U4: pendentes.
+- **Simulação S1 a S4 e Cenas C1: feitas e integradas. UI U1 a U5: feitas** (branch de UI, sem merge; ver "Como ficou a UI").
 
 ### Como ficou a Simulação (contrato e desvios)
 
@@ -39,9 +39,18 @@ Todo aluno tem nome e sobrenome brasileiros, nunca o cargo. `content/names.ts` (
 
 `season.summerFactor` 0,5 · `season.unreadPenaltyFactor` 2 · `trainee.hoursRequired` 24, `knowledgePerHour` 0,6, `withoutCaptainShare` 0,5, `stayChanceAtZero` 0,4, `stayChanceAtFull` 0,95 · `agenda.alignedBoost` 1, `idleDays` 3, `idlePenalty` 3, `logDays` 30 · `advisor.startReputation` 10, `reportSubmitted` 3, `competitionBase` 2, `competitionPerPlaceFromLast` 0,25.
 
-### Provisório na UI
+### Como ficou a UI (U1 a U5)
 
-`app/store.ts` e `app/session.ts` despacham `found-team` com `defaultFounding()` (Bia preside; Marina, Caio e Rafa capitaneiam) para o jogo abrir sem a tela de fundação (U2). A Prancheta ainda não mostra o aviso "Aguardando regulamento" (U4): ela só devolve o aviso ao confirmar. Os testes das fases antigas usam `tests/sim/helpers.ts` (`startedGame`: fundada em 19/fev/2026; `foundedGame`: fundada em 10/nov/2025).
+- **U1.** `ui/screens/Calendar.tsx` (atalho `L`): faixa `seasonOverview` no topo, grade do mês com `calendarMonth`, cor de fundo pelo período acadêmico (`academicTone` em `ui/calendarView.ts`). Arrastar o chip de uma ação agendada chama `reschedule-action` (mantém a hora do dia: `dropStartAt`); clicar num dia abre o painel com o catálogo (só ações sem alvo de peça ou tarefa em espera: `schedulableActions`), hora, dedicação e quem entra, e `schedule-action`. A Central ganhou "Próximos 14 dias" (`upcomingDays`).
+- **U2.** `ui/Intro.tsx` em 3 passos sobre a `IntroScene` (`introChannel`); o jogo novo nasce em `founding` (`app/session.ts`: `newGame()` devolve a semente, `foundTeam(seed, advisorName, request)` refaz `createGame` com o mesmo seed e o nome do orientador editado e despacha `found-team`). Saiu o `found-team` padrão provisório de `app/store.ts` e `session.ts` (`defaultFounding` segue só no `dev-start-competition`). Capitães opcionais; um cargo por fundador.
+- **U3.** Cabeçalho "Prof. <nome>" com reputação; faixa "Presidente · agenda" na carta da escalação; cartão do presidente na Central (`presidentView`).
+- **U4.** Faixa de trainees na Escalação (progresso `traineeProgress`); Prancheta travada com "Aguardando regulamento (9/fev)" até a publicação; o cartão de "Leitura do regulamento" ganha destaque em Ações no dia 9/fev.
+- **U5.** `ui/team/Roster.tsx` + `ui/roster.ts` (colunas por aba, `memberOverall`, ordenação, `stepSelection`). Setas mudam a seleção. A "nota" é a média de conhecimento (na área, ou o melhor) com fabricação, comunicação, pilotagem e agilidade: leitura de apresentação, fora da simulação. A aba Desenvolvimento mostra as habilidades e o treino; a **evolução recente** não existe no estado ainda (precisaria de histórico na simulação) e fica para a Fase 7, com preferências e facilidades. O conhecimento documentado saiu do Elenco e foi para a Central.
+- Nenhuma regra de `src/sim/` foi alterada.
+
+### Antes (provisório, já removido)
+
+`app/store.ts` e `app/session.ts` despachavam `found-team` com `defaultFounding()` para o jogo abrir sem a tela de fundação. Os testes das fases antigas usam `tests/sim/helpers.ts` (`startedGame`: fundada em 19/fev/2026; `foundedGame`: fundada em 10/nov/2025).
 
 ## Frentes
 

@@ -1,7 +1,7 @@
 // Store único do jogo: guarda o GameState, aplica comandos e faz o relógio correr.
 // Preact e Phaser leem por subscribe/getState e escrevem só por dispatch.
 
-import { applyCommand, createGame, defaultFounding, type ClockSpeed, type Command, type GameState } from "../sim";
+import { applyCommand, createGame, type ClockSpeed, type Command, type GameState } from "../sim";
 
 type Listener = (state: GameState) => void;
 
@@ -64,8 +64,5 @@ export function startClock(store: GameStore): () => void {
   return () => cancelAnimationFrame(frame);
 }
 
-// PROVISÓRIO (Fase 6, até a abertura U2): a UI ainda não tem a tela de fundação, então o jogo
-// nasce já fundado com a escolha padrão (Bia preside; Marina, Caio e Rafa capitaneiam).
-export const foundDefault = (state: GameState): GameState => applyCommand(state, { type: "found-team", ...defaultFounding() });
-
-export const store = createStore(foundDefault(createGame({ seed: 20260209, teamName: "Nova Equipe AeroDesign" })));
+/** Estado inicial antes de a pessoa escolher Continuar ou Novo jogo: a equipe ainda não foi fundada. */
+export const store = createStore(createGame({ seed: 20260209, teamName: "Nova Equipe AeroDesign" }));
