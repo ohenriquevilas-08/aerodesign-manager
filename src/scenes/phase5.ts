@@ -54,3 +54,18 @@ export function marginBand(marginPercentMac: number): MarginBand {
   if (marginPercentMac < 0) return "unstable";
   return marginPercentMac >= 5 && marginPercentMac <= 20 ? "ok" : "risk";
 }
+
+/** Camisetas do stub, no lugar da cor da equipe (S3: `Member.look.shirt`). */
+const STUB_SHIRTS = [0xff9f2e, 0x22c7e6, 0x3fd18b, 0xffc23d, 0xff5a5f];
+const ACCESSORIES: (MemberLook["accessory"] | undefined)[] = [undefined, "glasses", undefined, "cap", "headband", undefined];
+
+/**
+ * Aparência de um integrante: `member.look` quando a simulação já sorteia (S3); até lá, uma aparência
+ * estável derivada do id, para o hangar e a carta mostrarem sempre o mesmo boneco.
+ */
+export function lookFor(member: { id: string; look?: MemberLook }): MemberLook {
+  if (member.look) return member.look;
+  let h = 7;
+  for (const ch of member.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { skin: h % 6, hair: (h >> 3) % 5, hairColor: (h >> 6) % 6, shirt: STUB_SHIRTS[(h >> 9) % STUB_SHIRTS.length]!, accessory: ACCESSORIES[(h >> 12) % ACCESSORIES.length] };
+}

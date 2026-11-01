@@ -34,6 +34,22 @@
   --night: #03070d; /* escuro da noite sobre a oficina e nas janelas */
   --lamp: #ffd98a; /* luz quente das luminárias acesas */
 
+  /* Bonecos (MemberLook): tons de pele e de cabelo, calça e sapato */
+  --skin-0: #ffdcbd;
+  --skin-1: #f0b48a;
+  --skin-2: #d08b5b;
+  --skin-3: #a66a3f;
+  --skin-4: #7a4a2b;
+  --skin-5: #52301c;
+  --hair-0: #1c1410;
+  --hair-1: #4a2c17;
+  --hair-2: #8a5a2b;
+  --hair-3: #d2a45a;
+  --hair-4: #b5472b;
+  --hair-5: #9aa5ad;
+  --avatar-pants: #1f4762;
+  --avatar-shoe: #08121c;
+
   /* Moedas (design §8) */
   --cost-hours: #22c7e6;
   --cost-credits: #ffc23d;
