@@ -102,6 +102,25 @@ Definido em `src/scenes/hangar/benchView.ts` (funções puras, testadas em `test
 - Ações novas: `build-fuselage`, `build-tail` e `build-gear` vão para a fuselagem; `drawings` e `oral-rehearsal`, para o relatório; `test-structural`, para a asa; `test-thrust`, para a eletrônica (`ACTION_BENCH`). Peça com `counterfeit` ganha um anel amarelo no ponto de estado do cartão.
 - Pacotes (`src/scenes/hangar/packages.ts`, design §8.4): `packagesAtDoor(state)` lista os pedidos `in-transit` e `held-customs`, que viram caixas ao lado do portão (até 6; retido ganha faixa amarela) com a legenda "N A CAMINHO · N RETIDO". `recentDeliveries(state)` lista os `delivered` com `deliveredAt` no último dia de jogo (`OPENING_WINDOW_HOURS`); a cena abre cada um uma vez ("Chegou: …"). A abertura anda em tempo real, mesmo com o relógio pausado, para não congelar se a entrega pausar o jogo.
 
+### Blueprint da Prancheta: `BlueprintScene`
+
+`src/scenes/BlueprintScene.ts` (chave `"blueprint"`): vista de cima e lateral em traço branco sobre azul técnico (`palette.blueprint`, espelhado em `--blueprint`), cotas da envergadura (laranja) e da folga da hélice ao solo (vermelha quando a hélice bate no chão). Só desenha; a escala é fixa (cabe o maior avião), então o desenho cresce e encolhe com os controles. Envergadura e potência deslizam até o valor novo; o resto troca na hora.
+
+- Geometria pura em `src/scenes/blueprint/geometry.ts`, `blueprintGeometry(design)` (testada em `tests/scenes/blueprintGeometry.test.ts`), usa só `AircraftDesign` e `DESIGN_LIMITS`. Eixos: x do nariz para a cauda, y lateral, z altura. Devolve superfícies (`wing`/`canard`/`tail` com raiz, corda, enflechamento e afilamento), fuselagem, deriva, motor, hélice, trem, `propClearance`, `sparWidth`, `hatch` (`ribs` balsa, `weave` compósito, `mixed`) e `ribs`.
+- N = 1 vira asa voadora (enflechada), 2 convencional, 3 ganha canard. A filosofia muda corda e longarina; o trem alto sobe a fuselagem e dá folga à hélice; a potência escala motor e hélice.
+- Entrega: o rascunho ainda não é estado, então a Prancheta chama `blueprintChannel.show(design)` (`src/scenes/blueprint/channel.ts`, no molde do `flightReplay`) a cada mudança; a cena lê `blueprintChannel.current` ao criar. A tela monta `<PhaserStage scene={BlueprintScene} sceneKey="blueprint" />` no centro, entre as decisões e as estimativas.
+- O carimbo com o resumo do projeto só aparece com o painel largo (760 px ou mais).
+
+### Ensaios: voo e bancada
+
+Entrada tipada localmente em `src/scenes/tests/testEntry.ts`: `TestEntry = BenchTestEntry | FlightTestEntry`. A cena só anima; resultado, medida e texto chegam prontos. **Ponto de troca:** quando a Simulação entregar `testHistory(state)` (Fase 4, S6), a UI deriva as entradas de lá e a tipagem local some.
+
+- `playTest(entry)`: ensaio de voo chama `flightReplay.play(playback)` e reaproveita a `FlightScene`; ensaio de bancada vai para `benchTestChannel.run(entry)`, que o `HangarScene` assina.
+- Bancada (`BenchTestEntry`: `kind` `structural` · `thrust` · `scale`, `outcome`, `gauge` 0–1, `result`): estrutural na asa, tração na eletrônica, pesagem na fuselagem (`TEST_BENCH`). Um mostrador com ponteiro sobe sobre a bancada, a asa flexiona (e rompe com faíscas se `fail`), a hélice gira ou o prato pesa, e o texto de `result` aparece em `RESULT_AT` (2,6 s). Dura `BENCH_TEST_SECONDS` (5 s) em tempo real, como a abertura das caixas, mesmo com o relógio pausado.
+- Quadro puro em `src/scenes/hangar/benchTest.ts`, `benchTestFrame(entry, t)` (testado em `tests/scenes/benchTest.test.ts`).
+- Em dev, `window.__hangarScene.seekBenchTest(t)` pula a animação; `playTest` pode ser chamado do console com `await import('/src/scenes/tests/testEntry.ts')`.
+- Falta (UI, U5): a tela Ensaios que escolhe o ensaio e chama `playTest`; hoje nada na interface dispara a animação.
+
 ## Convenções
 
 - Identificadores, arquivos e commits em inglês; textos do jogo e comentários em PT-BR.
