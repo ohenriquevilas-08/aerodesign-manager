@@ -6,7 +6,7 @@ describe("costParts (design §8)", () => {
   it("mantém a ordem horas, créditos, prazo, risco", () => {
     const parts = costParts({ hours: 12, credits: 30, leadDays: 3, risk: "medium" });
     expect(parts.map((part) => part.kind)).toEqual(["hours", "credits", "lead", "risk"]);
-    expect(parts.map((part) => `${part.icon} ${part.text}`)).toEqual(["⏱ 12 h", "◆ 30", "⌛ 3 d", "⚠ médio"]);
+    expect(parts.map((part) => `${part.icon} ${part.text}`)).toEqual(["⏱ 12 h", "◆ 30", "⌛ 3 d", "⚠ risco médio"]);
   });
 
   it("omite o que for zero", () => {

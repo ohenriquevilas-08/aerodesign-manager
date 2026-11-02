@@ -5,7 +5,7 @@ import { IntroScene } from "../scenes/IntroScene";
 import { introChannel } from "../scenes/intro/channel";
 import { DEFAULT_ADVISOR_NAME, DEFAULT_CATEGORY, findAgenda, FORMATIONS, FOUNDERS, type Discipline, type FounderFlair, type Member } from "../sim";
 import { PixelAvatar } from "./components/PixelAvatar";
-import { DISCIPLINE_SHORT } from "./format";
+import { DISCIPLINE_LABEL, DISCIPLINE_SHORT } from "./format";
 import { PhaserStage } from "./PhaserStage";
 
 // Abertura e fundação (Fase 6, U2): em tela cheia antes do jogo, em 3 passos. A cena (C1) só anima;
@@ -130,7 +130,7 @@ export function Intro({ seed, onDone }: { seed: number; onDone: () => void }) {
                       <span class="chip" title={findAgenda(member.agenda ?? "balanced").text}>{findAgenda(member.agenda ?? "balanced").priority}</span>
                       <p class="small">{def?.likes}</p>
                       <p class="small">
-                        Diz gostar de <strong>{member.statedLikes.length > 0 ? member.statedLikes.map((discipline) => DISCIPLINE_SHORT[discipline]).join(", ") : "—"}</strong>
+                        Diz que quer trabalhar com <strong>{member.statedLikes.length > 0 ? member.statedLikes.map((discipline) => DISCIPLINE_LABEL[discipline].toLowerCase()).join(", ") : "ainda não sabe"}</strong>
                       </p>
                     </div>
                   </article>

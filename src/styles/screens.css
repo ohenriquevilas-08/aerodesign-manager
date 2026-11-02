@@ -153,6 +153,14 @@
   color: var(--cost-risk);
 }
 
+.cost-risk.risk-low {
+  color: var(--text-muted);
+}
+
+.cost-risk.risk-medium {
+  color: var(--warn);
+}
+
 .cost-free {
   color: var(--text-dim);
 }

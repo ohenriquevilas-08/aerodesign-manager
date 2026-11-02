@@ -1,7 +1,7 @@
 // Central do Elenco (Fase 6, U5): colunas por aba, nota geral e ordenação. Puro, testado em tests/ui/.
 
 import { DISCIPLINES, isAptitudeRevealed, isOverloaded, memberHoursPerDay, type Discipline, type EnergyOutlook, type GameState, type Member } from "../sim";
-import { DISCIPLINE_SHORT, motivationLabel, ROLE_LABEL } from "./format";
+import { DISCIPLINE_LABEL, DISCIPLINE_SHORT, motivationLabel, ROLE_LABEL } from "./format";
 
 export type RosterTab = "status" | "knowledge" | "availability" | "development";
 
@@ -57,7 +57,7 @@ const taskLabel = (member: Member, ctx: RosterContext) => ctx.tasks.find((item) 
 const TREND_MARK = { up: "↑", down: "↓", flat: "→" } as const;
 
 /** O que a pessoa diz gostar (o gosto real fica escondido). */
-export const statedLikesText = (member: Member): string => (member.statedLikes.length > 0 ? member.statedLikes.map((item) => DISCIPLINE_SHORT[item]).join(", ") : "—");
+export const statedLikesText = (member: Member): string => (member.statedLikes.length > 0 ? member.statedLikes.map((item) => DISCIPLINE_LABEL[item]).join(", ") : "—");
 
 /** Quantas facilidades já foram reveladas, de 7. */
 export const revealedCount = (member: Member): number => DISCIPLINES.filter((discipline) => isAptitudeRevealed(member, discipline)).length;
@@ -123,7 +123,7 @@ export const ROSTER_COLUMNS: Record<RosterTab, RosterColumn[]> = {
     skill("communication", "Comunicação"),
     skill("piloting", "Pilotagem"),
     skill("agility", "Agilidade"),
-    { id: "stated", label: "Diz gostar de", title: "Só o que a pessoa diz; o gosto de verdade aparece trabalhando.", value: statedLikesText },
+    { id: "stated", label: "Diz que quer trabalhar com", title: "Só o que a pessoa diz; o gosto de verdade aparece trabalhando.", value: statedLikesText },
     {
       id: "revealed",
       label: "Facilidades vistas",

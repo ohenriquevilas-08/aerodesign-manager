@@ -145,7 +145,7 @@ export function Tests() {
               <button type="button" class="btn-primary" disabled={planning} onClick={() => setPlanning(true)}>
                 Agendar ensaio de voo
               </button>
-              <p class="muted small">Local, piloto e tripulação são pagos adiantados. No dia o relógio pausa e a equipe voa.</p>
+              <p class="muted small">Local, piloto e equipe de campo são pagos adiantados. No dia o relógio pausa e a equipe voa.</p>
             </div>
           </section>
           <section class="panel">

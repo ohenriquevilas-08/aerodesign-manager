@@ -25,7 +25,7 @@ import { navigate } from "../nav";
 
 const F = BALANCE.flightTests;
 const n = formatNumber;
-const STEPS = ["Local e dia", "Piloto e tripulação", "Cargas"] as const;
+const STEPS = ["Local e dia", "Piloto e equipe de campo", "Cargas"] as const;
 
 /** Dias de jogo em que o local recebe a equipe, respeitando a antecedência e a data da competição. */
 function eligibleDays(today: number, venueId: string): number[] {
@@ -171,7 +171,7 @@ export function FlightTestPlanner({ onClose }: { onClose: () => void }) {
             </div>
             <div class="field">
               <span class="slider-label">
-                Tripulação ({crewIds.length}/{F.maxCrew})
+                Equipe de campo ({crewIds.length}/{F.maxCrew})
               </span>
               <div class="pick-list">
                 {roster

@@ -96,7 +96,7 @@ describe("agendar e cancelar ensaio de voo (S2)", () => {
     expect(refused(base, request({ venueId: "model-field", day: firstDay(TODAY + 10, [1, 2, 4, 5]) }))).toContain("dia da semana");
     expect(refused({ ...base, credits: 10 }, request())).toContain("Caixa");
     expect(refused(base, request({ pilot: { memberId: "founder-caio" } }))).toContain("não pilota");
-    expect(refused(base, request({ crew: [] }))).toContain("tripulação");
+    expect(refused(base, request({ crew: [] }))).toContain("equipe de campo");
     expect(refused(base, request({ payloadPlanKg: [] }))).toContain("decolagens");
     expect(refused(base, request({ payloadPlanKg: [25] }))).toContain("entre 0 e 20");
     expect(refused(base, request({ crew: ["ghost"] }))).toContain("integrantes");

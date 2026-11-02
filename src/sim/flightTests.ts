@@ -104,8 +104,8 @@ export function scheduleProblem(state: GameState, request: ScheduleFlightTestReq
   const plan = request.payloadPlanKg;
   if (plan.length === 0 || plan.length > F.maxTakeoffs) return `Planeje de 1 a ${F.maxTakeoffs} decolagens.`;
   if (plan.some((kg) => !(kg >= 0) || kg > R.maxTakeoffWeight)) return `Cada carga precisa ficar entre 0 e ${R.maxTakeoffWeight} kg.`;
-  if (request.crew.length === 0) return "Leve pelo menos uma pessoa na tripulação.";
-  if (request.crew.length > F.maxCrew) return `A van leva no máximo ${F.maxCrew} pessoas na tripulação.`;
+  if (request.crew.length === 0) return "Leve pelo menos uma pessoa na equipe de campo.";
+  if (request.crew.length > F.maxCrew) return `A van leva no máximo ${F.maxCrew} pessoas na equipe de campo.`;
   const everyone = people(request);
   if (new Set(everyone).size !== everyone.length) return "A mesma pessoa não pode estar duas vezes no ensaio.";
   for (const id of everyone) {

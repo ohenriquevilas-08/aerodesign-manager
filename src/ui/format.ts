@@ -28,6 +28,8 @@ export interface CostPart {
   icon: string;
   text: string;
   title: string;
+  /** Só no risco: nível, para a cor (baixo neutro, médio amarelo, alto vermelho). */
+  level?: RiskLevel;
 }
 
 /**
@@ -56,7 +58,7 @@ export function costParts(cost: Cost, lead?: LeadRange | null): CostPart[] {
     });
   }
   if (cost.risk !== "none") {
-    parts.push({ kind: "risk", icon: "⚠", text: RISK_LABEL[cost.risk], title: "Desgaste e risco de dano" });
+    parts.push({ kind: "risk", icon: "⚠", text: `risco ${RISK_LABEL[cost.risk]}`, title: "Desgaste e risco de dano", level: cost.risk });
   }
   return parts;
 }

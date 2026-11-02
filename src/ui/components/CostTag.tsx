@@ -8,7 +8,7 @@ export function CostTag({ cost, lead }: { cost: Cost; lead?: LeadRange | null })
   return (
     <span class="cost">
       {parts.map((part) => (
-        <span key={part.kind} class={`cost-part cost-${part.kind}`} title={part.title}>
+        <span key={part.kind} class={`cost-part cost-${part.kind}${part.level ? ` risk-${part.level}` : ""}`} title={part.title}>
           <span aria-hidden="true">{part.icon}</span> {part.text}
         </span>
       ))}
