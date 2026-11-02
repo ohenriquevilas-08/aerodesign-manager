@@ -4,7 +4,7 @@
 // completo fica escondido em `Applicant.profile` e a UI só lê `applicantView`.
 
 import { findCourse, COURSES, SELECTION_FORMATS, SEMESTER_WEIGHTS, CANDIDATE_AGILITY, CANDIDATE_COMMUNICATION, CANDIDATE_GRADUATIONS, CANDIDATE_HOURS_PER_DAY, type SelectionFormat, type SelectionFormatDef } from "./content/selection";
-import { PHRASES, type PhraseKind } from "./content/applicantPhrases";
+import { hasHistory, PHRASES, phrasesFor, type PhraseKind } from "./content/applicantPhrases";
 import { findQuestion, INTERVIEW_QUESTIONS } from "./content/interviewQuestions";
 import { TRAINEE_END } from "./content/season2026";
 import { BALANCE } from "./content/balance";
@@ -117,7 +117,7 @@ function weighted<T>(items: readonly T[], weight: (item: T) => number, roll: num
 const PHRASE_KINDS = Object.keys(PHRASES) as PhraseKind[];
 
 /** A frase tem um tipo pelo perfil escondido; 25% das vezes erra (a pista às vezes engana). */
-function drawPhrase(format: SelectionFormatDef, motivation: number, roll: () => number): string {
+function drawPhrase(format: SelectionFormatDef, motivation: number, history: boolean, roll: () => number): string {
   const pickOf = <T>(items: readonly T[]): T => items[Math.floor(roll() * items.length)]!;
   let kind: PhraseKind;
   if (roll() < format.referralPhrase) kind = "referral";
@@ -125,7 +125,7 @@ function drawPhrase(format: SelectionFormatDef, motivation: number, roll: () => 
   else if (motivation >= 58) kind = pickOf<PhraseKind>(["curious", "builder", "flyer", "curious"]);
   else kind = pickOf<PhraseKind>(["cv", "vague", "curious", "cv"]);
   if (roll() < 0.25) kind = pickOf(PHRASE_KINDS);
-  return pickOf(PHRASES[kind]);
+  return pickOf(phrasesFor(kind, history, format.id));
 }
 
 /** Sorteia `count` inscritos novos (perfil escondido incluído); nomes não repetem ninguém. */
@@ -136,6 +136,7 @@ export function drawApplicants(state: GameState, format: SelectionFormatDef, cou
   const between = ([min, max]: readonly [number, number]) => Math.round(min + roll() * (max - min));
   const pick = <T>(items: readonly T[]): T => items[Math.floor(roll() * items.length)]!;
   const fresh = selectionWindow(state.clock.hours).freshers;
+  const history = hasHistory(state);
   const weights: readonly number[] = fresh ? SEMESTER_WEIGHTS.freshers : SEMESTER_WEIGHTS.regular;
   const semesters = weights.map((_, index) => index + 1);
 
@@ -192,7 +193,7 @@ export function drawApplicants(state: GameState, format: SelectionFormatDef, cou
       name: named.name,
       course: course.id,
       semester,
-      motivationText: drawPhrase(format, motivation, roll),
+      motivationText: drawPhrase(format, motivation, history, roll),
       stage: "applied",
       tag: null,
       notes: [],

@@ -5,6 +5,7 @@
 // anotações para todos os membros, os outros só uma anotação geral do grupo. Quem passa para a
 // entrevista é escolha depois, em `advance-applicants`; o fechamento só passa as anotações às fichas.
 
+import { hasHistory } from "./content/applicantPhrases";
 import { BALANCE } from "./content/balance";
 import { activeOf, askDecision, drawer, logLine, option, patchContext } from "./eventCore";
 import type { EventHandler } from "./events";
@@ -21,7 +22,7 @@ const GROUP_NAMES = ["Azul", "Verde", "Amarelo", "Vermelho", "Roxo", "Laranja", 
 const BLOCKS: EventBlock[] = [
   { id: "reception", startsAt: 9, label: "Recepção no corredor do departamento", kind: "reception" },
   { id: "presentation", startsAt: 10, label: "Apresentação da equipe", kind: "presentation" },
-  { id: "challenge", startsAt: 11, label: "Desafio prático: planador de balsa", kind: "challenge" },
+  { id: "challenge", startsAt: 11, label: "Planador de balsa", kind: "challenge" },
   { id: "deliberation", startsAt: 16, label: "Deliberação", kind: "deliberation" }
 ];
 
@@ -136,7 +137,12 @@ function run(state: GameState): { state: GameState; done: boolean } {
       return { state: next, done: true };
     }
     case "presentation": {
-      next = logLine(next, "A equipe mostra o hangar, as fotos da última competição e o que cada área faz.");
+      next = logLine(
+        next,
+        hasHistory(next)
+          ? "A equipe mostra o hangar, as fotos da última competição e o que cada área faz."
+          : "A equipe mostra o hangar ainda novo, o que cada área vai fazer e o plano para a primeira competição."
+      );
       return { state: next, done: true };
     }
     case "challenge":
