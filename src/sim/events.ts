@@ -6,6 +6,7 @@
 import { competitionHandler } from "./eventCompetition";
 import { activeOf, blockTime, currentBlock, syncClock } from "./eventCore";
 import { flightTestHandler } from "./eventFlightTest";
+import { lectureHandler } from "./eventLecture";
 import { selectionHandler } from "./eventSelection";
 import { addMessage, warn } from "./tasks";
 import type { ActiveEvent, EventBlock, EventBlockKind, EventDecision, EventKind, EventLogEntry, EventSummary, FlightPlayback, GameState } from "./types";
@@ -27,14 +28,15 @@ export interface EventHandler {
 
 const HANDLERS: Record<EventKind, EventHandler> = {
   "selection-day": selectionHandler,
+  "selection-lecture": lectureHandler,
   "flight-test": flightTestHandler,
   competition: competitionHandler
 };
 
-const PAUSE_REASON = { "selection-day": "selection-day", "flight-test": "flight-test", competition: "competition" } as const;
+const PAUSE_REASON = { "selection-day": "selection-day", "selection-lecture": "selection-lecture", "flight-test": "flight-test", competition: "competition" } as const;
 
 /** Chamada de um evento novo: o relógio pausa e a tela mostra "Hoje: ...". */
-export function openEvent(state: GameState, event: ActiveEvent, messageText: string): { state: GameState; pause: { reason: "selection-day" | "flight-test" | "competition"; messageId: string } } {
+export function openEvent(state: GameState, event: ActiveEvent, messageText: string): { state: GameState; pause: { reason: "selection-day" | "selection-lecture" | "flight-test" | "competition"; messageId: string } } {
   const added = addMessage(state, { from: "Equipe", title: `Hoje: ${event.title}`, body: messageText });
   return { state: { ...added.state, activeEvent: event }, pause: { reason: PAUSE_REASON[event.kind], messageId: added.id } };
 }
@@ -145,6 +147,9 @@ const BLOCK_VERB: Record<EventBlockKind, string> = {
   awards: "Premiação",
   reception: "Recepção",
   presentation: "Apresentação",
+  process: "Processo",
+  questions: "Perguntas",
+  closing: "Encerramento",
   challenge: "Desafio prático",
   interviews: "Entrevistas",
   deliberation: "Deliberação",
@@ -153,6 +158,12 @@ const BLOCK_VERB: Record<EventBlockKind, string> = {
   takeoff: "Decolagem",
   teardown: "Desmontagem"
 };
+
+/** "Verbo: rótulo", sem repetir o verbo quando o rótulo já começa com ele ("Apresentação da equipe"). */
+export function blockHeadline(block: EventBlock): string {
+  const verb = BLOCK_VERB[block.kind];
+  return block.label.toLowerCase().startsWith(verb.toLowerCase()) ? block.label : `${verb}: ${block.label}`;
+}
 
 export function eventView(state: GameState): EventView | null {
   const event = state.activeEvent;
@@ -167,7 +178,7 @@ export function eventView(state: GameState): EventView | null {
   const lastPlayback =
     context.kind === "competition" ? context.lastPlayback : context.kind === "flight-test" ? (context.takeoffs.at(-1)?.playback ?? null) : null;
   const crewIds =
-    context.kind === "selection-day"
+    context.kind === "selection-day" || context.kind === "selection-lecture"
       ? state.members.filter((member) => member.role !== "trainee").map((member) => member.id)
       : context.kind === "flight-test"
         ? (() => {
@@ -194,6 +205,6 @@ export function eventView(state: GameState): EventView | null {
     canAdvance: event.entered && !event.summary && !event.pendingDecision,
     presentIds: crewIds,
     lastPlayback,
-    headline: event.summary ? event.summary.title : block ? `${BLOCK_VERB[block.kind]}: ${block.label}` : event.title
+    headline: event.summary ? event.summary.title : block ? blockHeadline(block) : event.title
   };
 }

@@ -16,6 +16,7 @@ import { Tests } from "./screens/Tests";
 import { onNavigate } from "./nav";
 import { EventMode } from "./EventMode";
 import { LectureOverlay } from "./selection/LectureOverlay";
+import { PauseNotice } from "./PauseNotice";
 import { TopBar } from "./TopBar";
 import { WarningToast } from "./WarningToast";
 
@@ -105,6 +106,7 @@ export function App({ onNewGame }: { onNewGame: (seed: number) => void }) {
       </main>
       <EventMode />
       <LectureOverlay />
+      <PauseNotice />
       <WarningToast />
     </div>
   );

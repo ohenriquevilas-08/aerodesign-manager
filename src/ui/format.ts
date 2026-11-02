@@ -140,6 +140,8 @@ export const PAUSE_REASON_LABEL: Record<string, string> = {
   competition: "Competição",
   "flight-test": "Ensaio de voo",
   "selection-day": "Dinâmica da seletiva",
+  "selection-lecture": "Palestra da seletiva",
+  triage: "Triagem pendente",
   selection: "Palestra da seletiva",
   scheduled: "Ação agendada"
 };

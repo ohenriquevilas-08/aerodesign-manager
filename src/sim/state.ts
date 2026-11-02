@@ -108,7 +108,7 @@ export function createGame(options: { seed: number; teamName: string; advisorNam
     return { ...member, classSlots: drawn.slots, look: looks.look };
   });
   return {
-    version: 10,
+    version: 11,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },

@@ -129,7 +129,10 @@ export {
   interviewHours,
   interviewQuestionList,
   interviewSpread,
+  isReferralCampaign,
   missingCast,
+  referralAskYield,
+  referralBase,
   selectionView,
   selectionWindow,
   SELECTION_STAGE_LABELS,
@@ -137,10 +140,13 @@ export {
   type FunnelCounts,
   type SelectionView
 } from "./selection";
+export { blockHeadline } from "./events";
+export { answerTriage, sendTriage, triageGateOf, triageSent } from "./triage";
+export { pauseNotices, type NoticeTarget, type PauseNotice } from "./pauseNotice";
 export { groupCountFor } from "./eventSelection";
 export { COURSES, findCourse, SELECTION_FORMATS, type CourseDef, type SelectionFormat, type SelectionFormatDef } from "./content/selection";
 export { INTERVIEW_QUESTIONS, findQuestion, type InterviewQuestion } from "./content/interviewQuestions";
-export { PHRASES, type PhraseKind } from "./content/applicantPhrases";
+export { hasHistory, PHRASES, phrasesFor, type PhraseDef, type PhraseKind, type PhraseRequires } from "./content/applicantPhrases";
 export { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";
 export {
   ACADEMIC_PERIODS,

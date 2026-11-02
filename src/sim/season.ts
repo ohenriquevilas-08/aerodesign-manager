@@ -38,6 +38,14 @@ export function actionProblem(state: GameState, action: ActionDef): string | nul
       return null;
     case "selection-open":
       return state.selection ? "Já há um processo seletivo em andamento: termine ou aprove antes de abrir outro." : null;
+    case "referral-ask":
+      if (state.selection?.format !== "referral") return "Só vale numa seletiva por indicação.";
+      return state.selection.stage === "open" ? null : "Peça indicações enquanto as inscrições estão abertas.";
+    case "outreach-posters":
+    case "outreach-social":
+    case "outreach-classroom":
+    case "outreach-freshers":
+      return state.selection?.format === "referral" ? "A seletiva em andamento é por indicação: divulgação geral não vale." : null;
     case "trainee-training":
       return state.members.some((member) => member.role === "trainee") ? null : "Não há trainees na equipe.";
     default:

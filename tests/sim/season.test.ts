@@ -170,7 +170,7 @@ describe("S4: o que dependia da data antiga continua funcionando", () => {
 
   it("o save tem a versão 10 e descarta o da versão 6", () => {
     const state = startedGame({ seed: 1, teamName: "X" });
-    expect(state.version).toBe(10);
+    expect(state.version).toBe(11);
     expect(deserializeState(serializeState(state))).toEqual(state);
     expect(deserializeState(JSON.stringify({ ...state, version: 6 }))).toBeNull();
   });

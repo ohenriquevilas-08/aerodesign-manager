@@ -10,6 +10,7 @@ import { ensureCompetitionEvent } from "./eventCompetition";
 import { advanceEvent, closeEvent, decideEvent, enterEvent } from "./events";
 import { cancelFlightTest, scheduleFlightTest, type ScheduleFlightTestRequest } from "./flightTests";
 import { tick } from "./loop";
+import { answerTriage, sendTriage } from "./triage";
 import { setPredictions, submitReport } from "./report";
 import { payCustoms, placeOrder, type OrderRequest } from "./shop";
 import { advanceApplicants, approveApplicants, scheduleInterviews, setInterviewQuestions, tagApplicant } from "./selection";
@@ -42,6 +43,10 @@ export type Command =
   | { type: "open-selection"; format: SelectionFormat; memberIds: string[]; dedication?: TaskDedication }
   /** Triagem na planilha: chamar, talvez, não (null limpa). */
   | { type: "tag-applicant"; applicantId: string; tag: ApplicantTag | null }
+  /** Fecha a triagem da etapa: o presidente avalia e devolve o parecer. */
+  | { type: "send-triage" }
+  /** Aceita (a marca muda) ou mantém a sua diante da discordância do presidente. */
+  | { type: "answer-triage"; applicantId: string; accept: boolean }
   /** Depois da dinâmica: quem passa para a entrevista (teto BALANCE.selection.interviewCap). */
   | { type: "advance-applicants"; ids: string[] }
   /** Tarefa com gente (entrevistadores); as respostas aparecem aos poucos nas fichas. */
@@ -115,6 +120,10 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return startAction(state, "selection-open", command.format, command.dedication ?? "normal", command.memberIds);
     case "tag-applicant":
       return tagApplicant(state, command.applicantId, command.tag);
+    case "send-triage":
+      return sendTriage(state);
+    case "answer-triage":
+      return answerTriage(state, command.applicantId, command.accept);
     case "advance-applicants":
       return advanceApplicants(state, command.ids);
     case "schedule-interviews":

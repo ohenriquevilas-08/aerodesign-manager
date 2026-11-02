@@ -23,6 +23,7 @@ export type EquipmentItem = "scale" | "thrust-stand";
  * - agility: treino que aumenta agilidade de quem participou.
  * - outreach: soma alcance de divulgação (GameState.outreach), que a seletiva consome.
  * - selection-open: divulgação e abertura da seletiva (Fase 9, S1): soma alcance e, ao terminar, abre as inscrições no formato escolhido.
+ * - referral-ask: "Pedir indicações" (seletiva por indicação): horas por integrante, inscritos a mais chegando aos poucos.
  * - selection-interviews: as entrevistas da seletiva (Fase 9, S4); só pelo comando schedule-interviews.
  * - test: ensaio (design §7.3); estreita margens, cita nos capítulos, desgasta peças (sim/aircraft.ts).
  * - report-chapter / drawings / oral-practice: horas que entram no relatório e na apresentação (sim/report.ts).
@@ -43,6 +44,7 @@ export type ActionEffect =
   | { kind: "selection-open"; amount: number }
   | { kind: "selection-interviews" }
   | { kind: "outreach"; amount: number }
+  | { kind: "referral-ask" }
   | { kind: "test"; test: "structural" | "thrust" }
   | { kind: "report-chapter" }
   | { kind: "drawings" }
@@ -133,6 +135,13 @@ const defs: (Omit<ActionDef, "category" | "yield"> & { yield?: YieldMode })[] = 
     cost: cost(BALANCE.selection.interviewHours, 0), crew: crew(2, 3, null), skill: "communication", yield: "continuous",
     effect: { kind: "selection-interviews" },
     internal: true
+  },
+  {
+    id: "referral-ask",
+    label: "Pedir indicações",
+    // Horas por integrante: startAction multiplica pelo tamanho da equipe escolhida.
+    cost: cost(BALANCE.selection.referral.askHoursPerMember, 0), crew: crew(1, 3, null), skill: "communication", yield: "continuous",
+    effect: { kind: "referral-ask" }
   },
   // Divulgação: ações pequenas que somam alcance para a próxima seletiva.
   { id: "outreach-posters", label: "Cartazes no campus", cost: cost(2, 0), crew: crew(1, 1, null), skill: "communication", yield: "continuous", effect: { kind: "outreach", amount: 4 } },

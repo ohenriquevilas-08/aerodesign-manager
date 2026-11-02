@@ -26,7 +26,7 @@ interface GroupDef {
 }
 
 export const ACTION_GROUPS: readonly GroupDef[] = [
-  { id: "team", title: "Equipe", goal: "Trazer gente nova e guardar o que a equipe já sabe.", actionIds: ["selection-open", "trainee-training", "document"] },
+  { id: "team", title: "Equipe", goal: "Trazer gente nova e guardar o que a equipe já sabe.", actionIds: ["selection-open", "referral-ask", "trainee-training", "document"] },
   { id: "outreach", title: "Divulgação", goal: "Somar alcance para a próxima seletiva.", actionIds: ["outreach-posters", "outreach-social", "outreach-classroom", "outreach-freshers"] },
   { id: "project", title: "Projeto", goal: "Estudar, ler o regulamento e desenhar o avião.", actionIds: ["read-regulation", "study-aero", "drawings"] },
   { id: "fabrication", title: "Fabricação", goal: "Fazer e consertar as peças do avião.", actionIds: ["build-wing", "build-fuselage", "build-tail", "build-gear", "repair-part"], needsRegulation: true },
@@ -69,6 +69,13 @@ function lockedReason(state: GameState, action: ActionDef, needsRegulation: bool
     if (!regulationPublished(state)) return `quando sair o regulamento, ${shortDate(REGULATION_DATE)}`;
   }
   if (needsRegulation && !regulationPublished(state)) return `depois do regulamento, ${shortDate(REGULATION_DATE)}`;
+  const referral = state.selection?.format === "referral";
+  // Por indicação a divulgação geral nem aparece; "Pedir indicações" só existe nela (design §5.2).
+  if (referral && action.id.startsWith("outreach-")) return undefined;
+  if (action.id === "referral-ask") {
+    if (!referral) return undefined;
+    return state.selection?.stage === "open" ? null : "quando as inscrições abrirem";
+  }
   if (action.id === "selection-open" && actionProblem(state, action)) return "quando o processo seletivo atual acabar";
   if (action.id === "trainee-training" && actionProblem(state, action)) return "quando houver trainees";
   return null;
@@ -125,6 +132,8 @@ export function deliveredText(task: Pick<Task, "yielded" | "yieldTotal">, action
     case "selection-open":
     case "outreach":
       return done < 0.5 ? "Ainda sem alcance" : `+${Math.round(done)} de alcance até agora`;
+    case "referral-ask":
+      return done < 0.5 ? "Ainda sem indicados" : `${Math.round(done)} ${Math.round(done) === 1 ? "indicado" : "indicados"} a caminho até agora`;
     case "report-chapter":
     case "drawings":
     case "oral-practice":
@@ -143,6 +152,7 @@ export function yieldText(action: ActionDef): string | null {
   const kind = action.effect?.kind;
   if (action.cost.hours === 0) return null;
   if (action.yield === "at-end") return "Entrega só no fim. Encerrar antes não deixa nada pronto.";
+  if (kind === "referral-ask") return "As horas são por integrante. Os indicados chegam às inscrições aos poucos, na proporção das horas; quem se comunica melhor traz mais gente.";
   if (action.yield === "continuous") {
     return kind === "outreach" ? "O alcance chega aos poucos, na proporção das horas." : "Rende aos poucos, na proporção das horas. Encerrar antes fica com o que já rendeu.";
   }

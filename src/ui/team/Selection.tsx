@@ -10,6 +10,7 @@ import { useDerived } from "../hooks";
 import { navigate } from "../nav";
 import { Approval } from "../selection/Approval";
 import { Funnel } from "../selection/Funnel";
+import { Triage } from "../selection/Triage";
 import { Interviews } from "../selection/Interviews";
 import { openLecture } from "../selection/LectureOverlay";
 import { CAMPAIGN_STEPS, campaignStepIndex, dateLabel, funnelSteps, inDays } from "../selection/model";
@@ -46,7 +47,8 @@ export function Selection() {
                 </li>
               ))}
             </ol>
-            <NextStep view={view} now={now} />
+            <Triage />
+            <NextStep view={view} now={now} referral={campaign?.format === "referral"} />
             <div class="selection-buttons">
               {view.stage !== "promotion" ? (
                 <button type="button" class="btn-primary" onClick={openSheet}>
@@ -64,7 +66,7 @@ export function Selection() {
               ) : null}
               {view.stage === "open" ? (
                 <button type="button" class="btn-ghost" onClick={() => navigate("actions")}>
-                  Divulgar mais (Ações)
+                  {campaign?.format === "referral" ? "Pedir indicações (Ações)" : "Divulgar mais (Ações)"}
                 </button>
               ) : null}
             </div>
@@ -81,10 +83,14 @@ export function Selection() {
 }
 
 /** O que a campanha espera agora e quando, em uma frase. */
-function NextStep({ view, now }: { view: SelectionView; now: number }) {
+function NextStep({ view, now, referral }: { view: SelectionView; now: number; referral: boolean }) {
   const text: Record<SelectionView["stage"], string> = {
-    promotion: "A equipe está divulgando. As inscrições abrem quando a tarefa termina (cerca de uma semana).",
-    open: "Inscrições abertas: os inscritos chegam aos poucos, mais no começo. Triar já na planilha economiza trabalho depois.",
+    promotion: referral
+      ? "A equipe está passando o convite pela rede. As inscrições abrem quando a tarefa termina (cerca de uma semana)."
+      : "A equipe está divulgando. As inscrições abrem quando a tarefa termina (cerca de uma semana).",
+    open: referral
+      ? "Inscrições abertas: os indicados chegam aos poucos. Em Ações, \"Pedir indicações\" traz mais gente. Triar já na planilha economiza trabalho depois."
+      : "Inscrições abertas: os inscritos chegam aos poucos, mais no começo. Triar já na planilha economiza trabalho depois.",
     lecture: "Inscrições encerradas. Use o tempo para triar a planilha. Na palestra, parte dos inscritos falta.",
     dynamic: `A palestra aconteceu (${view.counts.present} de ${view.counts.applicants} vieram). Marque "Chamar" em quem quer ver na dinâmica: até ${view.caps.dynamic} convidados, "Não" fica de fora.`,
     shortlist: "A dinâmica acabou. Escolha quem vai para a entrevista.",
@@ -139,7 +145,10 @@ function OpenCampaign() {
           ))}
         </div>
         <p class="selection-estimate">
-          Estimativa com este formato ({info.window.label}): <strong>{info.low} a {info.high} inscritos</strong>. A divulgação durante as inscrições ainda soma.
+          Estimativa com este formato ({info.window.label}): <strong>{info.low} a {info.high} inscritos</strong>.{" "}
+          {format === "referral"
+            ? "Vêm da rede da equipe: dependem de quantos integrantes são e de como cada um se comunica. Divulgação geral não vale; durante as inscrições dá para pedir mais indicações."
+            : "A divulgação durante as inscrições ainda soma."}
         </p>
         <p>
           <strong>Quem conduz a divulgação</strong> <span class="muted small">(pelo menos 1)</span>

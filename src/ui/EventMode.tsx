@@ -5,10 +5,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { store } from "../app/store";
 import { EventStage } from "../scenes/EventStage";
+import { LectureScene } from "../scenes/LectureScene";
+import { lectureChannel } from "../scenes/lecture/channel";
+import { lectureViewFromApplicants } from "../scenes/lecture/contract";
 import { FlightScene } from "../scenes/FlightScene";
 import { FRAME_WINDOW, framedSceneFor } from "../scenes/event/stage";
 import { flightReplay } from "../scenes/flight/replayChannel";
-import { applicantView, eventView, type EventView, type SelectionDayContext } from "../sim";
+import { applicantView, applicantViews, eventView, type EventView, type SelectionDayContext } from "../sim";
 import { CostTag } from "./components/CostTag";
 import { useDerived } from "./hooks";
 import { PhaserStage } from "./PhaserStage";
@@ -21,6 +24,7 @@ const hourText = (hour: number) => {
 
 const KIND_LABEL = {
   "selection-day": "Dinâmica da seletiva",
+  "selection-lecture": "Palestra da seletiva",
   "flight-test": "Ensaio de voo",
   competition: "Competição"
 } as const;
@@ -76,7 +80,7 @@ function EventScreen({ view }: { view: EventView }) {
   return (
     <div class="event-mode" role="dialog" aria-label={view.title}>
       <div class="event-canvas">
-        <PhaserStage scene={EventStage} sceneKey="event" />
+        {view.kind === "selection-lecture" ? <LectureBackdrop /> : <PhaserStage scene={EventStage} sceneKey="event" />}
       </div>
       {framed ? (
         <div class="event-flight" style={style}>
@@ -125,6 +129,25 @@ function EventScreen({ view }: { view: EventView }) {
       {view.stage === "summary" && view.summary ? <Summary view={view} summary={view.summary} /> : null}
     </div>
   );
+}
+
+/** Palestra como evento: a LectureScene ao fundo, com a plateia de quem veio e os fundadores no palco. */
+function LectureBackdrop() {
+  const data = useDerived(
+    (state) => {
+      const context = state.activeEvent?.context;
+      if (!context || context.kind !== "selection-lecture") return null;
+      const came = new Set(context.attendeeIds);
+      const rows = applicantViews(state).filter((row) => came.has(row.id) || row.lecture === "absent");
+      const speaker = state.members.find((member) => member.role === "president") ?? state.members[0];
+      const onStage = speaker ? [{ id: speaker.id, name: speaker.name, look: speaker.look }] : [];
+      return lectureViewFromApplicants(state.selection?.id ?? "lecture", rows, onStage, state.teamName);
+    },
+    []
+  );
+  if (data) lectureChannel.show(data);
+  useEffect(() => () => lectureChannel.show(null), []);
+  return <PhaserStage scene={LectureScene} sceneKey="lecture" />;
 }
 
 function EventLog({ view }: { view: EventView }) {
