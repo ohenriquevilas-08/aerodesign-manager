@@ -8,7 +8,7 @@ import { EventStage } from "../scenes/EventStage";
 import { FlightScene } from "../scenes/FlightScene";
 import { FRAME_WINDOW, framedSceneFor } from "../scenes/event/stage";
 import { flightReplay } from "../scenes/flight/replayChannel";
-import { eventView, type EventView, type SelectionDayContext } from "../sim";
+import { applicantView, eventView, type EventView, type SelectionDayContext } from "../sim";
 import { CostTag } from "./components/CostTag";
 import { useDerived } from "./hooks";
 import { PhaserStage } from "./PhaserStage";
@@ -247,7 +247,7 @@ function SelectionNotes() {
     const c: SelectionDayContext = context;
     // Só os grupos acompanhados têm anotações por pessoa; cada grupo solto tem uma anotação geral.
     return c.candidateIds.flatMap((id) => {
-      const person = state.candidates.find((item) => item.id === id);
+      const person = applicantView(state, id);
       const notes = c.notes[id] ?? [];
       if (!person || notes.length === 0) return [];
       const watched = c.watchedGroupIds.some((groupId) => c.groups.find((group) => group.id === groupId)?.candidateIds.includes(id));

@@ -1,12 +1,13 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { useGame } from "../../app/useGame";
 import { findProduct, findShop, LISTINGS, type ShippingMode } from "../../sim";
 import type { Cart } from "../browser/cart";
+import { FormsSite } from "../browser/FormsSite";
 import { NewsPage } from "../browser/NewsPage";
 import { OrdersPage } from "../browser/OrdersPage";
 import { ShopLogo, ShopMark } from "../browser/ShopLogo";
 import { ShopPage } from "../browser/ShopPage";
-import { bookmarks, NEWS_SITE, ORDERS_SITE, siteInfo } from "../browser/sites";
+import { bookmarks, FORMS_SITE, NEWS_SITE, ORDERS_SITE, siteInfo } from "../browser/sites";
 import { formatNumber } from "../format";
 
 // Navegador do jogo (design §8.4 e §11): compras como nos sites do celular do GTA V.
@@ -20,10 +21,17 @@ interface BrowserMemory {
   page: Page;
   carts: Record<string, Cart>;
   shipping: Record<string, ShippingMode>;
+  /** Campanha da seletiva cuja aba dos Formulários já abriu sozinha (Fase 9, U1). */
+  formsFor: string | null;
 }
 
 // Sobrevive à troca de tela; não é estado do jogo (o pedido só existe depois do checkout).
-let memory: BrowserMemory = { tabs: [], page: "home", carts: {}, shipping: {} };
+let memory: BrowserMemory = { tabs: [], page: "home", carts: {}, shipping: {}, formsFor: null };
+
+/** Abre (ou põe em foco) um site no Navegador antes de a tela aparecer; usado por quem navega para cá. */
+export function openSite(id: string) {
+  memory = { ...memory, tabs: memory.tabs.includes(id) ? memory.tabs : [...memory.tabs, id], page: id };
+}
 
 const HOME_URL = "aeronet://inicio";
 
@@ -40,6 +48,18 @@ export function Browser() {
     update({ tabs, page });
   };
 
+  // Seletiva (Fase 9, U1): a aba dos Formulários abre quando a campanha começa e fecha quando ela acaba.
+  const campaignId = useGame((game) => game.selection?.id ?? null);
+  const applicantCount = useGame((game) => game.selection?.applicants.length ?? 0);
+  useEffect(() => {
+    if (campaignId && memory.formsFor !== campaignId) {
+      update({ formsFor: campaignId, tabs: memory.tabs.includes(FORMS_SITE) ? memory.tabs : [...memory.tabs, FORMS_SITE], page: memory.tabs.includes(FORMS_SITE) ? memory.page : FORMS_SITE });
+    } else if (!campaignId && (memory.formsFor || memory.tabs.includes(FORMS_SITE))) {
+      close(FORMS_SITE);
+      update({ formsFor: null });
+    }
+  }, [campaignId]);
+
   const openOrders = useGame((game) => game.orders.filter((order) => order.status !== "delivered").length);
   const held = useGame((game) => game.orders.some((order) => order.status === "held-customs"));
   const shop = findShop(state.page);
@@ -53,7 +73,7 @@ export function Browser() {
             const site = siteInfo(id);
             if (!site) return null;
             const count = Object.values(state.carts[id] ?? {}).reduce((sum, value) => sum + value, 0);
-            const badge = id === ORDERS_SITE ? openOrders || null : count || null;
+            const badge = id === ORDERS_SITE ? openOrders || null : id === FORMS_SITE ? applicantCount || null : count || null;
             return (
               <BrowserTab
                 key={id}
@@ -68,7 +88,7 @@ export function Browser() {
                   <ShopMark shopId={id} size={16} />
                 ) : (
                   <span class="browser-tab-icon" aria-hidden="true">
-                    {id === NEWS_SITE ? "✎" : "▤"}
+                    {id === NEWS_SITE ? "✎" : id === FORMS_SITE ? "▦" : "▤"}
                   </span>
                 )}
               </BrowserTab>
@@ -109,10 +129,12 @@ export function Browser() {
             />
           ) : state.page === ORDERS_SITE ? (
             <OrdersPage />
+          ) : state.page === FORMS_SITE ? (
+            <FormsSite />
           ) : state.page === NEWS_SITE ? (
             <NewsPage onOpen={open} />
           ) : (
-            <HomePage onOpen={open} />
+            <HomePage onOpen={open} forms={campaignId !== null} />
           )}
         </div>
       </div>
@@ -154,7 +176,7 @@ function BrowserTab({
 /** Minúsculas e sem acento, para a busca. */
 const normalize = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
-function HomePage({ onOpen }: { onOpen: (siteId: string) => void }) {
+function HomePage({ onOpen, forms }: { onOpen: (siteId: string) => void; forms: boolean }) {
   const credits = useGame((state) => state.credits);
   const [query, setQuery] = useState("");
   const term = normalize(query.trim());
@@ -195,7 +217,7 @@ function HomePage({ onOpen }: { onOpen: (siteId: string) => void }) {
         </div>
       ) : (
         <div class="browser-home-grid">
-          {bookmarks().map((site) => (
+          {bookmarks({ forms }).map((site) => (
             <button key={site.id} type="button" class={`shop-tile${findShop(site.id) ? "" : " is-orders"}`} data-shop={findShop(site.id) ? site.id : undefined} onClick={() => onOpen(site.id)}>
               {findShop(site.id) ? <ShopLogo shopId={site.id} size={34} /> : <strong>{site.title}</strong>}
               <span class="shop-tile-tagline">{site.blurb}</span>
