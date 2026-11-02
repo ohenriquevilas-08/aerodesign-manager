@@ -72,6 +72,9 @@ const LEGS: Record<SpriteGender, readonly (readonly [LegsKind, number])[]> = {
   ]
 };
 
+/** Roupa forçada: `own` = roupa própria (inscrito ainda não é da equipe), `team` = camiseta da equipe (capitães). */
+export type SpriteOutfit = "own" | "team";
+
 /** Gênero da arte vindo da simulação (`MemberLook.female`; ausente = masculino). */
 export const genderOf = (look: MemberLook): SpriteGender => (look.female ? "f" : "m");
 
@@ -80,13 +83,15 @@ export const genderOf = (look: MemberLook): SpriteGender => (look.female ? "f" :
  * `gender` ausente: sorteado pelo id com FEMALE_SHARE. Ponto de troca: quando a simulação tiver
  * `gender` no integrante, passe-o aqui; o resto do visual não muda, só o penteado e o rosto.
  */
-export function spriteLookFrom(look: MemberLook, gender: SpriteGender | undefined, seed: string | number): SpriteLook {
+export function spriteLookFrom(look: MemberLook, gender: SpriteGender | undefined, seed: string | number, outfit?: SpriteOutfit): SpriteLook {
   const roll = stream(hash(seed));
   const genderRoll = roll();
   const g: SpriteGender = gender ?? (genderRoll < FEMALE_SHARE ? "f" : "m");
   const families = g === "f" ? FEMALE_FROM_OLD : MALE_FROM_OLD;
   const hair: HairStyle = pick(roll(), families[look.hair % families.length]!);
-  const top = weighted(roll(), TOPS);
+  const drawnTop = weighted(roll(), TOPS);
+  // "own": roupa do dia a dia (nunca a camiseta da equipe); "team": sempre a camiseta da equipe.
+  const top: TopKind = outfit === "team" ? "team" : outfit === "own" && drawnTop === "team" ? "tee" : drawnTop;
   const legs = weighted(roll(), LEGS[g]);
   const topColor = top === "jacket" ? pick(roll(), S.jacket) : pick(roll(), S.cloth);
   const legsColor = legs === "jeans" ? pick(roll(), S.denim) : pick(roll(), S.pants);
