@@ -102,9 +102,16 @@ Capítulo Aerodinâmica   ███░░░░░░░░░  25%   Bia       
 Rifa de março           ██████████░░  85%   Davi           +420 cr
 ```
 
-- Cada integrante tem **horas disponíveis por dia** = disponibilidade × calendário acadêmico × motivação.
-- O jogador monta a fila de tarefas e aloca gente; as barras andam sozinhas. No hangar (cena), dá para ver as pessoas trabalhando em cada bancada.
-- Gente sem tarefa desmotiva. Gente sobrecarregada também.
+- Cada integrante tem **horas disponíveis por dia** = disponibilidade × calendário acadêmico × motivação × energia (§5.1).
+- **Uma tarefa nunca fica parada sem gente [DECIDIDO, Fase 8].** Ao iniciar, o jogador escolhe as pessoas (`start-action` com `memberIds`) e a tarefa só começa com o **mínimo** da ação (`crew.min`); quem entra fica ocupado até a tarefa terminar ou o jogador **encerrar** (`close-task`). Não dá tirar gente e deixá-la abaixo do mínimo; o caminho é encerrar. Quem é desligado ou se forma e deixa a tarefa abaixo do mínimo faz a tarefa encerrar sozinha, com o parcial, e avisar. A espera de calendário (compra, cura) não ocupa ninguém.
+- **O resultado sai aos poucos.** Cada ação declara como entrega (`yield`), e `Task.yielded` guarda o que já saiu para nada sair duas vezes:
+  - **contínuo:** o efeito acontece proporcional às horas. Divulgação soma alcance, o capítulo do relatório soma horas de escrita (aparecem na nota na hora). O total é sorteado ao iniciar, com a equipe escolhida.
+  - **em marcos:** a seletiva traz os inscritos a cada 25% das horas (`BALANCE.yield.selectionStep`); a fabricação avança em três etapas (corte, montagem, acabamento; `fabricateStep` = 1/3). Peça encerrada no meio fica **parcial**: não voa, mas uma nova tarefa de fabricar com a peça como alvo termina o que falta, sem gastar material nem caixa de novo. Encerrar antes da primeira etapa perde o material.
+  - **só no fim:** onde parcial não faz sentido (rifa, patrocínio, ensaios, documentar, reparo). Encerrar perde o resultado; o aprendizado de quem trabalhou fica.
+  - Em qualquer modo o conhecimento e as habilidades sobem **hora a hora**, não na conclusão.
+- **Sem limite rígido de pessoas onde não há espaço físico.** Tarefas de organização (seletiva, divulgação, estudo, relatório, documentação, captação) aceitam qualquer número de pessoas; fabricação, laminação e bancada mantêm um máximo físico. Até o número ideal cada pessoa soma 100%; as extras rendem menos, nesta ordem: 70%, 50%, 35%, 25%, 18%, 12% (depois fica em 12%; `BALANCE.crew.extraEfficiency`). A leitura `crewEfficiency(ação, n)` devolve quantas "pessoas inteiras" de trabalho rendem n pessoas, para a UI mostrar o ganho de mais uma.
+- O jogador monta a fila de tarefas escolhendo a equipe de cada uma; as barras andam sozinhas. No hangar (cena), dá para ver as pessoas trabalhando em cada bancada.
+- Gente sem tarefa desmotiva. Gente exausta (§5.1, energia) também.
 - Isso substitui as "ações flexíveis" da premissa 3B: o volume de trabalho depende da equipe, não de um limite de ações.
 
 ### 4.3 Calendário da temporada 2025–26 **[DECIDIDO, Fase 6]**
@@ -169,10 +176,22 @@ O jogador pode marcar ações no calendário (estilo FIFA): `schedule-action` p�
 | Pilotagem | 0–100 | Só para quem pilota; afeta risco no voo |
 | Agilidade | 0–100 | Retirada rápida de carga (até 2 pessoas) |
 | Motivação | Baixa → Alta | Multiplica horas e qualidade |
+| Energia **[Fase 8]** | 0–100 | Gasta trabalhando, recupera descansando; multiplica horas e qualidade (abaixo) |
+| Diz gostar de **[Fase 8]** | 0–2 disciplinas | Preferência declarada; pode estar errada |
+| Gosta / detesta **[Fase 8]** | escondido | A preferência real; trabalhar no que gosta anima, no que detesta gasta mais energia |
+| Facilidade **[Fase 8]** | devagar · normal · rápido, por disciplina | Escondida; multiplica o ganho de conhecimento (0,6 · 1 · 1,5). Aparece depois de 10 horas na disciplina |
 | Disponibilidade | h/dia | Base das horas |
 | Período / formatura | semestre | Define quando sai da equipe |
 
 **Formação por área (Fase 4):** a equipe se organiza por área, cada uma com 1 capitão e N integrantes; sem banco nem reserva. Classe Regular: Aerodinâmica (2 vagas de integrante), Estruturas (3), Elétrica (2), Desempenho (1), Estabilidade e controle (1) e Cargas (1), ou seja, 6 capitães + 10 integrantes (valores provisórios, `content/formations.ts`). Projeto conceitual não é área. Novato chega sem área; o presidente é um aluno como os outros e pode ocupar uma área (mas não a vaga de capitão); o trainee fica fora da formação até virar integrante. Trocar um integrante de uma área para outra custa **8 pontos de motivação** (`BALANCE.formation.changeAreaMotivation`); o conhecimento tácito fica na disciplina antiga. Área vazia mostra o que para sem ela. Os capitães escolhidos na fundação já começam nas suas áreas.
+
+**Energia [DECIDIDO, Fase 8; valores PROPOSTA em `BALANCE.energy`].** Todo aluno começa com 100.
+- **Gasta** 5 pontos por hora trabalhada; a madrugada de oficina gasta ×1,6 (×2,2 depois da 1h) e a disciplina que a pessoa detesta ×1,4. Quem trabalha não recupera nas horas trabalhadas.
+- **Recupera** por hora de relógio fora do trabalho: 0,5 acordado e 1,5 dormindo (23h às 7h), ×1,5 no fim de semana. Um aluno com 3 h/dia de trabalho fica estável; uma semana de madrugadas derruba.
+- **Rendimento:** abaixo de 40 de energia as horas e a qualidade caem, linearmente até 50% em 15; abaixo de 15 a pessoa **para sozinha** (a tarefa não anda com ela, a motivação cai 4 por dia) e volta quando recupera. Substitui o antigo `workStreakHours` e a sobrecarga escondida. "Cansado" na UI é energia abaixo de 40.
+- **Leitura `energyOutlook`:** energia atual, nível (ok, cansado, exausto), variação por dia no ritmo atual (a tarefa em que está e a escala), tendência (sobe, desce, estável) e em quantas horas chega ao limite de exaustão.
+
+**Alunos não determinados [DECIDIDO, Fase 8].** Ninguém chega "forte em X". O conhecimento inicial é baixo e parecido: 8 ± 3 em todas as disciplinas, para fundadores, candidatos e trainees (a seletiva só dá um bônus de 0 a 6 na disciplina que o candidato diz gostar). O que cada um **diz gostar** (0 a 2 disciplinas) bate com o que **gosta de verdade** só em parte (60% por item), e cada pessoa também **detesta** uma disciplina. A **facilidade** em cada disciplina é sorteada (25% devagar, 50% normal, 25% rápido) e fica escondida até a pessoa somar 10 horas de trabalho nela; aí chega uma mensagem ("Enzo pegou rápido Cargas e aeroelasticidade") e `revealedAptitude` marca a disciplina. A Fase 9 (árvore do orientador) terá um ramo que revela preferência e facilidade mais cedo: o gancho é `revealAptitude(estado, integrante, disciplina)`. Os textos dos fundadores e os pareceres dos capitães são **intenções** ("Diz que quer mexer com aerodinâmica"), não medidas. O orientador tem nome padrão masculino (Ricardo Prado), editável na abertura, e a paleta de cabelo dos alunos não tem cinza.
 
 **Disciplinas** = as do relatório 2026: Projeto conceitual e preliminar · Aerodinâmica · Desempenho · Estabilidade e controle · Cargas e aeroelasticidade · Estruturas e ensaios estruturais · Projeto elétrico e safety assessment. Usar as disciplinas reais amarra equipe, projeto e nota do relatório num único eixo.
 
@@ -182,7 +201,7 @@ O jogador pode marcar ações no calendário (estilo FIFA): `schedule-action` p�
 
 **O jogador é o professor orientador** (`advisor: { name, reputation }`), permanente de ano para ano, como o técnico no modo carreira. A reputação começa baixa (`BALANCE.advisor`, **[PROPOSTA]**) e sobe com resultados (relatório enviado, fim da competição); no Ano 1 só é exibida (`advisorView`).
 
-**Fundação:** um grupo de **4 alunos fundadores** (`content/founders.ts`), sem cargo, conhecimento inicial baixo, cada um com uma "cara" (o que gosta de fazer) e um perfil de agenda, convida o orientador. O comando `found-team { presidentId, captains, teamName? }` (só no estado `founding`; o relógio fica pausado até lá) é a eleição: o orientador sugere quem preside e quem capitaneia o quê. Os capitães são opcionais (o organograma de fundação não é rígido); cada fundador assume um só cargo; só áreas da formação têm capitão. Fundadores podem ter inclinação de gestão ou marketing, não só de engenharia (áreas de negócio ficam para a Fase 7).
+**Fundação:** um grupo de **4 alunos fundadores** (`content/founders.ts`), sem cargo, conhecimento inicial baixo e parecido, cada um com uma "cara" (o que **diz** gostar de fazer, uma intenção que pode não ser o gosto real) e um perfil de agenda, convida o orientador. O comando `found-team { presidentId, captains, teamName? }` (só no estado `founding`; o relógio fica pausado até lá) é a eleição: o orientador sugere quem preside e quem capitaneia o quê. Os capitães são opcionais (o organograma de fundação não é rígido); cada fundador assume um só cargo; só áreas da formação têm capitão. Fundadores podem ter inclinação de gestão ou marketing, não só de engenharia (áreas de negócio ficam para a Fase 7).
 
 **Presidente:** um aluno NPC. Trabalha, tem horas, área e carta, e uma `agenda`: `report`, `flight`, `funding` ou `balanced` (**[PROPOSTA]**). Tarefa concluída da agenda dá +1 de motivação a toda a equipe; 3 dias seguidos sem tarefa da agenda tiram 3 de motivação do presidente por dia (`BALANCE.agenda`). Nada é bloqueado. `presidentView` mostra a agenda e como o mês (30 dias) está para ela. Os rótulos são **prioridades com o efeito** (Fase 7), no conteúdo: "Prioridade: fazer o avião voar · tarefas de fabricação e ensaio animam a equipe"; do mesmo jeito, entregar o relatório, levantar caixa e gente, equilibrar as três frentes (`AgendaDef.priority`, `effect`, `text`).
 
@@ -235,7 +254,7 @@ Toda equipe real tem uma planilha de escala: quem está na oficina em cada turno
 **Madrugada:** na engenharia, cada semestre tem uma grade diferente. Juntar Aerodinâmica, Estruturas e Elétrica no mesmo turno quase sempre só é possível de madrugada. É ali que acontecem a integração do avião e as laminações grandes, que precisam de muita gente ao mesmo tempo.
 
 - **Sem autorização:** a oficina é da equipe, fora do bloco de aulas, e a equipe tem a chave (quem pode abrir a oficina continua sendo decisão do orientador: a chave). A madrugada está sempre disponível na grade; o que a limita são os custos abaixo, não um pedido ao departamento (decidido no playtest de 01/11/2026).
-- **Sono cobra a conta:** quem fez madrugada perde o turno da manhã seguinte (está dormindo ou em aula, sem render) e tem queda de motivação, que aumenta com madrugadas seguidas.
+- **Sono cobra a conta [Fase 8]:** a madrugada gasta mais energia (×1,6, e ×2,2 depois da 1h) e não deixa recuperar; quem virou a noite acorda com pouca energia e rende menos no dia seguinte (uma consequência contínua, no lugar de perder o turno da manhã), além da queda de motivação, que aumenta com madrugadas seguidas.
 - **Cansaço gera erro:** trabalho de madrugada sai com qualidade menor (como uma dedicação "rápida" involuntária), maior depois da 1h. Dá para compensar com a dedicação "caprichado".
 - **Virada antes de prazo:** na semana de um prazo (relatório, vídeo de voo), a madrugada rende mais motivação em vez de tirar. A equipe se une na reta final, e qualquer um que já virou noite na oficina reconhece isso. Fora dessas semanas, ela desgasta.
 
@@ -408,7 +427,7 @@ Toda ação do jogo mostra o que custa, sempre com os mesmos ícones e na mesma 
 
 | Moeda | Ícone | O que é | De onde vem |
 |---|---|---|---|
-| **Horas** | ⏱ | Horas-pessoa da equipe. Recurso que se renova todo dia, mas se perde se não for usado | Integrantes × disponibilidade × calendário acadêmico × motivação |
+| **Horas** | ⏱ | Horas-pessoa da equipe. Recurso que se renova todo dia, mas se perde se não for usado | Integrantes × disponibilidade × calendário acadêmico × motivação × energia |
 | **Créditos** | ◆ | Dinheiro do caixa. Acumula | Captação, prêmios |
 | **Prazo** | ⌛ | Espera no calendário **sem ocupar ninguém** (entrega de compra, cura de resina, resposta de patrocinador) | — |
 
@@ -465,6 +484,8 @@ Voo com carga incremental  ⏱ 12 h   ◆ 30    ⌛ —      ⚠ médio
 | Viagem para a competição | Créditos de viagem + a equipe fica dedicada ao evento |
 
 ### 8.3 Regras gerais **[DECIDIDO]** (ver ESPECIFICACAO_ANO_1)
+
+- **Horas exigem gente [Fase 8].** Toda ação com horas pede o mínimo de pessoas livres para começar (§4.2). Ação só com créditos e prazo (pedidos, frete) não ocupa ninguém. Encerrar uma tarefa devolve a equipe na hora; créditos e material gastos não voltam, exceto a peça parcial, que continua no hangar.
 
 - Caixa inicial: **0 créditos**. As primeiras ações possíveis são as "só horas", incluindo captação.
 - Seletiva, contratação e divulgação orgânica: grátis.

@@ -19,6 +19,8 @@ src/
     season.ts      regulamento, fundação, agenda do presidente, trainees (Fase 6)
     calendar.ts    ações agendadas e leituras calendarMonth/seasonOverview (Fase 6)
     rng.ts         aleatoriedade com estado serializável
+    energy.ts      energia por aluno (Fase 8): gasto, recuperação, leitura energyOutlook
+    aptitude.ts    preferências declaradas e reais, facilidade escondida e revelação (Fase 8)
     content/       dados: regulamento, calendário, equipes, catálogo de ações
     index.ts       API pública; o resto do app importa só daqui
   app/       cola entre sim e apresentação

@@ -316,7 +316,8 @@ export function installedParts(state: GameState): Record<PartType, Part | null> 
     electronics: null
   };
   for (const part of state.parts) {
-    if (part.condition < 20) continue;
+    // Peça parcial (Fase 8, S2) ainda não voa; peça quebrada também não.
+    if (part.condition < 20 || part.partial !== undefined) continue;
     const current = result[part.type];
     if (!current || part.condition >= current.condition) result[part.type] = part;
   }
@@ -353,7 +354,7 @@ export function missingPartsText(state: GameState): string | null {
   if (missing.length === 0) return null;
   const names = missing.map((type) => `${PART_ARTICLES[type]} ${PART_TYPE_LABELS[type].toLowerCase()}`);
   const list = names.length === 1 ? names[0]! : `${names.slice(0, -1).join(", ")} e ${names.at(-1)!}`;
-  const broken = missing.some((type) => state.parts.some((part) => part.type === type));
+  const broken = missing.some((type) => state.parts.some((part) => part.type === type && part.partial === undefined));
   return `${names.length === 1 ? "Falta" : "Faltam"} ${list}${broken ? " (peça quebrada não conta)" : ""}.`;
 }
 

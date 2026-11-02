@@ -79,7 +79,7 @@ function targetProblem(state: GameState, action: ActionDef, targetId: string | n
     case "selection-format":
       return findSelectionFormat(targetId) ? null : "Escolha o formato da seletiva.";
     case "part":
-      return state.parts.some((part) => part.id === targetId) ? null : "Escolha a peça a reparar.";
+      return state.parts.some((part) => part.id === targetId && part.partial === undefined) ? null : "Escolha a peça a reparar.";
     case "waiting-task": {
       const task = state.tasks.find((item) => item.id === targetId);
       return task && task.status === "waiting" && task.readyAt !== null && task.readyAt > state.clock.hours
