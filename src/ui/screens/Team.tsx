@@ -3,12 +3,13 @@ import { useGame } from "../../app/useGame";
 import { academicFactor, clockToDate, memberHoursPerDay, rosterMembers } from "../../sim";
 import { Formation } from "../team/Formation";
 import { Roster } from "../team/Roster";
+import { SelectionProvisional } from "../team/SelectionProvisional";
 import { WorkshopSchedule } from "../team/WorkshopSchedule";
 import { formatNumber } from "../format";
 
 // Tela Equipe (design §5): escalação, Central do Elenco (Fase 6, U5) e escala da oficina.
 
-type TeamTab = "formation" | "roster" | "schedule";
+type TeamTab = "formation" | "roster" | "schedule" | "selection";
 // Sobrevive à troca de tela; não é estado do jogo.
 let savedTab: TeamTab = "formation";
 
@@ -37,6 +38,9 @@ export function Team() {
           <button type="button" role="tab" aria-selected={tab === "schedule"} onClick={() => setTab("schedule")}>
             Escala da oficina
           </button>
+          <button type="button" role="tab" aria-selected={tab === "selection"} onClick={() => setTab("selection")}>
+            Seletiva
+          </button>
         </div>
         {president ? (
           <span class="stat" title="Aluno eleito na fundação; o jogador é o professor orientador">
@@ -64,6 +68,7 @@ export function Team() {
       {tab === "formation" ? <Formation /> : null}
       {tab === "schedule" ? <WorkshopSchedule /> : null}
       {tab === "roster" ? <Roster /> : null}
+      {tab === "selection" ? <SelectionProvisional /> : null}
     </div>
   );
 }

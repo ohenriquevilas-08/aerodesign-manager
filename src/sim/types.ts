@@ -139,13 +139,31 @@ export interface MemberLook {
   female?: boolean;
 }
 
-/** Candidato da seletiva (design §5.2): vira Member com role "member" ao ser convidado. */
-export interface Candidate {
-  id: string;
-  name: string;
-  /** Formato da seletiva que trouxe o candidato (content/selection.ts). */
-  format: string;
-  /** Disciplina em que o candidato chega sabendo algo. */
+// ---------------------------------------------------------------------------
+// Fase 9, S1: seletiva imersiva (docs/phases/fase-9.md). Inscrito não é membro: o perfil completo
+// fica escondido em `Applicant.profile` e a UI só lê `applicantView` (o que já foi revelado).
+// ---------------------------------------------------------------------------
+
+/** Curso do inscrito (content/selection.ts, COURSES). */
+export type CourseId = "aeronautical" | "mechanical" | "electrical" | "computing" | "production";
+
+/**
+ * Onde a campanha está (o que vem a seguir):
+ * promotion (tarefa de divulgação e abertura) · open (inscrições) · lecture (inscrições fechadas,
+ * esperando a palestra) · dynamic (esperando o dia da dinâmica) · shortlist (escolher quem vai para
+ * a entrevista) · interview (agendar entrevistas) · interviewing (entrevistas em andamento) ·
+ * decision (aprovar).
+ */
+export type SelectionStage = "promotion" | "open" | "lecture" | "dynamic" | "shortlist" | "interview" | "interviewing" | "decision";
+
+export type ApplicantStage = "applied" | "lecture" | "dynamic" | "interview" | "approved" | "rejected" | "absent";
+
+/** Triagem do jogador: chamar, talvez, não. */
+export type ApplicantTag = "call" | "maybe" | "no";
+
+/** Perfil escondido do inscrito: o que vira o Member se for aprovado. */
+export interface ApplicantProfile {
+  /** Disciplina em que chega sabendo algo. */
   focus: Discipline;
   knowledge: Record<Discipline, number>;
   fabrication: number;
@@ -154,25 +172,81 @@ export interface Candidate {
   motivation: number;
   hoursPerDay: number;
   graduation: string;
-  /** Fase 8, S5: preferências e facilidade, como no Member. */
   statedLikes: Discipline[];
   likes: Discipline[];
   dislikes: Discipline[];
   aptitude: Record<Discipline, Aptitude>;
-  /** Parecer de um capitão, em PT-BR. */
-  opinion: string;
-  /** Turnos com aula no semestre; passa para o integrante ao contratar. */
   classSlots: SlotKey[];
-  /** Aparência; passa para o integrante ao contratar. */
   look: MemberLook;
-  /** Fase 7: anotações do dia da dinâmica (vazio até lá). */
-  observations?: string[];
-  /** Fase 7: parecer final depois da dinâmica. */
-  verdict?: CandidateVerdict;
 }
 
-/** Fase 7: leitura final de um candidato depois do dia da dinâmica. */
-export type CandidateVerdict = "strong" | "promising" | "unclear";
+export interface InterviewAnswer {
+  questionId: string;
+  text: string;
+}
+
+/** O que a UI já pode saber do inscrito além do formulário. */
+export interface ApplicantRevealed {
+  /** Presença na palestra; null antes dela. */
+  lecture: "present" | "absent" | null;
+  /** Compareceu à dinâmica; null antes dela. */
+  dynamic: boolean | null;
+  /** Respostas da entrevista, na ordem em que apareceram. */
+  answers: InterviewAnswer[];
+}
+
+export interface Applicant {
+  id: string;
+  name: string;
+  course: CourseId;
+  /** Período do curso, 1 a 10. */
+  semester: number;
+  /** A frase do formulário: "por que quero entrar" (pode enganar). */
+  motivationText: string;
+  stage: ApplicantStage;
+  tag: ApplicantTag | null;
+  /** Anotações da dinâmica e da equipe, em PT-BR. */
+  notes: string[];
+  revealed: ApplicantRevealed;
+  /** Perguntas escolhidas para a entrevista (até BALANCE.selection.maxQuestions). */
+  questionIds: string[];
+  /** ESCONDIDO: nunca vai para a UI (use applicantView). */
+  profile: ApplicantProfile;
+}
+
+/** Entrevistas agendadas: quem entrevista, quem é entrevistado e a tarefa que as conduz. */
+export interface InterviewPlan {
+  applicantIds: string[];
+  memberIds: string[];
+  taskId: string;
+  /** Quantas já foram feitas (respostas reveladas). */
+  done: number;
+}
+
+export interface SelectionCampaign {
+  id: string;
+  /** Formato (content/selection.ts). */
+  format: string;
+  stage: SelectionStage;
+  /** Horas de jogo; null enquanto a divulgação (etapa 1) não terminou. */
+  openedAt: number | null;
+  closesAt: number | null;
+  lectureAt: number | null;
+  dynamicDayAt: number | null;
+  applicants: Applicant[];
+  /** Reservado: as vagas são quantos o jogador aprova (approve-applicants). */
+  vacancies: number | null;
+  /** Como os inscritos chegam: total sorteado na abertura, extra por divulgação nas inscrições, os que já chegaram e o alcance já contado. */
+  arrival: { total: number; extra: number; arrived: number; outreachSeen: number };
+  interviews: InterviewPlan | null;
+}
+
+/** Quem está na dinâmica (espelho enxuto do inscrito para as cenas; ver GameState.candidates). */
+export interface DynamicsPerson {
+  id: string;
+  name: string;
+  look: MemberLook;
+}
 
 export type PartType = "wing" | "fuselage" | "tail" | "landingGear" | "powertrain" | "electronics";
 
@@ -264,6 +338,8 @@ export type PauseReason =
   | "flight-test"
   /** Fase 7: dia da dinâmica da seletiva (evento). */
   | "selection-day"
+  /** Fase 9: a palestra da seletiva aconteceu (aviso com a presença). */
+  | "selection"
   /** Fase 6: uma ação agendada não pôde começar (falta de gente, caixa ou pré-condição). */
   | "scheduled";
 
@@ -619,7 +695,7 @@ export interface PlannedAction {
 }
 
 export interface GameState {
-  version: 9;
+  version: 10;
   seed: number;
   rngState: number;
   clock: Clock;
@@ -638,8 +714,13 @@ export interface GameState {
   rivals: RivalTeam[];
   /** Alcance de divulgação acumulado (cartazes, redes, sala, stand); decai por dia e a seletiva consome. */
   outreach: number;
-  /** Candidatos da última seletiva ainda sem resposta. Convite é gratuito. */
-  candidates: Candidate[];
+  /**
+   * @deprecated Fase 9: espelho dos participantes da dinâmica (id, nome, aparência), só para
+   * src/scenes/event/source.ts até a frente de Cenas (C1) ler `selection`. Vazio fora do evento.
+   */
+  candidates: DynamicsPerson[];
+  /** Fase 9: a campanha de seletiva em andamento (uma por vez); null = nenhuma. */
+  selection: SelectionCampaign | null;
   /** Não nulo enquanto o relógio está pausado (speed 0): diz por quê. */
   pause: PauseInfo | null;
   /** Último comando recusado; a UI mostra quando `id` muda. */
@@ -675,8 +756,7 @@ export interface GameState {
   agendaLog: AgendaDay[];
   /** Fase 7: evento imersivo em andamento (ou esperando a chamada); o relógio fica parado. */
   activeEvent: ActiveEvent | null;
-  /** Fase 7: dia da dinâmica da seletiva, marcado quando a seletiva (tarefa) conclui; null = nenhum. */
-  selectionDay: SelectionDaySchedule | null;
+
 }
 
 // ---------------------------------------------------------------------------
@@ -931,23 +1011,23 @@ export interface DynamicsGroup {
 
 export interface SelectionDayContext {
   kind: "selection-day";
+  /** Inscritos que vieram à dinâmica (ids de Applicant). */
   candidateIds: string[];
   groups: DynamicsGroup[];
-  /** Grupo que você observou de perto; null = nenhum. */
+  /** Primeiro grupo que você acompanhou de perto (as cenas leem este); null = nenhum ainda. */
   watchedGroupId: string | null;
+  /** Grupos acompanhados de perto, em ordem (até BALANCE.selection.watchedGroups). */
+  watchedGroupIds: string[];
+  /** A escolha dos grupos acabou (atingiu o limite ou você disse "chega"). */
+  watchDone: boolean;
   /** Quem travou no desafio; null = ninguém. */
   frozeId: string | null;
   /** true/false depois da decisão; null = não houve. */
   secondChance: boolean | null;
-  /** Anotações por candidato. */
+  /** Anotações por inscrito (viram `Applicant.notes` no fechamento). */
   notes: Record<string, string[]>;
-  /** Candidatos que os capitães recomendam (ordem de preferência). */
+  /** Quem os capitães acharam mais interessante (a recomendação deles, sem decisão). */
   captainsPick: string[];
-  /** Quem você prefere, pelo que viu. */
-  yourPick: string[];
-  /** Escolha final: "captains" | "mine"; null = ainda não. */
-  followed: "captains" | "mine" | null;
-  verdicts: Record<string, CandidateVerdict>;
 }
 
 export interface FlightTestContext {
@@ -1021,10 +1101,3 @@ export interface ActiveEvent {
   context: EventContext;
 }
 
-/** Fase 7, S2: dia da dinâmica marcado depois da divulgação e da inscrição. */
-export interface SelectionDaySchedule {
-  /** Horas de jogo da primeira hora do evento. */
-  at: number;
-  /** Formato da seletiva que gerou os candidatos. */
-  format: string;
-}

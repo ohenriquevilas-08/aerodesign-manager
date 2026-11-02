@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { drawCandidates, hireCandidate } from "../../src/sim/selection";
 import { drawLook, formationView, LOOK_OPTIONS, rosterMembers, TEAM_SHIRT_COLOR, type MemberLook } from "../../src/sim";
-import { startedGame } from "./helpers";
+import { startedGame, withApplicants } from "./helpers";
+import { approveApplicants } from "../../src/sim/selection";
 
 function validLook(look: MemberLook) {
   const index = (value: number, count: number) => {
@@ -37,13 +37,13 @@ describe("aparência dos integrantes (S3)", () => {
     expect(looks.some((look) => !look.accessory)).toBe(true);
   });
 
-  it("candidato da seletiva tem look e o leva ao ser convidado", () => {
-    const state = drawCandidates(startedGame({ seed: 5, teamName: "T" }), "broad", 3);
-    expect(state.candidates.length).toBeGreaterThan(0);
-    for (const candidate of state.candidates) validLook(candidate.look);
-    const candidate = state.candidates[0]!;
-    const hired = hireCandidate(state, candidate.id)!;
-    expect(hired.members.at(-1)!.look).toEqual(candidate.look);
+  it("inscrito da seletiva tem look e o leva ao ser aprovado", () => {
+    const state = withApplicants(startedGame({ seed: 5, teamName: "T" }), 3);
+    const applicants = state.selection!.applicants;
+    expect(applicants.length).toBe(3);
+    for (const applicant of applicants) validLook(applicant.profile.look);
+    const hired = approveApplicants(state, [applicants[0]!.id]);
+    expect(hired.members.at(-1)!.look).toEqual(applicants[0]!.profile.look);
   });
 });
 

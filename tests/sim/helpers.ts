@@ -4,6 +4,7 @@
 // Rafa continua integrante.
 
 import { applyCommand, createGame, dateToHours, type EventDecision, type GameState } from "../../src/sim";
+import { approveApplicants, beginCampaign, drawApplicants, findSelectionFormat } from "../../src/sim/selection";
 
 export const TEST_START_HOURS = dateToHours(Date.UTC(2026, 1, 19));
 
@@ -26,6 +27,26 @@ export function foundedGame(options: { seed: number; teamName: string }): GameSt
   return { ...founded, pause: null };
 }
 
+
+/**
+ * Campanha da seletiva já na etapa de decisão com `count` entrevistados (atalho para testes que só
+ * precisam de gente a aprovar, sem rodar as seis semanas).
+ */
+export function withApplicants(state: GameState, count: number, format = "broad"): GameState {
+  const begun = beginCampaign(state, format);
+  const drawn = drawApplicants(begun, findSelectionFormat(format)!, count);
+  const campaign = drawn.selection!;
+  return {
+    ...drawn,
+    selection: { ...campaign, stage: "decision", applicants: campaign.applicants.map((applicant) => ({ ...applicant, stage: "interview" as const })) }
+  };
+}
+
+/** Aprova os `count` primeiros de uma campanha de atalho: devolve o estado com os trainees na equipe. */
+export function withTrainees(state: GameState, count: number): GameState {
+  const campaign = withApplicants(state, count);
+  return approveApplicants(campaign, campaign.selection!.applicants.map((applicant) => applicant.id));
+}
 
 /** Escolhe a primeira opção liberada da decisão. */
 export const firstOption = (decision: EventDecision): string => decision.options.find((option) => !option.blocked)!.id;

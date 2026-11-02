@@ -53,7 +53,7 @@ describe("schedule-action, reschedule-action e unschedule-action", () => {
     expect(refused(schedule(base, { startAt: Number.NaN }))).toContain("data");
     expect(refused(schedule(base, { memberIds: ["ninguem"], startAt: base.clock.hours + 5 }))).toContain("não encontrado");
     expect(refused(schedule(base, { actionId: "document", startAt: base.clock.hours + 5 }))).toContain("disciplina");
-    expect(refused(schedule(base, { actionId: "recruitment", startAt: base.clock.hours + 5 }))).toContain("formato");
+    expect(refused(schedule(base, { actionId: "selection-open", startAt: base.clock.hours + 5 }))).toContain("formato");
     expect(schedule(base, { actionId: "document", targetId: "aerodynamics", startAt: base.clock.hours + 5 }).plannedActions).toHaveLength(1);
   });
 
@@ -216,7 +216,7 @@ describe("seasonOverview", () => {
     expect(ids("nov 2025")).toEqual(["founders", "selection"]);
     expect(ids("dez 2025")).toEqual(["trainee-start", "summer-break"]);
     expect(ids("fev 2026")).toEqual(["trainee-end", "regulation"]);
-    expect(ids("mar 2026")).toEqual(["rev01"]);
+    expect(ids("mar 2026")).toEqual(["rev01", "selection-march"]);
     expect(ids("out 2026")).toEqual(["approved-list", "oral", "competition"]);
   });
 

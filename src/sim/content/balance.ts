@@ -85,8 +85,6 @@ export const BALANCE = {
 
   /** Fase 8, S2: entrega em marcos. */
   yield: {
-    /** Seletiva: candidatos chegam a cada fração das horas. */
-    selectionStep: 0.25,
     /** Fabricação: corte, montagem e acabamento (a peça só voa depois da última). */
     fabricateStep: 1 / 3
   },
@@ -449,13 +447,13 @@ export const BALANCE = {
     statedTruthShare: 0.6
   },
 
-  /** Dia da dinâmica da seletiva (Fase 7, S2). PROPOSTA. */
+  /** Dia da dinâmica da seletiva (Fase 7, S2; Fase 9, S3). PROPOSTA. */
   selectionDay: {
-    /** Hora do dia em que o evento é chamado, no dia seguinte à conclusão da seletiva. */
+    /** Hora do dia em que o evento é chamado. */
     startHour: 9,
-    /** No máximo isto de candidatos participa; os grupos têm até groupSize pessoas. */
-    maxCandidates: 9,
-    groupSize: 3,
+    /** Grupos de groupMin a groupMax pessoas (Fase 9). */
+    groupMin: 5,
+    groupMax: 6,
     /** Limiares das anotações. */
     talkative: 45,
     shy: 25,
@@ -470,8 +468,58 @@ export const BALANCE = {
     freezeChance: 0.6,
     /** Chance de se recuperar na segunda chance = motivação/100 + isto. */
     recoverBonus: 0.1,
-    /** Capitães seguidos na lista ganham este tanto de motivação. */
+    /** Capitães com a recomendação ouvida: motivação a mais (quando a lista deles bate com a sua). */
     captainsHeardBoost: 3
+  },
+
+  /**
+   * Seletiva imersiva (Fase 9, docs/phases/fase-9.md). PROPOSTA. Funil esperado num Ano 1 bem
+   * divulgado: ~90 inscritos, ~55 na palestra, ~30 na dinâmica, ~16 entrevistados, ~10 trainees.
+   */
+  selection: {
+    /** Etapa 1: horas-pessoa da divulgação e abertura (a tarefa dura cerca de 1 semana) e alcance que ela soma. */
+    promoHours: 30,
+    promoOutreach: 6,
+    /** Etapa 2: dias de inscrição abertos. */
+    inscriptionDays: 21,
+    /** Palestra: dias depois do fim das inscrições e hora do dia. */
+    lectureGapDays: 2,
+    lectureHour: 19,
+    /** Dinâmica: dias depois da palestra (a hora é selectionDay.startHour). */
+    dynamicGapDays: 3,
+    /** Inscritos esperados = base do formato × época × (1 + alcance × reachScale) × (1 + reputação × reputationScale), ±spread. */
+    reachScale: 0.03,
+    reputationScale: 0.004,
+    totalSpread: 0.15,
+    minTotal: 8,
+    maxTotal: 140,
+    /** Janelas da temporada (mês UTC 1–12 → fator): novembro (fundação) e março (calouros) rendem; o resto, menos. */
+    windowFactor: { 11: 0.8, 3: 1.25 } as Record<number, number>,
+    offWindowFactor: 0.5,
+    /** Chegada: fração acumulada = 1 - (1 - dia/dias)^arrivalCurve (mais gente no começo). */
+    arrivalCurve: 1.6,
+    /** Inscritos a mais por ponto de alcance somado durante as inscrições. */
+    extraPerReach: 0.8,
+    /** Palestra: chance de ir vai de min (motivação 0) a max (100), menos a queda perto de provas; a tag não importa. */
+    lectureAttendMin: 0.7,
+    lectureAttendMax: 0.9,
+    /** Perto de provas a presença cai este tanto. */
+    lectureExamPenalty: 0.08,
+    /** Dinâmica: no máximo isto de convidados (quem tem tag "chamar" primeiro, "não" nunca) e chance de faltar. */
+    dynamicCap: 36,
+    dynamicNoShow: 0.1,
+    /** Quantos grupos o jogador acompanha de perto. */
+    watchedGroups: 2,
+    /** Teto de quem passa para a entrevista e de aprovados. */
+    interviewCap: 24,
+    approveCap: 20,
+    /** Entrevista: horas-pessoa por entrevistador, entrevistadores por entrevista e perguntas por pessoa. */
+    interviewHours: 1.5,
+    interviewers: 2,
+    maxQuestions: 3,
+    /** Ruído das respostas (± pontos de 0 a 100) e quanto a comunicação média dos entrevistadores o reduz (fração a 100). */
+    interviewNoise: 18,
+    noiseReductionByComm: 0.55
   },
 
   /** Formação por área (Fase 4, S3; design §5.1). */

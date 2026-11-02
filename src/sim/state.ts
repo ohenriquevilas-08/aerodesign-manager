@@ -108,7 +108,7 @@ export function createGame(options: { seed: number; teamName: string; advisorNam
     return { ...member, classSlots: drawn.slots, look: looks.look };
   });
   return {
-    version: 9,
+    version: 10,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },
@@ -133,6 +133,7 @@ export function createGame(options: { seed: number; teamName: string; advisorNam
     rivals,
     outreach: 0,
     candidates: [],
+    selection: null,
     pause: { reason: "start", at: 0, messageId: null },
     warning: null,
     nextId: 1,
@@ -151,7 +152,6 @@ export function createGame(options: { seed: number; teamName: string; advisorNam
     regulationRead: false,
     plannedActions: [],
     agendaLog: [],
-    activeEvent: null,
-    selectionDay: null
+    activeEvent: null
   };
 }

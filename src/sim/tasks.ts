@@ -5,14 +5,13 @@ import { applyTest, testProblem } from "./aircraft";
 import { findAction, type ActionDef, type StockItem } from "./content/actions";
 import { BALANCE } from "./content/balance";
 import { findDedication, type Dedication } from "./content/dedication";
-import { crewQuality, documentGain, fabricatedQuality, rollApplicants, rollMultiplier, sponsorChance } from "./outcome";
+import { crewQuality, documentGain, fabricatedQuality, rollMultiplier, sponsorChance } from "./outcome";
 import { addReportHours } from "./report";
 import { recordTest } from "./testlog";
 import { recordLedger } from "./ledger";
 import { nextRandom } from "./rng";
 import { actionProblem, agendaBoost, applyTraining } from "./season";
-import { selectionDayAt } from "./eventSelection";
-import { drawCandidates, expectedApplicants, findSelectionFormat } from "./selection";
+import { beginCampaign, findSelectionFormat, finishInterviews, openApplications, revealInterviews } from "./selection";
 import { DISCIPLINES } from "./state";
 import { clamp, DISCIPLINE_LABELS, learn } from "./team";
 import type { Discipline, GameState, InboxMessage, Member, Part, Task } from "./types";
@@ -113,15 +112,23 @@ function crewProblem(state: GameState, action: ActionDef, memberIds: readonly st
   return null;
 }
 
+/** Para ações internas (Fase 9): horas e entrega que dependem do contexto, não do catálogo. */
+export interface StartOverrides {
+  hours?: number;
+  yieldTotal?: number;
+}
+
 export function startAction(
   state: GameState,
   actionId: string,
   targetId: string | null,
   dedication: Dedication = "normal",
-  memberIds: readonly string[] = []
+  memberIds: readonly string[] = [],
+  overrides?: StartOverrides
 ): GameState {
   const action = findAction(actionId);
   if (!action) return warn(state, "Ação desconhecida.");
+  if (action.internal && !overrides) return warn(state, "Essa ação começa por um comando próprio da seletiva.");
 
   const resumes = resumablePart(state, action, targetId);
   const problem =
@@ -162,7 +169,7 @@ export function startAction(
   // Dedicação só faz sentido com horas; compras ficam sempre "normal".
   const taskDedication = action.cost.hours > 0 ? dedication : "normal";
   const remaining = resumes ? 1 - (resumes.partial ?? 0) : 1;
-  const hoursTotal = action.cost.hours * findDedication(taskDedication).hoursFactor * remaining;
+  const hoursTotal = (overrides?.hours ?? action.cost.hours) * findDedication(taskDedication).hoursFactor * remaining;
 
   // Quanto a tarefa entrega ao todo (S2): sorteado aqui, com a equipe escolhida, para o parcial
   // mais o restante dar sempre o total.
@@ -173,19 +180,13 @@ export function startAction(
     const weights: Record<string, number> = {};
     crewRates(team, action.crew, clockToDate(now)).forEach((rate, id) => (weights[id] = rate));
     const quality = clamp(crewQuality(state, action, targetId, weights) + findDedication(taskDedication).qualityBonus);
-    if (effect.kind === "outreach") {
+    if (effect.kind === "outreach" || effect.kind === "selection-open") {
+      // A divulgação da seletiva soma alcance enquanto anda; ao terminar, o alcance vira inscritos (selection.ts).
       const rolled = rollMultiplier(rngState, quality);
       rngState = rolled.rngState;
       yieldTotal = effect.amount * rolled.multiplier;
-    } else if (effect.kind === "selection") {
-      const format = findSelectionFormat(targetId);
-      if (format) {
-        // Inscritos dependem do alcance acumulado, de quem conduz e de sorte; chegam aos poucos (milestones).
-        const rolled = rollMultiplier(rngState, quality);
-        const applicants = rollApplicants(rolled.rngState, expectedApplicants(format, state.outreach), rolled.multiplier);
-        rngState = applicants.rngState;
-        yieldTotal = applicants.count;
-      }
+    } else if (effect.kind === "selection-interviews") {
+      yieldTotal = overrides?.yieldTotal ?? 0;
     } else if (effect.kind === "report-chapter" || effect.kind === "drawings" || effect.kind === "oral-practice") {
       yieldTotal = hoursTotal;
     } else if (effect.kind === "fabricate") {
@@ -227,6 +228,8 @@ export function startAction(
 
   // Sem horas e sem prazo (ex.: frete expresso): conclui na hora, sem pausar o relógio.
   if (!waits && action.cost.hours === 0) return completeTask(next, task.id).state;
+  // A divulgação da seletiva cria a campanha (uma por vez; actionProblem já recusou a segunda).
+  if (effect?.kind === "selection-open") return beginCampaign(next, targetId);
   return next;
 }
 
@@ -298,10 +301,12 @@ function yieldTarget(task: Task, action: ActionDef, fraction: number): number {
   if (fraction >= 1 - 1e-9) return task.yieldTotal;
   switch (action.yield) {
     case "continuous":
+      // Entrevistas saem uma a uma, inteiras (Fase 9, S4).
+      if (action.effect?.kind === "selection-interviews") return Math.floor(task.yieldTotal * fraction + 1e-9);
       return task.yieldTotal * fraction;
     case "milestones":
-      // Seletiva: os inscritos chegam a cada marco; fabricação entrega no fechamento (peça parcial).
-      return action.effect?.kind === "selection" ? Math.floor(task.yieldTotal * floorToStep(fraction, BALANCE.yield.selectionStep) + 1e-9) : 0;
+      // Fabricação entrega no fechamento (peça parcial).
+      return 0;
     case "at-end":
       return 0;
   }
@@ -317,11 +322,9 @@ export function deliverProgress(state: GameState, taskId: string): GameState {
   if (delta <= 1e-9) return state;
   const effect = action.effect;
   let next = state;
-  if (effect?.kind === "outreach") next = { ...next, outreach: next.outreach + delta };
-  else if (effect?.kind === "selection") {
-    const format = findSelectionFormat(task.targetId);
-    if (format) next = drawCandidates(next, format.id, Math.round(delta));
-  } else if (effect?.kind === "report-chapter" || effect?.kind === "drawings" || effect?.kind === "oral-practice") {
+  if (effect?.kind === "outreach" || effect?.kind === "selection-open") next = { ...next, outreach: next.outreach + delta };
+  else if (effect?.kind === "selection-interviews") next = revealInterviews(next, Math.round(delta));
+  else if (effect?.kind === "report-chapter" || effect?.kind === "drawings" || effect?.kind === "oral-practice") {
     next = addReportHours(next, effect.kind, delta, isDiscipline(task.targetId) ? task.targetId : null).state;
   }
   return replaceTask(next, { ...task, yielded: task.yielded + delta });
@@ -342,9 +345,11 @@ export function taskKeeps(state: GameState, taskId: string): string {
   switch (action.effect?.kind) {
     case "outreach":
       return `Alcance +${Math.round(task.yielded)} até agora.`;
-    case "selection": {
+    case "selection-open":
+      return `Alcance +${Math.round(task.yielded)} até agora. As inscrições abrem com o que já foi divulgado.`;
+    case "selection-interviews": {
       const n = Math.round(task.yielded);
-      return n === 0 ? "Nenhum inscrito até agora." : `${n} ${n === 1 ? "inscrito" : "inscritos"} até agora.`;
+      return `${n} ${n === 1 ? "entrevista feita" : "entrevistas feitas"} até agora.`;
     }
     case "report-chapter":
     case "drawings":
@@ -381,12 +386,10 @@ export function closeTask(state: GameState, taskId: string, reason?: string): Ga
       next = addPart(next, { type: effect.part, label: `${effect.label} (parcial)`, quality: 0, condition: 100, partial: reached });
     }
   }
-  if (effect?.kind === "selection") {
-    // A dinâmica é marcada para quem já se inscreveu; a seletiva gasta o alcance.
-    const format = findSelectionFormat(open.targetId);
-    next = { ...next, outreach: 0 };
-    if (format && open.yielded > 0) next = { ...next, selectionDay: { at: selectionDayAt(next.clock.hours), format: format.id } };
-  }
+  // Encerrar a divulgação abre as inscrições com o alcance que já veio; encerrar as entrevistas
+  // deixa as que faltam para agendar de novo (Fase 9).
+  if (effect?.kind === "selection-open") next = openApplications(next);
+  if (effect?.kind === "selection-interviews") next = finishInterviews(next);
 
   const crew = new Set(open.assignees);
   next = {
@@ -556,20 +559,14 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       body = `Alcance da divulgação +${Math.round(task.yielded)} (total ${Math.round(next.outreach)}).`;
       break;
     }
-    case "selection": {
-      const format = findSelectionFormat(task.targetId);
-      if (format) {
-        // Os inscritos chegaram aos poucos (S2); a seletiva gasta o alcance.
-        next = { ...next, outreach: 0 };
-        const drawn = Math.round(task.yielded);
-        if (drawn > 0) next = { ...next, selectionDay: { at: selectionDayAt(next.clock.hours), format: format.id } };
-        body =
-          drawn === 0
-            ? "Ninguém se inscreveu. Divulgue antes da próxima seletiva (cartazes, redes, sala de aula, stand)."
-            : `${drawn} ${drawn === 1 ? "inscrito aguarda" : "inscritos aguardam"} convite. Veja os pareceres dos capitães. A dinâmica da seletiva é amanhã às 9h: lá dá para conhecê-los melhor.`;
-      }
+    case "selection-open":
+      next = openApplications(next);
+      body = `Divulgação feita (alcance +${Math.round(task.yielded)}). As inscrições estão abertas: os inscritos chegam aos poucos na planilha.`;
       break;
-    }
+    case "selection-interviews":
+      next = finishInterviews(next);
+      body = "As entrevistas terminaram. Veja as respostas nas fichas e decida quem vira trainee.";
+      break;
   }
 
   // Concluir motiva quem está na tarefa no fim; todos ficam livres.

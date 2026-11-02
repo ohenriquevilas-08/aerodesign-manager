@@ -96,7 +96,7 @@ describe("S1: tarefa nunca fica parada sem gente", () => {
   });
 
   it("quem sai da equipe tira a tarefa de baixo do mínimo: ela encerra sozinha com o parcial", () => {
-    let state = run({ ...foundedGame({ seed: 42, teamName: "T" }), outreach: 40 }, { type: "start-action", actionId: "recruitment", targetId: "broad", memberIds: ["founder-marina"] });
+    let state = run({ ...foundedGame({ seed: 42, teamName: "T" }), outreach: 40 }, { type: "start-action", actionId: "selection-open", targetId: "broad", memberIds: ["founder-marina"] });
     const id = lastTask(state).id;
     // Como removeMember (trainee que desiste): sai da equipe e da tarefa.
     const gone = { ...state, members: state.members.filter((m) => m.id !== "founder-marina"), tasks: state.tasks.map((t) => ({ ...t, assignees: [] })) };
@@ -110,7 +110,8 @@ describe("S2: resultado aos poucos", () => {
   it("todo o catálogo declara como entrega", () => {
     expect(ACTIONS.every((action) => ["continuous", "milestones", "at-end"].includes(action.yield))).toBe(true);
     expect(findAction("outreach-posters")!.yield).toBe("continuous");
-    expect(findAction("recruitment")!.yield).toBe("milestones");
+    expect(findAction("selection-open")!.yield).toBe("continuous");
+    expect(findAction("selection-interviews")!.yield).toBe("continuous");
     expect(findAction("build-wing")!.yield).toBe("milestones");
     expect(findAction("test-structural")!.yield).toBe("at-end");
     expect(findAction("raffle")!.yield).toBe("at-end");
@@ -152,29 +153,23 @@ describe("S2: resultado aos poucos", () => {
     expect(closed.outreach).toBeCloseTo(state.outreach);
   });
 
-  it("marcos: a seletiva traz candidatos a cada 25% e encerrar no meio fica com os que chegaram", () => {
-    const start = run({ ...foundedGame({ seed: 42, teamName: "T" }), outreach: 60 }, { type: "start-action", actionId: "recruitment", targetId: "broad", memberIds: ["founder-marina", "founder-caio"] });
+  it("a divulgação da seletiva soma alcance aos poucos; encerrar no meio abre as inscrições com o que veio", () => {
+    const start = run({ ...foundedGame({ seed: 42, teamName: "T" }), outreach: 0 }, { type: "open-selection", format: "broad", memberIds: ["founder-marina", "founder-caio"] });
     const id = lastTask(start).id;
     const total = lastTask(start).yieldTotal!;
-    expect(total).toBeGreaterThanOrEqual(4);
-    expect(start.candidates).toHaveLength(0);
+    expect(total).toBeGreaterThan(0);
+    expect(start.selection!.stage).toBe("promotion");
+    expect(start.selection!.applicants).toHaveLength(0);
 
-    const quarter = until(start, (s) => fraction(s, id) >= 0.26);
-    expect(quarter.candidates.length).toBe(Math.floor(total * 0.25));
-    const half = until(quarter, (s) => fraction(s, id) >= 0.51);
-    expect(half.candidates.length).toBe(Math.floor(total * 0.5));
-    // A cada marco chegam só os novos: nada entra duas vezes.
-    expect(new Set(half.candidates.map((c) => c.id)).size).toBe(half.candidates.length);
-
+    const half = until(start, (s) => fraction(s, id) >= 0.5);
+    expect(half.outreach).toBeGreaterThan(0.3 * total);
+    expect(half.selection!.stage).toBe("promotion");
     const closed = run(half, { type: "close-task", taskId: id });
-    expect(closed.candidates).toHaveLength(half.candidates.length);
-    expect(closed.selectionDay).not.toBeNull();
-    expect(closed.outreach).toBe(0);
-
-    // Parcial mais o restante é o total de quem foi até o fim.
-    const full = until(half, (s) => s.tasks.find((t) => t.id === id)?.status === "done");
-    expect(full.candidates).toHaveLength(total);
-    expect(full.candidates.length - half.candidates.length + half.candidates.length).toBe(total);
+    expect(closed.selection!.stage).toBe("open");
+    expect(closed.selection!.openedAt).toBe(closed.clock.hours);
+    expect(closed.tasks.find((t) => t.id === id)).toBeUndefined();
+    // O alcance fica para as inscrições (divulgação durante elas ainda soma).
+    expect(closed.outreach).toBeCloseTo(half.outreach);
   });
 
   it("marcos: peça encerrada no meio fica parcial (não voa) e uma nova tarefa termina o que falta", () => {
@@ -239,7 +234,7 @@ describe("S2: resultado aos poucos", () => {
 
 describe("S3: sem limite rígido de pessoas, com retorno decrescente", () => {
   it("max null em organização; max físico na oficina", () => {
-    for (const id of ["recruitment", "outreach-posters", "outreach-freshers", "study-aero", "report-chapter", "document", "raffle", "sponsor-pitch"]) {
+    for (const id of ["selection-open", "outreach-posters", "outreach-freshers", "study-aero", "report-chapter", "document", "raffle", "sponsor-pitch"]) {
       expect(findAction(id)!.crew.max).toBeNull();
     }
     for (const id of ["build-wing", "build-fuselage", "build-tail", "build-gear", "test-structural"]) {

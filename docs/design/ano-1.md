@@ -123,7 +123,7 @@ A temporada real começa quando a competição anterior acaba, na 2ª semana de 
 | Data | Marco | Efeito no jogo |
 |---|---|---|
 | 10/nov | Convite dos fundadores | Abertura; o comando `found-team` libera o relógio |
-| Nov (até 30/nov) | Processo seletivo | A seletiva acontece aqui; depois de 30/nov a ação `recruitment` é recusada |
+| Nov | Janela do processo seletivo (Ano 1, fundação) | Abrir a campanha rende mais inscritos aqui e em março (calouros); fora das duas janelas é possível abrir, com menos gente (seção 5.2) |
 | 1/dez a 1/fev | Etapa trainee | Quem entrou pela seletiva é `trainee` e treina (seção 5.2) |
 | 15/dez a 13/fev | Férias de verão | Horas por integrante a 50% (`BALANCE.season.summerFactor`, **[PROPOSTA]**) |
 | 1/fev | Fim da etapa trainee | Cada trainee vira integrante ou desiste |
@@ -205,19 +205,31 @@ O jogador pode marcar ações no calendário (estilo FIFA): `schedule-action` p�
 
 **Presidente:** um aluno NPC. Trabalha, tem horas, área e carta, e uma `agenda`: `report`, `flight`, `funding` ou `balanced` (**[PROPOSTA]**). Tarefa concluída da agenda dá +1 de motivação a toda a equipe; 3 dias seguidos sem tarefa da agenda tiram 3 de motivação do presidente por dia (`BALANCE.agenda`). Nada é bloqueado. `presidentView` mostra a agenda e como o mês (30 dias) está para ela. Os rótulos são **prioridades com o efeito** (Fase 7), no conteúdo: "Prioridade: fazer o avião voar · tarefas de fabricação e ensaio animam a equipe"; do mesmo jeito, entregar o relatório, levantar caixa e gente, equilibrar as três frentes (`AgendaDef.priority`, `effect`, `text`).
 
-**Seletiva (novembro):** escolha de formato (ampla, técnica, por indicação, desafio prático), pareceres dos capitães, convites gratuitos. Só até 30/nov. Elenco mínimo para o projeto: Aerodinâmica, Estruturas e uma terceira pessoa.
+**Seletiva imersiva (Fase 9) [PROPOSTA]:** a seletiva é um funil de cerca de 6 semanas. Inscrito não é membro: o jogador vê a multidão afinando a cada etapa, a informação chega aos poucos e com ruído, e as escolhas custam. Só existe uma campanha por vez (`GameState.selection`).
 
-**Dia da dinâmica (Fase 7, evento) [PROPOSTA]:** a seletiva tem duas partes. A divulgação e a inscrição continuam sendo tarefa; quando ela conclui, os inscritos aguardam e a **dinâmica fica marcada para a manhã seguinte, às 9h** (`GameState.selectionDay`; sem adiar). Na hora o relógio pausa e abre o **modo evento** com cinco blocos: 9h recepção, 10h apresentação da equipe, 11h desafio prático em grupos (planador de balsa), 14h entrevistas rápidas, 16h deliberação. Os candidatos (até 9) se dividem em grupos de até 3. Decisões:
+| Etapa | Duração | Números no Ano 1 bem divulgado | O que o jogador vê |
+|---|---|---|---|
+| 1. Divulgação e abertura (`open-selection`) | ~1 semana, tarefa com gente | | Alcance de divulgação somando |
+| 2. Inscrições | 3 semanas, espera no calendário | ~90 inscritos (40 a 120) | Nome, curso, período e uma frase "por que quero entrar" |
+| 3. Palestra | 1 noite, 2 dias depois | ~80% vêm | "73 de 92 vieram"; quem falta sai |
+| 4. Dinâmica (evento) | 1 dia, 3 dias depois | até 36 convidados, uns 10% faltam; grupos de 5 a 6 | Anotações dos grupos acompanhados |
+| 5. Entrevistas | ~1 semana, tarefa com gente | até 24 passam; cada entrevista custa 1,5 h por entrevistador (em dupla) | Respostas às até 3 perguntas escolhidas |
+| 6. Aprovação (`approve-applicants`) | 1 dia | até 20 vagas, as que o jogador aprovar | E-mail para todos; aprovados viram trainees |
 
-1. **De que grupo você chega perto** (no desafio): o grupo observado ganha anotações detalhadas nas fichas (mão firme ou torta, tempo disponível por dia).
-2. **Segunda chance a quem travou** (sorteado, com 60% de chance, entre quem tem menos motivação e conversa): custa meia hora dos capitães; a pessoa se recupera com chance de motivação + 10%.
-3. **Quem entra na lista:** seguir a recomendação dos capitães (pesam conhecimento no foco, mão na oficina e conversa) ou a sua leitura (pesam motivação, agilidade, o planador do grupo e o que você viu).
+Contagem num Ano 1 bem divulgado: ~90 inscritos, ~72 na palestra, ~30 na dinâmica, ~16 entrevistados, ~10 trainees, ~6 membros.
 
-Cada grupo lança o planador a `distância base × (0,6 + 0,9 × fabricação + 0,3 × agilidade)` m, com ruído; o resultado vem pronto da simulação para a cena. No fechamento as anotações e o parecer (`strong`, `promising`, `unclear`) vão para `Candidate.observations` e `Candidate.verdict`; convidar continua sendo `hire-candidate`. Seguir os capitães anima um pouco os capitães.
+- **Inscritos (S1).** Cada um é sorteado na chegada com um **perfil escondido** (o que vira o `Member`: conhecimento, mão na oficina, agilidade, comunicação, motivação, horas por dia, gostos reais e facilidade) e só mostra o formulário: nome, curso, período e a frase. A leitura da UI é `applicantView`/`applicantViews`; o perfil nunca sai da simulação. **Cursos** (`content/selection.ts`): engenharia aeronáutica (metade), mecânica, elétrica, computação e produção, com `femaleShare` por curso (aeronáutica 0,2); o curso puxa levemente o conhecimento de partida e a fabricação. **Frase** (`content/applicantPhrases.ts`): um banco por tipo de perfil (empolgado, curioso, mão na massa, apaixonado por aviação, indicação, currículo, vago), com 25% de chance de a frase não bater com o perfil: a pista às vezes engana.
+- **Quantos se inscrevem.** O total é sorteado quando as inscrições abrem: base do formato × época × (1 + alcance × 0,03) × (1 + reputação × 0,004), ±15%. Época: novembro 0,8 e março 1,25 (calouros); fora das duas janelas 0,5. Os inscritos chegam em marcos diários, mais no começo; divulgação feita durante as inscrições ainda soma (0,8 inscrito por ponto de alcance).
+- **Triagem.** `tag-applicant` marca "chamar", "talvez" ou "não". A tag não muda quem vai à palestra, mas decide quem a dinâmica convida: "chamar" primeiro, "não" nunca, até o teto.
+- **Palestra (S2).** A chance de ir vai de 70% a 90% conforme a motivação escondida (menos 8 pontos em semana de provas; `BALANCE.selection`). Quem falta vira `absent`; a mensagem diz "N de M vieram".
+- **Dinâmica (S3).** Evento da Fase 7 (o relógio pausa; 9h recepção, 10h apresentação da equipe, 11h desafio prático com planador de balsa, 16h deliberação), agora com os convidados que apareceram em grupos de 5 a 6. Cada grupo lança o planador a `distância base × (0,6 + 0,9 × fabricação + 0,3 × agilidade)` m, com ruído, e o resultado vem pronto para a cena. O jogador acompanha de perto até 2 grupos (decisão antes do desafio): os acompanhados geram anotações para todos os membros (mão firme ou torta, quem puxou a conversa, quem perguntou da peça de verdade); os outros ganham só uma anotação geral do grupo. A segunda chance a quem travou continua, mas só vale em grupo acompanhado. Os capitães indicam quem acharam mais interessante, sem decidir nada: **quem passa para a entrevista é escolha do jogador** (`advance-applicants`, até 24).
+- **Entrevistas (S4).** `schedule-interviews` é tarefa com gente (entrevistadores em dupla, 1,5 h-pessoa cada; ~1 semana para uns 16). O jogador escolhe até 3 perguntas por pessoa (`set-interview-questions`; `content/interviewQuestions.ts`: disponibilidade, o que diz gostar, pressão, experiência prática, por que aerodesign, trabalho em grupo, bases). Cada pergunta revela um atributo do perfil com ruído de ±18 pontos, reduzido pela comunicação média de quem entrevista (até 55% a 100). As respostas aparecem uma entrevista por vez enquanto a tarefa anda; encerrar no meio deixa as que faltam para agendar de novo.
+- **Aprovação (S5).** `approve-applicants` cria os trainees (o perfil escondido vira o `Member`; preferências reais e facilidade continuam escondidas, como na Fase 8). As vagas são quantas pessoas o jogador aprovar (até 20). A campanha some e os demais recebem um e-mail (só mensagem). Antes de 1/fev viram `trainee`; depois (campanha de março) já entram como integrantes, porque a etapa trainee acaba em 1/fev. `recruitment`, `hire-candidate` e `dismiss-candidates` saíram.
+- **Janelas.** Campanha de novembro (Ano 1, fundação) e de março (calouros, semestres iniciais pesam mais); marcos no calendário. Abrir fora delas é possível, com menos inscritos.
 
 **Proporção de gênero (Fase 7) [DECIDIDO]:** o sorteio de nome e aparência de fundadores, candidatos e trainees segue `BALANCE.people.femaleShare` = 0,2, a proporção real da engenharia aeronáutica, sem diversidade forçada (`drawPerson`; `MemberLook.female`).
 
-**Etapa trainee (1/dez a 1/fev):** quem entra pela seletiva chega como `trainee`. A tarefa "Treinamento de trainees" (horas do trainee e de um capitão; sem capitão rende 50%) dá horas de treino e conhecimento. Em 1/fev cada trainee vira integrante ou desiste, com chance de ficar entre 40% (motivação 0) e 95% (100), multiplicada por 0,5 a 1 conforme o treino (**[PROPOSTA]**, `BALANCE.trainee`).
+**Etapa trainee (1/dez a 1/fev):** quem é aprovado na seletiva antes de 1/fev chega como `trainee`; mais trainees dividem as mesmas horas de capitão, então cada um treina menos por tarefa. A tarefa "Treinamento de trainees" (horas do trainee e de um capitão; sem capitão rende 50%) dá horas de treino e conhecimento. Em 1/fev cada trainee vira integrante ou desiste, com chance de ficar entre 40% (motivação 0) e 95% (100), multiplicada por 0,5 a 1 conforme o treino (**[PROPOSTA]**, `BALANCE.trainee`).
 
 ### 5.3 Conhecimento: tácito vs documentado **[DECIDIDO]**
 
@@ -453,7 +465,7 @@ Voo com carga incremental  ⏱ 12 h   ◆ 30    ⌛ —      ⚠ médio
 
 | Ação | Observação |
 |---|---|
-| Seletiva e entrevistas | Divulgação orgânica é grátis |
+| Seletiva: divulgação, abertura e entrevistas | Tarefas com gente: divulgação e abertura (30 h-pessoa) e entrevistas (1,5 h por entrevistador, em dupla). Divulgação orgânica é grátis; a palestra e o dia da dinâmica não ocupam as tarefas |
 | Estudo/projeto por disciplina | Gera conhecimento tácito e reduz incerteza |
 | Escrever capítulo do relatório, plantas | |
 | Documentar conhecimento, mentoria | |
@@ -488,7 +500,7 @@ Voo com carga incremental  ⏱ 12 h   ◆ 30    ⌛ —      ⚠ médio
 - **Horas exigem gente [Fase 8].** Toda ação com horas pede o mínimo de pessoas livres para começar (§4.2). Ação só com créditos e prazo (pedidos, frete) não ocupa ninguém. Encerrar uma tarefa devolve a equipe na hora; créditos e material gastos não voltam, exceto a peça parcial, que continua no hangar.
 
 - Caixa inicial: **0 créditos**. As primeiras ações possíveis são as "só horas", incluindo captação.
-- Seletiva, contratação e divulgação orgânica: grátis.
+- Seletiva (divulgação, entrevistas e aprovação) e divulgação orgânica: grátis em créditos; custam só horas.
 - **Captação de contingência** só abre depois de dano grave ou quebra.
 - Nada compra atributo diretamente. Créditos compram coisas; horas fazem coisas.
 

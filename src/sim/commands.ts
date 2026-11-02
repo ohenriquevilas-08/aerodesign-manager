@@ -12,17 +12,18 @@ import { cancelFlightTest, scheduleFlightTest, type ScheduleFlightTestRequest } 
 import { tick } from "./loop";
 import { setPredictions, submitReport } from "./report";
 import { payCustoms, placeOrder, type OrderRequest } from "./shop";
-import { hireCandidate } from "./selection";
+import { advanceApplicants, approveApplicants, scheduleInterviews, setInterviewQuestions, tagApplicant } from "./selection";
+import type { SelectionFormat } from "./content/selection";
 import { applySuggestedSchedule, grantKey, setShift } from "./workshop";
 import { assignMember, closeTask, startAction, unassignMember, warn } from "./tasks";
-import type { AircraftDesign, ClockSpeed, Discipline, GameState, PayloadLine, SlotKey, TaskDedication } from "./types";
+import type { AircraftDesign, ApplicantTag, ClockSpeed, Discipline, GameState, PayloadLine, SlotKey, TaskDedication } from "./types";
 
 export type Command =
   | { type: "tick"; realSeconds: number }
   | { type: "set-speed"; speed: ClockSpeed }
   | { type: "read-message"; id: string }
   /**
-   * targetId: disciplina (document), formato da seletiva (recruitment), id de peça (repair-part)
+   * targetId: disciplina (document), formato da seletiva (selection-open), id de peça (repair-part)
    * ou id de tarefa esperando (express-shipping).
    */
   /**
@@ -36,8 +37,18 @@ export type Command =
   | { type: "unassign-member"; memberId: string }
   /** Fase 8, S1: encerra antes do fim, fica com o parcial (peça parcial, inscritos já chegados) e libera a equipe. */
   | { type: "close-task"; taskId: string }
-  | { type: "hire-candidate"; candidateId: string }
-  | { type: "dismiss-candidates" }
+  // Fase 9 (docs/phases/fase-9.md): seletiva imersiva.
+  /** Etapa 1: divulgação e abertura (tarefa com gente). Uma campanha por vez; as inscrições abrem quando ela termina. */
+  | { type: "open-selection"; format: SelectionFormat; memberIds: string[]; dedication?: TaskDedication }
+  /** Triagem na planilha: chamar, talvez, não (null limpa). */
+  | { type: "tag-applicant"; applicantId: string; tag: ApplicantTag | null }
+  /** Depois da dinâmica: quem passa para a entrevista (teto BALANCE.selection.interviewCap). */
+  | { type: "advance-applicants"; ids: string[] }
+  /** Tarefa com gente (entrevistadores); as respostas aparecem aos poucos nas fichas. */
+  | { type: "schedule-interviews"; applicantIds: string[]; memberIds: string[] }
+  | { type: "set-interview-questions"; applicantId: string; questionIds: string[] }
+  /** Cada aprovado vira trainee; a campanha some e os demais recebem o e-mail. */
+  | { type: "approve-applicants"; ids: string[] }
   // Fase 3 (docs/phases/fase-3.md)
   | { type: "set-design"; design: AircraftDesign }
   | { type: "set-predictions"; emptyWeightKg?: number; payloadLine?: PayloadLine }
@@ -100,10 +111,18 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return unassignMember(state, command.memberId);
     case "close-task":
       return closeTask(state, command.taskId);
-    case "hire-candidate":
-      return hireCandidate(state, command.candidateId) ?? warn(state, "Esse candidato não está mais disponível.");
-    case "dismiss-candidates":
-      return state.candidates.length === 0 ? state : { ...state, candidates: [] };
+    case "open-selection":
+      return startAction(state, "selection-open", command.format, command.dedication ?? "normal", command.memberIds);
+    case "tag-applicant":
+      return tagApplicant(state, command.applicantId, command.tag);
+    case "advance-applicants":
+      return advanceApplicants(state, command.ids);
+    case "schedule-interviews":
+      return scheduleInterviews(state, command.applicantIds, command.memberIds);
+    case "set-interview-questions":
+      return setInterviewQuestions(state, command.applicantId, command.questionIds);
+    case "approve-applicants":
+      return approveApplicants(state, command.ids);
     case "set-design":
       return setDesign(state, command.design);
     case "set-predictions":

@@ -12,8 +12,6 @@ const d = (month: number, day: number) => ymd(2026, month, day);
 
 /** 9/fev: Regulamento 2026 publicado. Libera a leitura do regulamento e a Prancheta. */
 export const REGULATION_DATE = d(2, 9);
-/** Processo seletivo só até aqui (fim de novembro, exclusivo). */
-export const SELECTION_END = ymd(2025, 12, 1);
 /** Etapa trainee: de 1/dez até 1/fev (exclusivo); no fim cada trainee vira integrante ou desiste. */
 export const TRAINEE_START = ymd(2025, 12, 1);
 export const TRAINEE_END = d(2, 1);
@@ -31,12 +29,13 @@ export interface Deadline {
 
 export const OFFICIAL_CALENDAR: readonly Deadline[] = [
   { id: "founders", date: ymd(2025, 11, 10), title: "Convite dos fundadores", kind: "event", quiet: true },
-  { id: "selection", date: ymd(2025, 11, 17), title: "Processo seletivo (até 30/nov)", kind: "info", quiet: true },
+  { id: "selection", date: ymd(2025, 11, 17), title: "Janela do processo seletivo de novembro", kind: "info", quiet: true },
   { id: "trainee-start", date: TRAINEE_START, title: "Começa a etapa trainee", kind: "info", quiet: true },
   { id: "summer-break", date: ymd(2025, 12, 15), title: "Férias de verão", kind: "info", quiet: true },
   { id: "trainee-end", date: TRAINEE_END, title: "Fim da etapa trainee", kind: "info", quiet: true },
   { id: "regulation", date: REGULATION_DATE, title: "Regulamento 2026 publicado", kind: "event" },
   { id: "rev01", date: d(3, 1), title: "Revisão 01 do regulamento", kind: "info" },
+  { id: "selection-march", date: d(3, 2), title: "Janela do processo seletivo de março (calouros)", kind: "info", quiet: true },
   { id: "report", date: d(8, 16), title: "Relatório, plantas e previsões", kind: "deadline" },
   { id: "report-late", date: d(8, 23), title: "Relatório com penalidade", kind: "deadline" },
   { id: "oral-schedule", date: d(9, 13), title: "Cronograma da apresentação oral", kind: "info" },

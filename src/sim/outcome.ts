@@ -178,10 +178,10 @@ export function estimateOutcome(
       const values = scale(effect.amount);
       return { quality, ...values, text: `Alcance +${range(values.min, values.max)}` };
     }
-    case "selection": {
-      const format = findSelectionFormat(targetId);
-      if (!format) return null;
-      const values = applicantBand(expectedApplicants(format, state.outreach), quality);
+    case "selection-open": {
+      if (!findSelectionFormat(targetId)) return null;
+      // O que a divulgação desta tarefa soma ao alcance entra na conta (Fase 9, S1).
+      const values = applicantBand(expectedApplicants(state, targetId, effect.amount * band.expected), quality);
       return { quality, ...values, text: `Inscritos estimados ${range(values.min, values.max)}` };
     }
     case "repair": {

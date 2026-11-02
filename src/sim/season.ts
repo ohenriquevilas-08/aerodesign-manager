@@ -4,7 +4,7 @@
 import { BALANCE } from "./content/balance";
 import { actionInAgenda, findAgenda, FOUNDERS, frontOf, type AgendaDef } from "./content/founders";
 import { findFormationArea, DEFAULT_CATEGORY } from "./content/formations";
-import { SELECTION_END, TRAINEE_END, REGULATION_DATE } from "./content/season2026";
+import { TRAINEE_END, REGULATION_DATE } from "./content/season2026";
 import { nextRandom } from "./rng";
 import { addMessage, warn } from "./tasks";
 import { clamp, DISCIPLINE_LABELS, learn, traineeProgress } from "./team";
@@ -36,8 +36,8 @@ export function actionProblem(state: GameState, action: ActionDef): string | nul
       if (!regulationPublished(state)) return "O regulamento só sai em 9/fev. Até lá: estudo, seletiva, trainee, captação e compras.";
       if (state.tasks.some((task) => task.actionId === action.id && task.status !== "done")) return "A leitura do regulamento já está em andamento.";
       return null;
-    case "recruitment":
-      return state.clock.hours >= dateToHours(SELECTION_END) - EPSILON ? "O processo seletivo é em novembro; a próxima turma só no ano que vem." : null;
+    case "selection-open":
+      return state.selection ? "Já há um processo seletivo em andamento: termine ou aprove antes de abrir outro." : null;
     case "trainee-training":
       return state.members.some((member) => member.role === "trainee") ? null : "Não há trainees na equipe.";
     default:

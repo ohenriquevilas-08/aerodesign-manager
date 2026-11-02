@@ -6,7 +6,7 @@ import { BALANCE } from "./content/balance";
 import { nextRandom } from "./rng";
 import { DISCIPLINES, zeroKnowledge } from "./state";
 import { DISCIPLINE_LABELS } from "./team";
-import type { Aptitude, Candidate, Discipline, GameState, Member } from "./types";
+import type { Aptitude, Discipline, GameState, Member } from "./types";
 
 export interface Preferences {
   statedLikes: Discipline[];
@@ -118,10 +118,3 @@ export function revealAptitude(state: GameState, memberId: string, discipline: D
   return { state: { ...state, members }, text: revealText(member.name, discipline, member.aptitude[discipline]) };
 }
 
-/** Passa preferências e facilidade do candidato para o integrante contratado. */
-export const preferencesOf = (candidate: Candidate): Preferences => ({
-  statedLikes: [...candidate.statedLikes],
-  likes: [...candidate.likes],
-  dislikes: [...candidate.dislikes],
-  aptitude: { ...candidate.aptitude }
-});
