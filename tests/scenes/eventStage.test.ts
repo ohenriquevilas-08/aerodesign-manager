@@ -29,7 +29,8 @@ import {
   selectionPhase,
   settingForEvent,
   skyAt,
-  zoomFor
+  zoomFor,
+  BENCH_HALF, GLIDER_PARTS, PART_TRAVEL_SECONDS, PATROL_SECONDS, assemblyClock, assemblyProgress, flightFrame, heldHeight, partFrame, partStart, patrolStop
 } from "../../src/scenes/event/stage";
 import { palette } from "../../src/scenes/palette";
 
@@ -124,15 +125,18 @@ describe("planFigures", () => {
     expect(pose(4)).toBe("stand");
   });
 
-  it("candidatos da seletiva ficam em volta das mesas e depois na linha de lançamento", () => {
+  it("candidatos da seletiva ficam em volta das mesas, em todas as fases", () => {
     const candidates = (index: number) => planFigures(mockEventView("selection-day", index)).filter((p) => p.role === "candidate");
     expect(candidates(0)).toHaveLength(MOCK_CANDIDATE_COUNT);
     const tables = groupTables(Math.ceil(MOCK_CANDIDATE_COUNT / 6));
     const first = candidates(2)[0]!;
-    // Grupos de 5 a 6: a roda em volta da mesa abre (raio 1,75).
-    expect(Math.hypot(first.col - tables[0]!.col, first.row - tables[0]!.row)).toBeCloseTo(1.75, 5);
+    // Colados na bancada: a elipse que contorna o tampo.
+    const reach = Math.hypot((first.col - tables[0]!.col) / (BENCH_HALF.col + 0.55), (first.row - tables[0]!.row) / (BENCH_HALF.row + 0.55));
+    expect(reach).toBeCloseTo(1, 5);
     expect(candidates(2).every((c) => c.pose === "work")).toBe(true);
-    expect(candidates(3).every((c) => c.col < LAUNCH_LANE.col0)).toBe(true);
+    expect(candidates(0).every((c) => c.pose === "stand")).toBe(true);
+    // O lançamento sai das bancadas: ninguém sai do lugar depois do desafio.
+    expect(candidates(3).map((c) => [c.col, c.row])).toEqual(candidates(2).map((c) => [c.col, c.row]));
     expect(candidates(3).every((c) => c.pose === "stand")).toBe(true);
   });
 
@@ -152,11 +156,13 @@ describe("dinâmica da seletiva", () => {
     }
   });
 
-  it("os lugares ficam a 1,5 casa da mesa, virados para ela", () => {
+  it("os lugares contornam a bancada, virados para ela", () => {
     const table = { col: 10, row: 4 };
     for (const seat of seatsAround(table, 3)) {
-      expect(Math.hypot(seat.col - table.col, seat.row - table.row)).toBeCloseTo(1.5, 5);
-      expect(seat.facing).toBe(seat.col > table.col ? -1 : 1);
+      const reach = Math.hypot((seat.col - table.col) / (BENCH_HALF.col + 0.55), (seat.row - table.row) / (BENCH_HALF.row + 0.55));
+      expect(reach).toBeCloseTo(1, 5);
+      // À esquerda do centro na tela olha para a direita (facing 1) e vice-versa.
+      expect(seat.facing).toBe(seat.col - seat.row > table.col - table.row ? -1 : 1);
     }
   });
 
@@ -254,7 +260,7 @@ describe("dinâmica cheia (Fase 9): grupos de 5 a 6", () => {
 
   it("os lugares em volta da mesa de 6 não se tocam", () => {
     const around = seatsAround({ col: 10, row: 5 }, 6);
-    for (let i = 0; i < 6; i += 1) for (let j = i + 1; j < 6; j += 1) expect(dist(around[i]!, around[j]!)).toBeGreaterThan(1);
+    for (let i = 0; i < 6; i += 1) for (let j = i + 1; j < 6; j += 1) expect(dist(around[i]!, around[j]!)).toBeGreaterThan(0.8);
   });
 
   it("a pista comprime as faixas com mais grupos, mas mantém o espaço antigo até 4", () => {
@@ -267,15 +273,91 @@ describe("dinâmica cheia (Fase 9): grupos de 5 a 6", () => {
     expect(landedGlider(5, 10, 6).row).toBe(laneRow(5, 6));
   });
 
-  it("no lançamento os candidatos ficam atrás da linha, cada grupo na sua faixa", () => {
+  it("cada grupo trabalha na própria bancada, com um que ergue o planador", () => {
     const view = mockEventView("selection-day", 3);
     const plans = planFigures(view).filter((p) => p.role === "candidate");
     expect(plans).toHaveLength(MOCK_CANDIDATE_COUNT);
     const groups = view.selection!.groups;
+    const tables = groupTables(groups.length);
     groups.forEach((group, g) => {
       const mine = plans.filter((p) => p.groupId === group.id);
       expect(mine).toHaveLength(group.members.length);
-      expect(mine.every((p) => Math.abs(p.row - laneRow(g, groups.length)) < 0.2)).toBe(true);
+      expect(mine.every((p) => dist(p, tables[g]!) < 2)).toBe(true);
+      expect(mine.filter((p) => p.lifter)).toHaveLength(1);
     });
+  });
+
+  it("candidatos usam roupa própria e a equipe, a camiseta da equipe", () => {
+    const plans = planFigures(mockEventView("selection-day", 2));
+    expect(plans.filter((p) => p.role === "candidate").every((p) => p.outfit === "own")).toBe(true);
+    const crew = plans.filter((p) => p.role === "crew");
+    expect(crew.length).toBeGreaterThan(0);
+    expect(crew.every((p) => p.outfit === "team" && !!p.patrol)).toBe(true);
+  });
+
+  it("os capitães passam de bancada em bancada e não param todos no mesmo grupo", () => {
+    const view = mockEventView("selection-day", 2);
+    const crew = planFigures(view).filter((p) => p.role === "crew");
+    const at = (t: number) => crew.map((p) => patrolStop(p.patrol!, t));
+    const first = at(0);
+    expect(new Set(first.map((s) => `${s.col},${s.row}`)).size).toBeGreaterThan(1);
+    const later = at(PATROL_SECONDS);
+    expect(later.map((s) => `${s.col},${s.row}`)).not.toEqual(first.map((s) => `${s.col},${s.row}`));
+    // Dá a volta na ronda.
+    const n = crew[0]!.patrol!.stops.length;
+    expect(patrolStop(crew[0]!.patrol!, PATROL_SECONDS * n)).toEqual(first[0]);
+    // A parada fica fora do tampo, ao lado da bancada.
+    const tables = groupTables(view.selection!.groups.length);
+    for (const stop of crew[0]!.patrol!.stops) expect(Math.min(...tables.map((t) => dist(stop, t)))).toBeGreaterThan(1.5);
+  });
+
+  it("o planador é montado em partes: solto no começo, encaixando uma a uma e inteiro no fim", () => {
+    expect(GLIDER_PARTS.map((p) => p.id)).toEqual(["fuselage", "wing", "tail", "ballast"]);
+    expect(assemblyProgress(0, 0)).toBe(0);
+    expect(assemblyProgress(0, ASSEMBLY_SECONDS + 5)).toBe(1);
+    let last = -1;
+    for (let t = 0; t <= ASSEMBLY_SECONDS + 3; t += 0.5) {
+      const progress = assemblyProgress(2, t);
+      expect(progress).toBeGreaterThanOrEqual(last);
+      last = progress;
+    }
+    // As peças vão em sequência: a asa só começa depois da fuselagem.
+    const mid = partStart(0, 1) + 0.1;
+    expect(partFrame(0, 0, mid).k).toBe(1);
+    expect(partFrame(0, 1, mid).k).toBeGreaterThan(0);
+    expect(partFrame(0, 3, mid).k).toBe(0);
+    // Solta tem deslocamento; montada, nenhum, e a peça sobe no ar pelo caminho.
+    expect(partFrame(0, 1, -1)).toMatchObject({ k: 0, dc: GLIDER_PARTS[1]!.loose.col, dr: GLIDER_PARTS[1]!.loose.row });
+    const done = partFrame(0, 1, 1e6);
+    expect(done.k).toBe(1);
+    expect(done.dc).toBeCloseTo(0);
+    expect(done.dr).toBeCloseTo(0);
+    expect(done.lift).toBeCloseTo(0);
+    expect(partFrame(0, 1, partStart(0, 1) + PART_TRAVEL_SECONDS / 2).lift).toBeGreaterThan(0);
+  });
+
+  it("o relógio da montagem segue a fase: soltas, em andamento, prontas", () => {
+    expect(assemblyProgress(0, assemblyClock("kit", 99))).toBe(0);
+    expect(assemblyClock("assembling", 7)).toBe(7);
+    expect(assemblyProgress(0, assemblyClock("launching", 0))).toBe(1);
+    expect(assemblyProgress(0, assemblyClock("landed", 0))).toBe(1);
+  });
+
+  it("o planador sai da mão de quem o ergue e pousa na faixa do grupo, na distância da simulação", () => {
+    const start = { col: 9, row: 5 };
+    const held = flightFrame(start, 2, 15, 0, 6, 56);
+    expect(held).toMatchObject({ held: true, landed: false, col: start.col, row: start.row, z: 56 });
+    const flying = flightFrame(start, 2, 15, launchStart(2) + 1, 6);
+    expect(flying.held).toBe(false);
+    expect(flying.z).toBeGreaterThan(3);
+    const landed = flightFrame(start, 2, 15, 1e6, 6);
+    expect(landed).toMatchObject({ landed: true, z: 3, row: laneRow(2, 6) });
+    expect(landed.col).toBeCloseTo(LAUNCH_LANE.col0 + (15 / LANE_FULL_M) * LAUNCH_LANE.length);
+    expect(flightFrame(start, 2, 22, 1e6, 6).col).toBeGreaterThan(landed.col);
+  });
+
+  it("quem ergue o planador fica acima da cabeça", () => {
+    expect(heldHeight(1)).toBe(56);
+    expect(heldHeight(2)).toBeGreaterThan(heldHeight(1));
   });
 });

@@ -7,7 +7,6 @@ import type { EventBlock, EventPerson, StageView } from "./contract";
 import { splitIntoGroups } from "./groups";
 
 const SHIRT = palette.highlight;
-const CANDIDATE_SHIRTS = [palette.inkMuted, palette.accent, palette.ok, palette.ink, palette.warn, palette.inkDim];
 
 const look = (skin: number, hair: number, hairColor: number, accessory?: MemberLook["accessory"]): MemberLook => ({
   skin,
@@ -45,12 +44,13 @@ const candidateLooks: MemberLook[] = [
 const GROUP_LABELS = ["Grupo A", "Grupo B", "Grupo C", "Grupo D", "Grupo E", "Grupo F", "Grupo G", "Grupo H"];
 const DISTANCES = [14.2, 21.6, 9.8, 17.5, 12.3, 19.1, 8.4, 16.0];
 
+// Os candidatos vêm com a camiseta da equipe no perfil (como na simulação): a cena é que troca a roupa.
 /** Quem veio à dinâmica na montagem de dev (Fase 9: dezenas de pessoas em grupos de 5 a 6). */
 export const MOCK_CANDIDATE_COUNT = 32;
 
 function groups(total = MOCK_CANDIDATE_COUNT) {
   const people = Array.from({ length: total }, (_, k) =>
-    person(`k${k}`, `Candidato ${k + 1}`, { ...candidateLooks[k % candidateLooks.length]!, shirt: CANDIDATE_SHIRTS[k % CANDIDATE_SHIRTS.length]! })
+    person(`k${k}`, `Candidato ${k + 1}`, candidateLooks[k % candidateLooks.length]!)
   );
   return splitIntoGroups(people).map((members, g) => ({
     id: `g${g}`,

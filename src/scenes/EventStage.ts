@@ -21,16 +21,21 @@ import {
   LANE_FULL_M,
   LAUNCH_LANE,
   anchorFor,
-  assemblyParts,
+  GLIDER_PARTS,
+  assemblyClock,
+  flightFrame,
+  heldHeight,
+  launchStart,
+  partFrame,
+  patrolStop,
+  seatsAround,
   effectiveFocus,
   focusForView,
   formatDistance,
   framedSceneFor,
-  gliderFrame,
   groupTables,
   inspectionLights,
   inspectionTally,
-  landedGlider,
   laneRow,
   planFigures,
   selectionPhase,
@@ -46,6 +51,8 @@ import { iso, isoBox, rowWallQuad, vec } from "./hangar/iso";
 import { css, fonts, palette, shade } from "./palette";
 import { setSprite } from "./people/sprite/phaser";
 
+/** Cor de cada peça do planador, para distinguir na bancada. */
+const PART_COLORS = { fuselage: palette.lamp, wing: palette.ink, tail: palette.highlight, ballast: palette.accent } as const;
 const WALK_SPEED = 3.2; // casas por segundo
 const HORIZON = -10;
 const GROUND_DEPTH = -1_000_000;
@@ -106,6 +113,8 @@ export class EventStage extends Phaser.Scene {
   private camY = 0;
   private camZoom = 0;
   private snap = true;
+  /** Só para depuração: multiplica o zoom (window.__eventStage.zoomBoost = 2.5) para conferir detalhes. */
+  zoomBoost = 1;
   private unsubscribe: (() => void)[] = [];
   private store!: GameStore;
 
@@ -519,7 +528,7 @@ export class EventStage extends Phaser.Scene {
     const top = -240;
     const bottom = iso(GRID.cols, GRID.rows).y + 40;
     const fit = Math.min(width / (right - left), height / (bottom - top));
-    const zoom = Phaser.Math.Clamp(fit * zoomForView(view), 0.35, 3);
+    const zoom = Phaser.Math.Clamp(fit * zoomForView(view) * this.zoomBoost, 0.35, 4);
     if (this.snap) {
       this.camX = anchor.x;
       this.camY = anchor.y - 30;
@@ -535,12 +544,20 @@ export class EventStage extends Phaser.Scene {
     this.cameras.main.centerOn(this.camX, this.camY);
   }
 
+  private groupIndexOf(groupId: string | undefined): number {
+    return Math.max(0, this.view?.selection?.groups.findIndex((g) => g.id === groupId) ?? 0);
+  }
+
   private updateFigures(dt: number) {
     const observed = observedSet(this.view?.selection);
+    const view = this.view;
+    const phase = view ? selectionPhase(view) : "kit";
     for (const figure of this.figures.values()) {
       const { plan } = figure;
-      const dc = plan.col - figure.col;
-      const dr = plan.row - figure.row;
+      // Capitão em ronda: o destino muda de bancada a cada PATROL_SECONDS.
+      const goal = plan.patrol ? patrolStop(plan.patrol, this.blockT) : plan;
+      const dc = goal.col - figure.col;
+      const dr = goal.row - figure.row;
       const dist = Math.hypot(dc, dr);
       const walking = dist > 0.05;
       if (walking) {
@@ -549,18 +566,20 @@ export class EventStage extends Phaser.Scene {
         figure.row += (dr / dist) * step;
       }
       const facing = walking && Math.abs(dc - dr) > 0.05 ? (dc - dr > 0 ? 1 : -1) : plan.facing;
-      const working = !walking && plan.pose === "work";
-      const phase = working ? (this.t * 1.4 + plan.col) % 1 : 0;
-      const key = `${facing}:${walking ? "s" : plan.pose}:${Math.round(phase * 8)}:${plan.look.shirt}`;
+      // Quem ergue o planador antes do lançamento fica de braços à frente (pose de trabalho).
+      const lifting = !!plan.lifter && phase === "launching" && this.blockT < launchStart(this.groupIndexOf(plan.groupId));
+      const working = !walking && (plan.pose === "work" || lifting);
+      const swing = working && !lifting ? (this.t * 1.4 + plan.col) % 1 : 0;
+      const key = `${facing}:${working ? "w" : "s"}:${Math.round(swing * 8)}:${plan.look.shirt}:${plan.outfit ?? ""}`;
       if (key !== figure.drawnKey) {
         figure.drawnKey = key;
-        setSprite(figure.gfx, { id: plan.id, look: plan.look }, facing, working ? "work" : "stand");
+        setSprite(figure.gfx, { id: plan.id, look: plan.look, ...(plan.outfit ? { outfit: plan.outfit } : {}) }, facing, working ? "work" : "stand");
       }
       const base = iso(figure.col, figure.row);
       const bob = walking ? -Math.abs(Math.sin(this.t * 11)) * 3 : 0;
       const dim = plan.role === "candidate" && plan.groupId ? groupEmphasis(observed, plan.groupId).alpha : 1;
       figure.gfx.setScale(this.scale1);
-      figure.gfx.setPosition(base.x + (working ? Math.round(phase) * facing : 0), base.y + bob).setDepth(base.y).setAlpha(dim);
+      figure.gfx.setPosition(base.x + (working && !lifting ? Math.round(swing) * facing : 0), base.y + bob).setDepth(base.y).setAlpha(dim);
     }
   }
 
@@ -634,7 +653,8 @@ export class EventStage extends Phaser.Scene {
         edge: palette.ink
       });
       tg.setPosition(iso(spot.col, spot.row).x - iso(0, 0).x, iso(spot.col, spot.row).y - iso(0, 0).y);
-      this.drawKit(tg, phase, g, this.blockT);
+      // Do erguer em diante o planador não está mais na mesa (está na mão de quem ergue, no ar ou pousado).
+      this.drawKit(tg, phase, g, this.blockT, phase === "launching" || phase === "landed");
 
       const labelText = isObserved ? `${group.label.toUpperCase()} · ACOMPANHADO` : group.label.toUpperCase();
       if (view2.label.text !== labelText) view2.label.setText(labelText);
@@ -652,12 +672,12 @@ export class EventStage extends Phaser.Scene {
       view2.distance.setVisible(false);
       const distanceM = group.gliderDistanceM;
       if ((phase === "launching" || phase === "landed") && distanceM !== null) {
-        const frame = phase === "landed" ? landedGlider(g, distanceM, groups.length) : gliderFrame(g, distanceM, this.blockT, groups.length);
-        const p = iso(frame.col, frame.row, frame.z);
+        // Sai da mão de quem o ergue na bancada e pousa na faixa do grupo.
+        const lifter = seatsAround(spot, group.members.length)[0]!;
+        const frame = flightFrame(lifter, g, distanceM, phase === "landed" ? 1e6 : this.blockT, groups.length, heldHeight(this.scale1));
         const shadowP = iso(frame.col, frame.row);
         gg.fillStyle(palette.bg, 0.3).fillEllipse(shadowP.x, shadowP.y, 16, 6);
         this.drawGlider(gg, frame.col, frame.row, frame.z, isObserved);
-        void p;
         if (frame.landed) {
           view2.distance
             .setText(`${group.label.slice(-1)} · ${formatDistance(distanceM)}`)
@@ -672,23 +692,24 @@ export class EventStage extends Phaser.Scene {
     });
   }
 
-  /** Material em cima da mesa: caixa fechada, peças aparecendo na montagem, ou vazia. */
-  private drawKit(tg: Phaser.GameObjects.Graphics, phase: ReturnType<typeof selectionPhase>, groupIndex: number, t: number) {
-    const spot = { col: 0, row: 0 };
+  /**
+   * Peças do planador sobre a bancada: soltas no começo, encaixando uma a uma (sobem um pouco no caminho)
+   * conforme o bloco avança, e montadas no fim. Depois do arremesso a mesa fica vazia.
+   */
+  private drawKit(tg: Phaser.GameObjects.Graphics, phase: ReturnType<typeof selectionPhase>, groupIndex: number, t: number, launched: boolean) {
+    if (launched) return;
     const z = 20;
-    const part = (c0: number, c1: number, r0: number, r1: number, h: number, color: number) =>
-      isoBox(tg, spot.col + c0, spot.col + c1, spot.row + r0, spot.row + r1, z, h, { top: color, left: shade(color, 0.3), right: shade(color, 0.15) });
-    if (phase === "kit") {
-      part(-0.3, 0.3, -0.25, 0.25, 5, palette.venueSoil);
-      return;
-    }
-    if (phase !== "assembling") return;
-    const n = assemblyParts(groupIndex, t);
-    part(-0.65, -0.35, -0.4, -0.2, 2, palette.lamp); // sobras de balsa
-    if (n >= 1) part(-0.45, 0.45, -0.04, 0.04, 3, palette.lamp); // fuselagem
-    if (n >= 2) part(-0.1, 0.18, -0.5, 0.5, 1.5, palette.lamp); // asa
-    if (n >= 3) part(0.32, 0.46, -0.2, 0.2, 1.5, palette.lamp); // empenagem
-    if (n >= 4) part(-0.52, -0.42, -0.05, 0.05, 4, palette.accent); // lastro na proa
+    const clock = assemblyClock(phase, t);
+    GLIDER_PARTS.forEach((part, i) => {
+      const frame = partFrame(groupIndex, i, clock);
+      const color = PART_COLORS[part.id];
+      isoBox(tg, part.c0 + frame.dc, part.c1 + frame.dc, part.r0 + frame.dr, part.r1 + frame.dr, z + frame.lift, part.h, {
+        top: color,
+        left: shade(color, 0.35),
+        right: shade(color, 0.18),
+        edge: palette.ink
+      });
+    });
   }
 
   private drawGlider(g: Phaser.GameObjects.Graphics, col: number, row: number, z: number, emphasized: boolean) {

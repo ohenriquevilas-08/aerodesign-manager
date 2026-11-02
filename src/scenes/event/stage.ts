@@ -121,10 +121,10 @@ export function zoomForView(view: Pick<StageView, "kind" | "blocks" | "blockInde
   const zoom = zoomFor(setting, focus);
   return isCrowded(view) && setting === "campus" ? Math.min(zoom, CROWDED_ZOOM) : zoom;
 }
-const CROWDED_ZOOM = 1.25;
+const CROWDED_ZOOM = 1.6;
 
 /** Altura (px) acima do centro da mesa onde fica a etiqueta do grupo (com fundo, para ler por cima da roda). */
-export const GROUP_LABEL_OFFSET = 30;
+export const GROUP_LABEL_OFFSET = 80;
 
 // ------------------------------------------------------------------ céu
 
@@ -161,6 +161,12 @@ export interface FigurePlan {
   facing: 1 | -1;
   pose: Pose;
   groupId?: string;
+  /** Roupa forçada: candidatos com roupa própria, capitães com a camiseta da equipe (dinâmica). */
+  outfit?: "own" | "team";
+  /** Um por grupo: quem ergue o planador antes do lançamento. */
+  lifter?: boolean;
+  /** Capitão que circula entre os grupos: a cena anda de parada em parada por `patrolStop`. */
+  patrol?: Patrol;
 }
 
 /** Onde a equipe se junta em cada cenário e foco. */
@@ -251,14 +257,21 @@ export interface Seat extends Cell {
   facing: 1 | -1;
 }
 
-/** Lugares dos integrantes em volta da mesa (de frente para ela); a roda abre para caber 5 ou 6. */
+/** Meia-medida da bancada (col × row), de onde sai a roda em volta dela. */
+export const BENCH_HALF = { col: 0.75, row: 0.55 } as const;
+/** Folga entre a borda da bancada e quem trabalha nela. */
+const BENCH_REACH = 0.55;
+
+/**
+ * Lugares dos integrantes em volta da bancada, colados nela (elipse que contorna o tampo), cada um virado
+ * para ela: quem está à esquerda do centro na tela olha para a direita e vice-versa.
+ */
 export function seatsAround(table: Cell, count: number): Seat[] {
-  const radius = count > 4 ? 1.75 : 1.5;
   return Array.from({ length: count }, (_, k) => {
     const angle = Math.PI * 0.15 + (k / Math.max(1, count)) * Math.PI * 1.7;
-    const col = table.col + Math.cos(angle) * radius;
-    const row = table.row + Math.sin(angle) * radius;
-    return { col, row, facing: col > table.col ? -1 : 1 };
+    const col = table.col + Math.cos(angle) * (BENCH_HALF.col + BENCH_REACH);
+    const row = table.row + Math.sin(angle) * (BENCH_HALF.row + BENCH_REACH);
+    return { col, row, facing: col - row > table.col - table.row ? -1 : 1 };
   });
 }
 
@@ -345,18 +358,123 @@ export function formatDistance(meters: number): string {
   return `${meters.toFixed(1).replace(".", ",")} m`;
 }
 
-/** Candidatos do grupo atrás da linha de lançamento, vendo o planador voar. */
-function launchSeats(groupIndex: number, group: SelectionGroupView, groupCount: number): Seat[] {
+// ------------------------------------------------------------------ planador na bancada
+
+export interface GliderPart {
+  id: "fuselage" | "wing" | "tail" | "ballast";
+  /** Caixa montada, relativa ao centro da bancada. */
+  c0: number;
+  c1: number;
+  r0: number;
+  r1: number;
+  /** Altura da peça (px). */
+  h: number;
+  /** Deslocamento (col, row) da peça solta sobre o tampo, no começo. */
+  loose: Cell;
+}
+
+/** Peças do kit, na ordem em que são montadas: fuselagem, asa, empenagem e lastro na proa. */
+export const GLIDER_PARTS: readonly GliderPart[] = [
+  { id: "fuselage", c0: -0.45, c1: 0.45, r0: -0.05, r1: 0.05, h: 4, loose: { col: 0.05, row: 0.34 } },
+  { id: "wing", c0: -0.1, c1: 0.18, r0: -0.5, r1: 0.5, h: 2, loose: { col: -0.4, row: 0 } },
+  { id: "tail", c0: 0.32, c1: 0.46, r0: -0.2, r1: 0.2, h: 2, loose: { col: 0.2, row: -0.3 } },
+  { id: "ballast", c0: -0.52, c1: -0.42, r0: -0.05, r1: 0.05, h: 4, loose: { col: 0.62, row: 0.05 } }
+];
+
+export interface PartFrame {
+  /** 0 = solta sobre a mesa, 1 = no lugar. */
+  k: number;
+  /** Deslocamento (col, row) atual em relação à posição montada. */
+  dc: number;
+  dr: number;
+  /** Quanto a peça sobe no ar enquanto viaja até o lugar (px). */
+  lift: number;
+}
+
+/** Segundos que uma peça leva do tampo ao lugar. */
+export const PART_TRAVEL_SECONDS = 2;
+
+/** Quando a peça `index` começa a ser encaixada (s do bloco): o grupo atrasa um pouco e as peças vão em sequência. */
+export function partStart(groupIndex: number, index: number): number {
+  return groupIndex * 0.9 + index * (ASSEMBLY_SECONDS / KIT_PARTS);
+}
+
+/** Estado da peça `index` do grupo no instante t: solta até a hora dela, viaja ~2 s e fica montada. */
+export function partFrame(groupIndex: number, index: number, t: number): PartFrame {
+  const part = GLIDER_PARTS[index]!;
+  const p = clamp01((t - partStart(groupIndex, index)) / PART_TRAVEL_SECONDS);
+  const k = p * p * (3 - 2 * p);
+  return { k, dc: part.loose.col * (1 - k), dr: part.loose.row * (1 - k), lift: Math.sin(p * Math.PI) * 6 };
+}
+
+/** Quanto do planador está montado (0 a 1): média das peças. */
+export function assemblyProgress(groupIndex: number, t: number): number {
+  let sum = 0;
+  for (let i = 0; i < GLIDER_PARTS.length; i += 1) sum += partFrame(groupIndex, i, t).k;
+  return sum / GLIDER_PARTS.length;
+}
+
+/**
+ * Instante (s do bloco) que o desenho das peças usa em cada fase: soltas no começo (`kit`), em andamento
+ * (`assembling`, o tempo do bloco) e todas no lugar depois (`launching`, `landed`).
+ */
+export function assemblyClock(phase: SelectionPhase, blockT: number): number {
+  if (phase === "kit") return -1;
+  if (phase === "assembling") return blockT;
+  return 1e6;
+}
+
+/** Altura (px) da mão do candidato que ergue o planador acima da própria cabeça. */
+export function heldHeight(figureScale: number): number {
+  return 48 * figureScale + 8;
+}
+
+export interface FlightFrame extends GliderFrame {
+  /** Ainda nas mãos de quem ergue, antes do arremesso. */
+  held: boolean;
+}
+
+/**
+ * Voo do planador que sai da mão de quem o ergue na bancada (`start`) e pousa na faixa do grupo, a
+ * `distanceM` (da simulação) do início da pista. Antes de `launchStart` fica erguido; depois sobe em
+ * arco e desce até o pouso. `t` é o tempo do bloco; `1e6` dá o planador pousado.
+ */
+export function flightFrame(start: Cell, groupIndex: number, distanceM: number, t: number, groupCount = LANES_AT_FULL_STEP, holdZ = 56): FlightFrame {
   const row = laneRow(groupIndex, groupCount);
-  // Grupos de 5 a 6 não cabem em fila única na faixa apertada: ficam em duas colunas, de dois em dois.
-  if (group.members.length > 4) {
-    return group.members.map((_, k) => ({
-      col: LAUNCH_LANE.col0 - 0.7 - Math.floor(k / 2) * 0.65,
-      row: row + (k % 2 === 0 ? -0.1 : 0.15),
-      facing: 1 as const
-    }));
-  }
-  return group.members.map((_, k) => ({ col: LAUNCH_LANE.col0 - 0.8 - k * 0.5, row: row + 0.1, facing: 1 as const }));
+  const share = clamp01(distanceM / LANE_FULL_M);
+  const endCol = LAUNCH_LANE.col0 + share * LAUNCH_LANE.length;
+  const duration = 1.6 + share * 2.4;
+  const p = clamp01((t - launchStart(groupIndex)) / duration);
+  const eased = 1 - (1 - p) * (1 - p);
+  return {
+    col: start.col + (endCol - start.col) * eased,
+    row: start.row + (row - start.row) * eased,
+    z: p >= 1 ? 3 : holdZ * (1 - eased) + 3 * eased + 4 * 34 * p * (1 - p),
+    landed: p >= 1,
+    held: t < launchStart(groupIndex)
+  };
+}
+
+// ------------------------------------------------------------------ capitães
+
+export interface Patrol {
+  /** Paradas ao lado de cada bancada. */
+  stops: Cell[];
+  /** Onde este capitão começa na ronda (para dois capitães não pararem no mesmo grupo). */
+  offset: number;
+}
+
+/** Segundos que o capitão fica em cada bancada. */
+export const PATROL_SECONDS = 6;
+
+/** Parada do capitão ao lado da bancada. */
+export function patrolStops(tables: Cell[]): Cell[] {
+  return tables.map((table) => ({ col: table.col + 0.9, row: table.row + 1.9 }));
+}
+
+export function patrolStop(patrol: Patrol, t: number): Cell {
+  const n = patrol.stops.length;
+  return patrol.stops[(Math.floor(Math.max(0, t) / PATROL_SECONDS) + patrol.offset) % n]!;
 }
 
 // ------------------------------------------------------------------ inspeção
@@ -407,7 +525,15 @@ export function planFigures(view: StageView): FigurePlan[] {
   const plans: FigurePlan[] = [];
 
   const slots = crewSlots(view.crew.length, setting, focus);
+  const stops = patrolStops(view.selection ? groupTables(view.selection.groups.length) : []);
   view.crew.forEach((person, k) => {
+    // Na dinâmica a equipe são os capitães: camiseta da equipe, circulando entre os grupos.
+    if (stops.length > 0) {
+      const patrol: Patrol = { stops, offset: Math.floor((k * stops.length) / view.crew.length) };
+      const first = patrolStop(patrol, 0);
+      plans.push({ id: `crew:${person.id}`, role: "crew", look: person.look, col: first.col, row: first.row, facing: 1, pose: "stand", outfit: "team", patrol });
+      return;
+    }
     plans.push({
       id: `crew:${person.id}`,
       role: "crew",
@@ -423,8 +549,8 @@ export function planFigures(view: StageView): FigurePlan[] {
     const tables = groupTables(view.selection.groups.length);
     const phase = selectionPhase(view);
     view.selection.groups.forEach((group, g) => {
-      const seats =
-        phase === "launching" || phase === "landed" ? launchSeats(g, group, view.selection!.groups.length) : seatsAround(tables[g]!, group.members.length);
+      // Em todas as fases o grupo fica em volta da sua bancada; os planadores saem dali.
+      const seats = seatsAround(tables[g]!, group.members.length);
       group.members.forEach((person, k) => {
         plans.push({
           id: `cand:${person.id}`,
@@ -434,7 +560,9 @@ export function planFigures(view: StageView): FigurePlan[] {
           row: seats[k]!.row,
           facing: seats[k]!.facing,
           pose: phase === "assembling" ? "work" : "stand",
-          groupId: group.id
+          groupId: group.id,
+          outfit: "own",
+          ...(k === 0 ? { lifter: true } : {})
         });
       });
     });
