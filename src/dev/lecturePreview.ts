@@ -1,5 +1,5 @@
 // Montagem só de desenvolvimento da LectureScene (/lecture-dev.html), com palestras de mentira.
-// A palestra de verdade (U-fase 9) monta a cena por PhaserStage e entrega a leitura da campanha.
+// A palestra de verdade (Fase 9, U2) monta a cena por PhaserStage e entrega a leitura da campanha.
 // Parâmetros: ?present=N&founders=1..3
 
 import Phaser from "phaser";
