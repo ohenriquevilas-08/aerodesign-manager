@@ -519,7 +519,22 @@ export const BALANCE = {
     maxQuestions: 3,
     /** Ruído das respostas (± pontos de 0 a 100) e quanto a comunicação média dos entrevistadores o reduz (fração a 100). */
     interviewNoise: 18,
-    noiseReductionByComm: 0.55
+    noiseReductionByComm: 0.55,
+    /**
+     * Por indicação (design §5.2): os inscritos vêm da rede da equipe. Total = Σ por integrante
+     * (perMember + comunicação/100 × perCommunication) × época × reputação, sem alcance de divulgação.
+     * "Pedir indicações" rende, por integrante, askPerMember + comunicação/100 × askPerCommunication
+     * inscritos a mais, em askHoursPerMember h-pessoa cada. Os indicados parecem com quem indicou
+     * (mesma área de interesse) com chance `similarity`.
+     */
+    referral: {
+      perMember: 1.6,
+      perCommunication: 3.2,
+      askHoursPerMember: 3,
+      askPerMember: 1.2,
+      askPerCommunication: 2.4,
+      similarity: 0.6
+    }
   },
 
   /** Formação por área (Fase 4, S3; design §5.1). */

@@ -71,13 +71,34 @@ export function selectionWindow(hours: number): { factor: number; label: string;
  * Inscritos esperados (antes do sorteio): base do formato × época × alcance de divulgação × reputação
  * do orientador. Fora da janela de novembro ou março rende bem menos.
  */
-export function expectedApplicants(state: Pick<GameState, "clock" | "outreach" | "advisor">, formatId: string | null, extraOutreach = 0): number {
+export function expectedApplicants(state: Pick<GameState, "clock" | "outreach" | "advisor"> & Partial<Pick<GameState, "members">>, formatId: string | null, extraOutreach = 0): number {
   const format = findSelectionFormat(formatId);
   if (!format) return 0;
-  const reach = 1 + (state.outreach + extraOutreach) * S.reachScale;
   const standing = 1 + state.advisor.reputation * S.reputationScale;
-  return format.baseTotal * selectionWindow(state.clock.hours).factor * reach * standing;
+  const window = selectionWindow(state.clock.hours).factor;
+  // Por indicação: a rede da equipe, não o alcance de divulgação (design §5.2).
+  if (format.id === "referral") return referralBase(state.members ?? []) * window * standing;
+  const reach = 1 + (state.outreach + extraOutreach) * S.reachScale;
+  return format.baseTotal * window * reach * standing;
 }
+
+/** Quem indica: os integrantes (trainee ainda não tem rede na universidade). */
+const referrers = (members: readonly Member[]): Member[] => members.filter((member) => member.role !== "trainee");
+
+/** Inscritos da rede da equipe: por integrante, um tanto fixo mais o que a comunicação dele traz. */
+export function referralBase(members: readonly Member[]): number {
+  const R = S.referral;
+  return referrers(members).reduce((sum, member) => sum + R.perMember + (clamp(member.communication) / 100) * R.perCommunication, 0);
+}
+
+/** Inscritos a mais que "Pedir indicações" rende para esse grupo (antes do sorteio de qualidade). */
+export function referralAskYield(members: readonly Member[]): number {
+  const R = S.referral;
+  return members.reduce((sum, member) => sum + R.askPerMember + (clamp(member.communication) / 100) * R.askPerCommunication, 0);
+}
+
+/** A seletiva em andamento é por indicação? (a divulgação geral não vale nela) */
+export const isReferralCampaign = (state: Pick<GameState, "selection">): boolean => state.selection?.format === "referral";
 
 // ---------------------------------------------------------------------------
 // Sorteio de inscritos
@@ -133,6 +154,12 @@ export function drawApplicants(state: GameState, format: SelectionFormatDef, cou
     rng.set(base.rngState);
     const prefs = drawPreferences(rng.state());
     rng.set(prefs.rngState);
+    // Indicado: vem de um integrante e, com chance `similarity`, gosta da mesma área que ele.
+    const network = format.id === "referral" ? referrers(state.members) : [];
+    const referrer = network.length > 0 ? pick(network) : undefined;
+    const alike = referrer !== undefined && roll() < S.referral.similarity;
+    const kinFocus = alike ? (referrer.statedLikes[0] ?? referrer.area ?? undefined) : undefined;
+    if (kinFocus) prefs.prefs.statedLikes = [kinFocus, ...prefs.prefs.statedLikes.filter((item) => item !== kinFocus)].slice(0, 2);
     const focus = prefs.prefs.statedLikes[0] ?? pick(DISCIPLINES);
     const knowledge = base.knowledge;
     knowledge[focus] += between(format.focusKnowledge);
@@ -171,6 +198,7 @@ export function drawApplicants(state: GameState, format: SelectionFormatDef, cou
       notes: [],
       revealed: { lecture: null, dynamic: null, answers: [] },
       questionIds: [],
+      ...(referrer ? { referredBy: referrer.id } : {}),
       profile
     });
     nextId += 1;
@@ -273,7 +301,8 @@ export function advanceSelection(state: GameState): SelectionStep {
 
   if (campaign.stage === "open" && campaign.openedAt !== null && campaign.closesAt !== null) {
     // Divulgação durante as inscrições ainda soma.
-    const gained = Math.max(0, next.outreach - campaign.arrival.outreachSeen);
+    // Por indicação a divulgação geral não soma; os inscritos extras vêm de "Pedir indicações".
+    const gained = campaign.format === "referral" ? 0 : Math.max(0, next.outreach - campaign.arrival.outreachSeen);
     let arrival = { ...campaign.arrival, outreachSeen: next.outreach, extra: campaign.arrival.extra + gained * S.extraPerReach };
     const days = (campaign.closesAt - campaign.openedAt) / 24;
     const elapsed = Math.floor((Math.min(now, campaign.closesAt) - campaign.openedAt) / 24);
@@ -556,9 +585,12 @@ export interface ApplicantView {
   answers: InterviewAnswer[];
   /** Aparência (o que qualquer um vê na palestra); não revela nada do perfil. */
   look: MemberLook;
+  /** Seletiva por indicação: id de quem indicou (a equipe sabe quem trouxe). */
+  referredBy?: string | null;
 }
 
 const viewOf = (applicant: Applicant): ApplicantView => ({
+  referredBy: applicant.referredBy ?? null,
   id: applicant.id,
   name: applicant.name,
   course: applicant.course,

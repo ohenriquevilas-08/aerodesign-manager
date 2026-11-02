@@ -210,6 +210,8 @@ export interface Applicant {
   revealed: ApplicantRevealed;
   /** Perguntas escolhidas para a entrevista (até BALANCE.selection.maxQuestions). */
   questionIds: string[];
+  /** Seletiva por indicação: id do integrante que indicou. */
+  referredBy?: string;
   /** ESCONDIDO: nunca vai para a UI (use applicantView). */
   profile: ApplicantProfile;
 }
@@ -349,6 +351,8 @@ export interface PauseInfo {
   at: number;
   /** Mensagem da inbox que explica a pausa automática, se houver. */
   messageId: string | null;
+  /** Outros motivos que pausaram no mesmo instante, em ordem (o aviso central os põe em fila). */
+  also?: { reason: PauseReason; messageId: string }[];
 }
 
 /** Aviso curto de um comando recusado (ex.: sem caixa). `id` muda a cada aviso novo. */

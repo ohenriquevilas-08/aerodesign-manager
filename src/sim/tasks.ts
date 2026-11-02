@@ -11,7 +11,7 @@ import { recordTest } from "./testlog";
 import { recordLedger } from "./ledger";
 import { nextRandom } from "./rng";
 import { actionProblem, agendaBoost, applyTraining } from "./season";
-import { beginCampaign, findSelectionFormat, finishInterviews, openApplications, revealInterviews } from "./selection";
+import { beginCampaign, findSelectionFormat, finishInterviews, isReferralCampaign, openApplications, referralAskYield, revealInterviews } from "./selection";
 import { DISCIPLINES } from "./state";
 import { clamp, DISCIPLINE_LABELS, learn } from "./team";
 import type { Discipline, GameState, InboxMessage, Member, Part, Task } from "./types";
@@ -169,7 +169,9 @@ export function startAction(
   // Dedicação só faz sentido com horas; compras ficam sempre "normal".
   const taskDedication = action.cost.hours > 0 ? dedication : "normal";
   const remaining = resumes ? 1 - (resumes.partial ?? 0) : 1;
-  const hoursTotal = (overrides?.hours ?? action.cost.hours) * findDedication(taskDedication).hoursFactor * remaining;
+  // "Pedir indicações": as horas do catálogo são por integrante.
+  const perHead = action.effect?.kind === "referral-ask" ? Math.max(1, memberIds.length) : 1;
+  const hoursTotal = (overrides?.hours ?? action.cost.hours) * perHead * findDedication(taskDedication).hoursFactor * remaining;
 
   // Quanto a tarefa entrega ao todo (S2): sorteado aqui, com a equipe escolhida, para o parcial
   // mais o restante dar sempre o total.
@@ -180,11 +182,19 @@ export function startAction(
     const weights: Record<string, number> = {};
     crewRates(team, action.crew, clockToDate(now)).forEach((rate, id) => (weights[id] = rate));
     const quality = clamp(crewQuality(state, action, targetId, weights) + findDedication(taskDedication).qualityBonus);
-    if (effect.kind === "outreach" || effect.kind === "selection-open") {
+    if (effect.kind === "selection-open" && targetId === "referral") {
+      // Por indicação a abertura não soma alcance: o total vem da rede da equipe (selection.ts).
+      yieldTotal = null;
+    } else if (effect.kind === "outreach" || effect.kind === "selection-open") {
       // A divulgação da seletiva soma alcance enquanto anda; ao terminar, o alcance vira inscritos (selection.ts).
       const rolled = rollMultiplier(rngState, quality);
       rngState = rolled.rngState;
       yieldTotal = effect.amount * rolled.multiplier;
+    } else if (effect.kind === "referral-ask") {
+      // Cada integrante traz indicados pela rede e pela comunicação dele.
+      const rolled = rollMultiplier(rngState, quality);
+      rngState = rolled.rngState;
+      yieldTotal = referralAskYield(team) * rolled.multiplier;
     } else if (effect.kind === "selection-interviews") {
       yieldTotal = overrides?.yieldTotal ?? 0;
     } else if (effect.kind === "report-chapter" || effect.kind === "drawings" || effect.kind === "oral-practice") {
@@ -322,8 +332,16 @@ export function deliverProgress(state: GameState, taskId: string): GameState {
   if (delta <= 1e-9) return state;
   const effect = action.effect;
   let next = state;
-  if (effect?.kind === "outreach" || effect?.kind === "selection-open") next = { ...next, outreach: next.outreach + delta };
-  else if (effect?.kind === "selection-interviews") next = revealInterviews(next, Math.round(delta));
+  if (effect?.kind === "selection-open" && isReferralCampaign(next)) {
+    // Por indicação a divulgação não soma alcance: a rede da equipe define o total (selection.ts).
+  } else if (effect?.kind === "outreach" || effect?.kind === "selection-open") next = { ...next, outreach: next.outreach + delta };
+  else if (effect?.kind === "referral-ask") {
+    // Indicados chegam aos poucos: entram na fila de chegada das inscrições abertas.
+    const campaign = next.selection;
+    if (campaign && campaign.stage === "open") {
+      next = { ...next, selection: { ...campaign, arrival: { ...campaign.arrival, extra: campaign.arrival.extra + delta } } };
+    }
+  } else if (effect?.kind === "selection-interviews") next = revealInterviews(next, Math.round(delta));
   else if (effect?.kind === "report-chapter" || effect?.kind === "drawings" || effect?.kind === "oral-practice") {
     next = addReportHours(next, effect.kind, delta, isDiscipline(task.targetId) ? task.targetId : null).state;
   }
@@ -346,7 +364,12 @@ export function taskKeeps(state: GameState, taskId: string): string {
     case "outreach":
       return `Alcance +${Math.round(task.yielded)} até agora.`;
     case "selection-open":
+      if (isReferralCampaign(state)) return "As inscrições abrem com a lista de indicados da equipe.";
       return `Alcance +${Math.round(task.yielded)} até agora. As inscrições abrem com o que já foi divulgado.`;
+    case "referral-ask": {
+      const n = Math.round(task.yielded);
+      return `${n} ${n === 1 ? "indicação" : "indicações"} a caminho até agora.`;
+    }
     case "selection-interviews": {
       const n = Math.round(task.yielded);
       return `${n} ${n === 1 ? "entrevista feita" : "entrevistas feitas"} até agora.`;
@@ -559,7 +582,15 @@ export function completeTask(state: GameState, taskId: string): { state: GameSta
       body = `Alcance da divulgação +${Math.round(task.yielded)} (total ${Math.round(next.outreach)}).`;
       break;
     }
+    case "referral-ask":
+      body = `Indicações pedidas: ${Math.round(task.yielded)} ${Math.round(task.yielded) === 1 ? "indicado" : "indicados"} a mais chegando às inscrições.`;
+      break;
     case "selection-open":
+      if (isReferralCampaign(next)) {
+        next = openApplications(next);
+        body = "A equipe passou o convite adiante. As inscrições estão abertas: os indicados chegam aos poucos na planilha.";
+        break;
+      }
       next = openApplications(next);
       body = `Divulgação feita (alcance +${Math.round(task.yielded)}). As inscrições estão abertas: os inscritos chegam aos poucos na planilha.`;
       break;

@@ -279,6 +279,7 @@ export function step(state: GameState, dt: number): GameState {
   // 6. Pausa automática: o relógio para e guarda o motivo do primeiro evento do passo.
   const first = pauses[0];
   if (!first) return next;
-  const pause: PauseInfo = { reason: first.reason, at: t1, messageId: first.messageId };
+  const rest = pauses.slice(1);
+  const pause: PauseInfo = { reason: first.reason, at: t1, messageId: first.messageId, ...(rest.length > 0 ? { also: rest } : {}) };
   return { ...next, clock: { ...next.clock, speed: 0 }, pause };
 }

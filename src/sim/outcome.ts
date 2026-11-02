@@ -7,7 +7,7 @@ import { findAction, type ActionDef } from "./content/actions";
 import { BALANCE } from "./content/balance";
 import { findDedication, type Dedication } from "./content/dedication";
 import { crewRates } from "./crew";
-import { expectedApplicants, findSelectionFormat } from "./selection";
+import { expectedApplicants, findSelectionFormat, referralAskYield } from "./selection";
 import { nextRandom } from "./rng";
 import { DISCIPLINES } from "./state";
 import { clamp, DISCIPLINE_LABELS, effectiveKnowledge, motivationFactor } from "./team";
@@ -183,6 +183,10 @@ export function estimateOutcome(
       // O que a divulgação desta tarefa soma ao alcance entra na conta (Fase 9, S1).
       const values = applicantBand(expectedApplicants(state, targetId, effect.amount * band.expected), quality);
       return { quality, ...values, text: `Inscritos estimados ${range(values.min, values.max)}` };
+    }
+    case "referral-ask": {
+      const values = scale(referralAskYield(team));
+      return { quality, ...values, text: `Indicados a mais ${range(values.min, values.max)}` };
     }
     case "repair": {
       const values = scale(effect.amount);

@@ -1,6 +1,5 @@
 // Palestra de apresentação em tela cheia (Fase 9, U2): a LectureScene com a plateia dos que vieram.
-// Abre sozinha quando a simulação para o relógio por causa da palestra e pode ser revista pela
-// aba Seletiva. A cena só anima; quem veio e quem faltou já foi sorteado pela simulação.
+// Abre pelo "Ver resultado" do aviso central da pausa da palestra e pode ser revista pela aba Seletiva. A cena só anima; quem veio e quem faltou já foi sorteado pela simulação.
 
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { applicantViews } from "../../sim";
@@ -12,8 +11,6 @@ import { PhaserStage } from "../PhaserStage";
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
-// A palestra já mostrada sozinha (por campanha); sobrevive à troca de tela, não é estado do jogo.
-let autoShown: string | null = null;
 
 /** Pede a palestra em tela cheia (botão "Rever a palestra" da aba Seletiva). */
 export function openLecture() {
@@ -22,7 +19,6 @@ export function openLecture() {
 
 export function LectureOverlay() {
   const campaign = useGame((state) => state.selection);
-  const pauseReason = useGame((state) => state.pause?.reason ?? null);
   const members = useGame((state) => state.members);
   const teamName = useGame((state) => state.teamName);
   const [open, setOpen] = useState(false);
@@ -35,14 +31,7 @@ export function LectureOverlay() {
     };
   }, []);
 
-  // A palestra acabou de acontecer: a simulação pausou com o motivo "selection".
-  useEffect(() => {
-    if (pauseReason === "selection" && campaign?.stage === "dynamic" && autoShown !== campaign.id) {
-      autoShown = campaign.id;
-      setOpen(true);
-    }
-  }, [pauseReason, campaign?.stage, campaign?.id]);
-
+  // A palestra não abre mais sozinha: o aviso central da pausa (PauseNotice) oferece "Ver resultado".
   const view = useMemo(() => {
     if (!open || !campaign) return null;
     const speaker = members.find((member) => member.role === "president") ?? members[0];
