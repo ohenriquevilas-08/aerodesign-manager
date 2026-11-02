@@ -40,12 +40,15 @@ export function ActionCard({
   action,
   selected,
   highlight,
+  compact,
   onSelect
 }: {
   action: ActionDef;
   selected?: boolean;
   /** Destaque do cartão (ex.: Leitura do regulamento no dia em que ele sai). */
   highlight?: boolean;
+  /** Fase 8, U2: só o nome (e a disciplina); custo e equipe ficam no detalhe da ação. */
+  compact?: boolean;
   onSelect?: () => void;
 }) {
   const body = (
@@ -54,8 +57,8 @@ export function ActionCard({
         <span class="action-label">{action.label}</span>
         {action.discipline ? <span class="chip">{DISCIPLINE_SHORT[action.discipline]}</span> : null}
       </span>
-      <CostTag cost={action.cost} lead={leadDaysRange(action.id)} />
-      {action.cost.hours > 0 ? (
+      {compact ? null : <CostTag cost={action.cost} lead={leadDaysRange(action.id)} />}
+      {!compact && action.cost.hours > 0 ? (
         <span class="crew-rule">
           {crewText(action.crew)}
           {action.skill ? ` · rende com ${SKILL_LABEL[action.skill]}` : ""}
@@ -65,7 +68,7 @@ export function ActionCard({
   );
   if (!onSelect) return <article class={`action-card${highlight ? " is-highlight" : ""}`}>{body}</article>;
   return (
-    <button type="button" class={`action-card is-button${highlight ? " is-highlight" : ""}`} aria-pressed={selected} onClick={onSelect}>
+    <button type="button" class={`action-card is-button${compact ? " is-compact" : ""}${highlight ? " is-highlight" : ""}`} aria-pressed={selected} onClick={onSelect}>
       {highlight ? <span class="action-flag">Regulamento publicado: leia agora</span> : null}
       {body}
     </button>

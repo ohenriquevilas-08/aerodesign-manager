@@ -22,7 +22,6 @@ import {
   regulationPublished,
   partState,
   SELECTION_FORMATS,
-  type ActionCategory,
   type ActionDef,
   type Dedication,
   type Discipline,
@@ -30,8 +29,12 @@ import {
   type Task,
   crewEfficiency,
   taskKeeps,
+  type GameState,
 } from "../../sim";
-import { ActionCard, CostLegend, CostTag } from "../components/CostTag";
+import { ActionCard, CostTag } from "../components/CostTag";
+import { EnergyBar, energyTone } from "../components/Energy";
+import { useDerived } from "../hooks";
+import { actionGroups, deliveredText, groupOf, groupSummary, yieldText, type ActionGroupId } from "../actionsView";
 import { Meter } from "../components/Controls";
 import { takeIntent } from "../nav";
 import { crewText, isCounterfeit, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatDays, formatNumber, SKILL_LABEL } from "../format";
@@ -39,55 +42,97 @@ import { crewText, isCounterfeit, DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatDays
 // Tela Ações (design §4.2 e §8): iniciar uma ação cria uma tarefa. O tempo não pula: a tarefa
 // espera o prazo ⌛ e avança com as horas de quem está alocado, até o limite de pessoas da ação.
 
-const GROUPS: { category: ActionCategory; title: string }[] = [
-  { category: "hours", title: "Só horas" },
-  { category: "credits", title: "Só créditos" },
-  { category: "both", title: "Horas + créditos" }
-];
-
 export function Actions() {
   const readDue = useGame((state) => regulationPublished(state) && !state.regulationRead);
   // Vindo do Relatório ("Escrever"): abre a ação já com o alvo escolhido.
   const [intent] = useState(takeIntent);
   const [selectedId, setSelectedId] = useState<string | null>(intent?.actionId ?? null);
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState<Set<ActionGroupId>>(() => {
+    const first = intent?.actionId ? groupOf(intent.actionId) : null;
+    return new Set(first ? [first] : []);
+  });
   const selected = selectedId ? findAction(selectedId) : undefined;
+  const groups = useDerived((state) => actionGroups(state, query), [query]);
+  const searching = query.trim() !== "";
+  // Só o que dá para fazer agora vira grupo; o resto fica na linha "Mais adiante".
+  const visible = groups.filter((group) => group.available.length > 0);
+  const later = groups.flatMap((group) => group.later);
+  const toggle = (id: ActionGroupId) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
 
   return (
     <div class="screen">
       <header class="screen-head">
         <h1 class="screen-title">Ações</h1>
-        <Reach />
-        <CostLegend />
+        <input
+          type="search"
+          class="action-search"
+          placeholder="Buscar ação pelo nome"
+          aria-label="Buscar ação pelo nome"
+          value={query}
+          onInput={(event) => setQuery(event.currentTarget.value)}
+        />
       </header>
       <div class="actions-grid">
-        <div class="catalog">
-          {GROUPS.map((group) => {
-            const actions = ACTIONS.filter((action) => action.category === group.category);
+        <div class="catalog scroll-col">
+          {visible.map((group) => {
+            const expanded = searching || open.has(group.id);
             return (
-              <section key={group.category} class="panel">
-                <h2 class="panel-title">
-                  {group.title} <span class="panel-count">{actions.length}</span>
-                </h2>
-                <div class="panel-body stack-tight">
-                  {actions.map((action) => (
-                    <ActionCard
-                      key={action.id}
-                      action={action}
-                      selected={action.id === selectedId}
-                      highlight={readDue && action.id === "read-regulation"}
-                      onSelect={() => setSelectedId(action.id === selectedId ? null : action.id)}
-                    />
-                  ))}
-                </div>
+              <section key={group.id} class={`action-group${expanded ? " is-open" : ""}`} data-group={group.id}>
+                <button type="button" class="action-group-head" aria-expanded={expanded} onClick={() => toggle(group.id)}>
+                  <span class="action-group-chevron" aria-hidden="true">
+                    {expanded ? "▾" : "▸"}
+                  </span>
+                  <span class="action-group-title">{group.title}</span>
+                  <span class="action-group-summary">{groupSummary(group)}</span>
+                  {group.id === "outreach" ? <Reach /> : null}
+                </button>
+                {expanded ? (
+                  <div class="action-group-body">
+                    <p class="muted small">{group.goal}</p>
+                    {group.available.length === 0 ? <p class="muted small">Nada para fazer agora neste grupo.</p> : null}
+                    <div class="action-group-cards">
+                      {group.available.map((action) => (
+                        <ActionCard
+                          key={action.id}
+                          action={action}
+                          compact
+                          selected={action.id === selectedId}
+                          highlight={readDue && action.id === "read-regulation"}
+                          onSelect={() => setSelectedId(action.id === selectedId ? null : action.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </section>
             );
           })}
+          {visible.length === 0 && later.length === 0 ? <p class="muted">Nenhuma ação com esse nome.</p> : null}
+          {later.length > 0 ? (
+            <section class="action-later" aria-label="Mais adiante">
+              <h2 class="group-label">Mais adiante</h2>
+              <ul>
+                {later.map(({ action, reason }) => (
+                  <li key={action.id}>
+                    <span>{action.label}</span>
+                    <span class="muted small">{reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </div>
         <div class="stack scroll-col">
           {selected ? (
             <Composer key={selected.id} action={selected} initialTarget={intent?.actionId === selected.id ? intent.targetId : undefined} onClose={() => setSelectedId(null)} />
           ) : (
-            <p class="panel hint-panel muted">Escolha uma ação para ver quem pode fazer e quanto tempo leva.</p>
+            <p class="panel hint-panel muted">Escolha uma ação para ver quem pode fazer, quanto rende e quanto tempo leva.</p>
           )}
           <TaskList />
         </div>
@@ -100,7 +145,7 @@ export function Actions() {
 function Reach() {
   const reach = useGame((state) => Math.round(state.outreach));
   return (
-    <span class="stat" title="Soma das ações de divulgação. Cai 3% por dia e zera quando a seletiva termina.">
+    <span class="stat action-reach" title="Soma das ações de divulgação. Cai 3% por dia e zera quando a seletiva termina.">
       <span class="stat-label">Alcance atual</span>
       <strong>{formatNumber(reach)}</strong>
     </span>
@@ -169,6 +214,34 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
       current.includes(id) ? current.filter((item) => item !== id) : action.crew.max === null || current.length < action.crew.max ? [...current, id] : current
     );
 
+  // Ganho de cada pessoa a mais (ou a menos): quanto o prazo muda se ela entrar (ou sair) da equipe.
+  const state = store.getState();
+  const baseDays = usesCrew ? estimateTaskDays(state, action.id, picked, dedication) : null;
+  const deltaDays = (memberId: string, isPicked: boolean): { text: string; good: boolean } | null => {
+    if (!usesCrew) return null;
+    if (isPicked) {
+      if (picked.length <= action.crew.min) return null;
+      const without = estimateTaskDays(state, action.id, picked.filter((id) => id !== memberId), dedication);
+      if (without === null || baseDays === null) return null;
+      return { text: `sai: ${formatDays(without)}`, good: false };
+    }
+    const member = members.find((item) => item.id === memberId);
+    if (!member || member.taskId !== null || (action.crew.max !== null && picked.length >= action.crew.max)) return null;
+    const withMember = estimateTaskDays(state, action.id, [...picked, memberId], dedication);
+    if (withMember === null) return null;
+    if (baseDays === null) return { text: `entra: ${formatDays(withMember)}`, good: true };
+    const gain = baseDays - withMember;
+    return gain > 0.05 ? { text: `entra: ${formatDays(withMember)} (−${formatNumber(gain, 1)} d)`, good: true } : { text: "entra: sem ganho", good: false };
+  };
+  const nextShare = Math.round((crewEfficiency(action, picked.length + 1) - crewEfficiency(action, picked.length)) * 100);
+  const marginalText =
+    action.crew.max !== null && picked.length >= action.crew.max
+      ? `Equipe cheia: o espaço comporta no máximo ${action.crew.max}.`
+      : picked.length < action.crew.ideal
+        ? `Até ${action.crew.ideal} pessoas, cada uma rende 100%.`
+        : `Acima de ${action.crew.ideal}, cada extra rende menos: a próxima pessoa rende ${nextShare}% de uma inteira.`;
+  const exhaustedPicked = members.filter((member) => picked.includes(member.id) && energyTone(member.energy) === "exhausted");
+
   const start = () => {
     const before = store.getState().tasks.length;
     store.dispatch({
@@ -192,6 +265,7 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
       </h2>
       <div class="panel-body stack-tight">
         <CostTag cost={action.cost} lead={leadDaysRange(action.id)} />
+        {yieldText(action) ? <p class="muted small">{yieldText(action)}</p> : null}
         {action.requires ? (
           <p class="muted small">
             Consome do estoque:{" "}
@@ -245,30 +319,38 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
           <>
             <div class="crew-head">
               <span class="slider-label">Quem trabalha</span>
-              <span class="crew-rule">{crewText(action.crew)}</span>
+              <span class="crew-rule">
+                {picked.length} {picked.length === 1 ? "escolhida" : "escolhidas"} · {crewText(action.crew)}
+              </span>
             </div>
-            {skillName ? <p class="muted small">Rende conforme {skillName} e motivação de quem trabalha.</p> : null}
+            {skillName ? <p class="muted small">Rende conforme {skillName}, motivação e energia de quem trabalha.</p> : null}
             <div class="crew-list">
               {members.map((member) => {
                 const checked = picked.includes(member.id);
                 const busy = member.taskId ? tasks.find((task) => task.id === member.taskId) : undefined;
                 const full = !checked && action.crew.max !== null && picked.length >= action.crew.max;
                 const taken = member.taskId !== null;
+                const skill = skillOf(member);
+                const delta = deltaDays(member.id, checked);
                 return (
-                  <label key={member.id} class={`crew-option${full || taken ? " is-disabled" : ""}`}>
+                  <label key={member.id} class={`crew-option${full || taken ? " is-disabled" : ""}${checked ? " is-picked" : ""}`}>
                     <input type="checkbox" checked={checked} disabled={full || taken} onChange={() => toggle(member.id)} />
                     <span class="crew-name">{member.name}</span>
+                    <EnergyBar member={member} showValue />
                     <span class="crew-meta">
                       {busy ? `ocupado em: ${busy.label}` : "livre"} · ⏱ {formatNumber(memberHoursPerDay(member, date), 1)} h/dia
-                      {skillOf(member) !== null ? ` · ${skillName} ${Math.round(skillOf(member) ?? 0)}` : ""}
+                      {skill !== null ? ` · ${skillName} ${Math.round(skill)}` : ""}
+                      {energyTone(member.energy) !== "ok" ? ` · ${energyTone(member.energy) === "tired" ? "cansado" : "exausto"}` : ""}
                     </span>
+                    {delta ? <span class={`crew-gain ${delta.good ? "is-good" : ""}`}>{delta.text}</span> : null}
                   </label>
                 );
               })}
             </div>
-            {picked.length > action.crew.ideal ? (
-              <p class="muted small">
-                Acima de {action.crew.ideal}, cada pessoa extra rende menos (a próxima rende {Math.round((crewEfficiency(action, picked.length + 1) - crewEfficiency(action, picked.length)) * 100)}%).
+            <p class="muted small crew-marginal">{marginalText}</p>
+            {exhaustedPicked.length > 0 ? (
+              <p class="alert alert-warn">
+                {exhaustedPicked.map((member) => member.name.split(" ")[0]).join(", ")} {exhaustedPicked.length === 1 ? "está exausto e não vai render" : "estão exaustos e não vão render"} até descansar.
               </p>
             ) : null}
           </>
@@ -321,7 +403,7 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
         ) : null}
         {estimate === null ? (
           <p class="muted small">
-            {`Escolha pelo menos ${action.crew.min} ${action.crew.min === 1 ? "pessoa" : "pessoas"} livres para começar.`}
+            {`Escolha pelo menos ${action.crew.min} ${action.crew.min === 1 ? "pessoa livre" : "pessoas livres"} para começar: tarefa não anda sozinha.`}
           </p>
         ) : null}
         {problems.map((text) => (
@@ -330,7 +412,7 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
           </p>
         ))}
         <button type="button" class="btn-primary" disabled={problems.length > 0 || (usesCrew && picked.length < action.crew.min)} onClick={start}>
-          Iniciar
+          Começar
         </button>
       </div>
     </section>
@@ -421,11 +503,16 @@ function TaskRow({ task }: { task: Task }) {
   const eta = taskEta(store.getState(), task.id);
   const waiting = task.status === "waiting";
   const stalled = !waiting && task.hoursTotal > 0 && task.assignees.length < Math.max(1, crew.min);
-  const candidates = members.filter((member) => canWork(member) && !task.assignees.includes(member.id));
+  // Só gente livre entra (quem está em outra tarefa precisa ser liberado antes).
+  const candidates = members.filter((member) => canWork(member) && member.taskId === null);
   const progress = eta?.percent ?? 0;
+  const delivered = deliveredText(task, action);
+  const canAdd = crew.max === null || task.assignees.length < crew.max;
+  const canRemove = task.assignees.length > crew.min;
+  const nextShare = action ? Math.round((crewEfficiency(action, task.assignees.length + 1) - crewEfficiency(action, task.assignees.length)) * 100) : 0;
 
   return (
-    <article class={`task${stalled ? " is-stalled" : ""}`}>
+    <article class={`task${stalled ? " is-stalled" : ""}`} data-task={task.id}>
       <div class="task-head">
         <span class="task-label">{task.label}</span>
         <span class={`task-status${stalled ? " text-danger" : ""}`}>
@@ -444,38 +531,41 @@ function TaskRow({ task }: { task: Task }) {
           </span>
         </div>
       ) : null}
+      {delivered ? <span class="task-delivered">{delivered}</span> : null}
       {eta && task.hoursTotal > 0 && eta.workHoursLeft > 0 ? (
         <span class="task-eta-detail">Faltam {formatNumber(eta.workHoursLeft)} h de trabalho (horas-pessoa, somadas entre a equipe).</span>
       ) : null}
       {task.hoursTotal > 0 ? (
         <div class="task-crew">
-          {task.assignees.map((id) => (
-            <span key={id} class="chip chip-member">
-              {members.find((member) => member.id === id)?.name ?? id}
-              <button
-                type="button"
-                aria-label="Tirar da tarefa"
-                onClick={() => store.dispatch({ type: "unassign-member", memberId: id })}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-          {(crew.max === null || task.assignees.length < crew.max) && candidates.length > 0 ? (
+          {task.assignees.map((id) => {
+            const member = members.find((item) => item.id === id);
+            return (
+              <span key={id} class="chip chip-member">
+                {member?.name ?? id}
+                {member ? <EnergyBar member={member} /> : null}
+                {canRemove ? (
+                  <button type="button" aria-label="Tirar da tarefa" onClick={() => store.dispatch({ type: "unassign-member", memberId: id })}>
+                    ×
+                  </button>
+                ) : null}
+              </span>
+            );
+          })}
+          {canAdd && candidates.length > 0 ? (
             <select
               class="add-member"
               value=""
-              aria-label="Alocar integrante"
+              aria-label="Pôr mais uma pessoa"
+              title={`A próxima pessoa rende ${nextShare}% de uma inteira`}
               onChange={(event) => {
                 const memberId = event.currentTarget.value;
                 if (memberId) store.dispatch({ type: "assign-member", memberId, taskId: task.id });
               }}
             >
-              <option value="">+ pessoa</option>
+              <option value="">+ pessoa ({nextShare}%)</option>
               {candidates.map((member) => (
                 <option key={member.id} value={member.id}>
-                  {member.name}
-                  {member.taskId ? " (sai da tarefa atual)" : ""}
+                  {member.name} · energia {Math.round(member.energy)}
                 </option>
               ))}
             </select>

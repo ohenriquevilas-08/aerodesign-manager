@@ -137,6 +137,7 @@ export {
 } from "./content/season2026";
 export { AGENDAS, findAgenda, FOUNDERS, type AgendaDef, type FounderDef } from "./content/founders";
 export {
+  actionProblem,
   advisorView,
   daysToRegulation,
   defaultFounding,

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useGame } from "../../app/useGame";
-import { clockToDate, findAgenda, isOverloaded, memberHoursPerDay, rosterMembers, type Member } from "../../sim";
+import { APTITUDE_LABELS, BALANCE, clockToDate, DISCIPLINES, energyOutlook, findAgenda, isAptitudeRevealed, rosterMembers, type EnergyOutlook, type Member } from "../../sim";
+import { statedLikesText } from "../roster";
 import { PixelAvatar } from "../components/PixelAvatar";
 import { Meter } from "../components/Controls";
+import { ENERGY_LABEL, EnergyBar, energyTone } from "../components/Energy";
+import { useDerived } from "../hooks";
 import { DISCIPLINE_LABEL, DISCIPLINE_SHORT, formatNumber, motivationLabel, ROLE_LABEL } from "../format";
 import {
   BASE_COLUMNS,
@@ -48,9 +51,10 @@ export function Roster() {
   const tasks = useGame((state) => state.tasks);
   const schedule = useGame((state) => state.workshop.schedule);
   const day = useGame((state) => Math.floor(state.clock.hours / 24));
+  const outlook = useDerived((state) => Object.fromEntries(rosterMembers(state).map((member) => [member.id, energyOutlook(state, member.id)])), []);
   const ctx: RosterContext = useMemo(
-    () => ({ date: clockToDate(day * 24), tasks, shifts: shiftsPerMember(schedule) }),
-    [day, tasks, schedule]
+    () => ({ date: clockToDate(day * 24), tasks, shifts: shiftsPerMember(schedule), outlook }),
+    [day, tasks, schedule, outlook]
   );
 
   const workers = rosterMembers({ members });
@@ -204,15 +208,17 @@ function Sheet({ member, tab, ctx }: { member: Member; tab: RosterTab; ctx: Rost
             {member.role === "president" ? <span class="chip" title={findAgenda(member.agenda ?? "balanced").text}>{findAgenda(member.agenda ?? "balanced").priority}</span> : null}
             <span class="muted">{member.area ? DISCIPLINE_LABEL[member.area] : "Sem área"}</span>
           </div>
+          <p class="small sheet-likes">Diz gostar de <strong>{statedLikesText(member)}</strong></p>
         </div>
         <div class={`sheet-overall tier-${overall >= 60 ? "gold" : overall >= 30 ? "silver" : "bronze"}`} title="Nota geral">
           <strong>{overall}</strong>
           <span>NOTA</span>
         </div>
       </div>
+      <EnergyBlock member={member} outlook={ctx.outlook?.[member.id] ?? null} />
       <div class="sheet-body">
         <dl class="sheet-stats">
-          {columns.map((column) => {
+          {columns.filter((column) => column.id !== "energy").map((column) => {
             const value = column.value(member, ctx);
             return (
               <div key={column.id} class="sheet-stat">
@@ -229,8 +235,62 @@ function Sheet({ member, tab, ctx }: { member: Member; tab: RosterTab; ctx: Rost
           <PixelAvatar member={member} scale={8} pose="stand" class="sheet-avatar" />
         </div>
       </div>
-      {tab === "development" ? <p class="small muted">Preferências e facilidades chegam na Fase 7.</p> : null}
+      {tab === "development" ? <Aptitudes member={member} /> : null}
       {tab === "knowledge" ? <p class="small muted">Conhecimento tácito. O acervo documentado fica na Central.</p> : null}
     </aside>
+  );
+}
+
+/** Energia e para onde ela vai no ritmo atual (energyOutlook). */
+function EnergyBlock({ member, outlook }: { member: Member; outlook: EnergyOutlook | null }) {
+  const tone = energyTone(member.energy);
+  const days = outlook?.hoursToLimit != null ? Math.max(1, Math.round(outlook.hoursToLimit / 24)) : null;
+  const trend =
+    outlook === null
+      ? ""
+      : outlook.trend === "up"
+        ? "Recuperando"
+        : outlook.trend === "down"
+          ? days !== null
+            ? `Caindo: chega ao limite em ~${days} ${days === 1 ? "dia" : "dias"} neste ritmo`
+            : "Caindo"
+          : "Estável neste ritmo";
+  return (
+    <div class={`sheet-energy energy-${tone}`}>
+      <div class="sheet-energy-head">
+        <span class="stat-label">Energia</span>
+        <strong>
+          {Math.round(member.energy)} · {ENERGY_LABEL[tone]}
+        </strong>
+      </div>
+      <EnergyBar member={member} class="energy-wide" />
+      <span class="small muted">
+        {trend}
+        {tone === "tired" ? ` · abaixo de ${BALANCE.energy.tiredBelow} rende menos` : tone === "exhausted" ? " · parou até descansar" : ""}
+      </span>
+    </div>
+  );
+}
+
+/** Facilidade por disciplina: "?" até revelar (design: aparece trabalhando). */
+function Aptitudes({ member }: { member: Member }) {
+  return (
+    <div class="sheet-aptitudes">
+      <h3 class="group-label">Facilidade por disciplina</h3>
+      <ul>
+        {DISCIPLINES.map((discipline) => {
+          const known = isAptitudeRevealed(member, discipline);
+          const hours = Math.round(member.studyHours[discipline] ?? 0);
+          return (
+            <li key={discipline} class={known ? `apt-${member.aptitude[discipline]}` : "apt-hidden"}>
+              <span>{DISCIPLINE_LABEL[discipline]}</span>
+              <span class="small muted">{hours} h</span>
+              <strong>{known ? APTITUDE_LABELS[member.aptitude[discipline]] : "?"}</strong>
+            </li>
+          );
+        })}
+      </ul>
+      <p class="small muted">A facilidade só aparece depois de horas de trabalho na disciplina. O que a pessoa gosta de verdade também.</p>
+    </div>
   );
 }

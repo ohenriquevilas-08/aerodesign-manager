@@ -1,28 +1,35 @@
 import type { JSX } from "preact";
-import { useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import { BALANCE, findAgenda, formationView, traineeProgress, type Discipline, type FormationAreaView, type Member } from "../../sim";
+import { EnergyBar, energyTitle } from "../components/Energy";
 import { PixelAvatar } from "../components/PixelAvatar";
-import { DISCIPLINE_SHORT, formatNumber, motivationLabel } from "../format";
+import { DISCIPLINE_SHORT, formatNumber, likesText, motivationLabel } from "../format";
 import { useDerived } from "../hooks";
 
-// Escalação da equipe (Fase 5, U1): o campo é o avião visto de cima e cada área fica na parte que
-// cuida. Cartas no estilo FIFA (retrato isométrico, overall da área, nome, motivação); capitão com
-// faixa. Área vazia = parte apagada, com o aviso só em tooltip. O presidente é um aluno como os outros, com faixa.
-// Arrastar a carta chama set-area.
+// Escalação da equipe (Fase 5, U1; Fase 8, U3): o campo é o avião visto de cima e cada área fica na
+// parte que cuida. Cartas no estilo FIFA (retrato isométrico, overall da área, nome, motivação e
+// energia); capitão com faixa. Área vazia = parte apagada, com o aviso só em tooltip. O campo tem
+// tamanho fixo no desenho e escala para caber na área visível, sem rolagem. Para pôr alguém numa vaga:
+// arrastar a carta, clicar na carta e depois na vaga, ou clicar na vaga e escolher numa lista
+// (Tab e Enter funcionam; Esc cancela). Tudo chama set-area.
 
 type Drop = { area: Discipline | null; captain: boolean };
 type Place = { part: string; left: number; top: number; cols: number };
 
+/** Tamanho do campo no desenho; o conjunto escala para caber na área visível. */
+const STAGE_W = 1000;
+const STAGE_H = 560;
+
 /** Parte do avião de cada área e onde fica o cacho de cartas (% do palco). `cols`: cartas por linha. */
 const PLACES: Partial<Record<Discipline, Place>> = {
-  aerodynamics: { part: "Asa", left: 38, top: 17, cols: 3 },
-  loads: { part: "Longarina", left: 38, top: 83, cols: 2 },
-  structures: { part: "Fuselagem", left: 65, top: 50, cols: 2 },
-  electrical: { part: "Motor", left: 9, top: 50, cols: 1 },
+  aerodynamics: { part: "Asa", left: 40, top: 19, cols: 3 },
+  loads: { part: "Longarina", left: 40, top: 85, cols: 2 },
+  structures: { part: "Fuselagem", left: 66, top: 52, cols: 2 },
+  electrical: { part: "Motor", left: 11, top: 45, cols: 2 },
   stability: { part: "Empenagem", left: 89, top: 22, cols: 2 },
-  performance: { part: "Trem", left: 87, top: 79, cols: 2 }
+  performance: { part: "Trem", left: 88, top: 80, cols: 2 }
 };
 
 function tier(rating: number) {
@@ -36,21 +43,51 @@ function motivationTone(value: number) {
   return "danger";
 }
 
+const sameTarget = (a: Drop, b: Drop) => a.area === b.area && a.captain === b.captain;
+const targetLabel = (target: Drop) => `${target.captain ? "Capitão de" : "Vaga em"} ${target.area ? DISCIPLINE_SHORT[target.area] : "nenhuma área"}`;
+
+/** Escala do campo: o maior que cabe na área visível, sem passar de 1,15. */
+function useFitScale() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.8);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const measure = () => setScale(Math.max(0.4, Math.min(1.15, node.clientWidth / STAGE_W, node.clientHeight / STAGE_H)));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return { ref, scale };
+}
+
+function chipTitle(member: Member, agenda: string | null, task?: string | null): string {
+  return `${member.name}${agenda ? ` · Presidente (prioridade: ${agenda.toLowerCase()})` : ""} · ${motivationLabel(member.motivation)} · ${energyTitle(member)} · ${likesText(member)}${task ? ` · em tarefa: ${task}` : ""}`;
+}
+
 export function Formation() {
   const view = useDerived((state) => formationView(state), []);
   const members = useGame((state) => state.members);
   const tasks = useGame((state) => state.tasks);
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
+  // Clicar na carta e depois na vaga (ou na vaga e escolher numa lista): alternativa ao arrastar.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [listFor, setListFor] = useState<Drop | null>(null);
+  const { ref: wrapRef, scale } = useFitScale();
   const byId = (id: string | null) => members.find((member) => member.id === id) ?? null;
   const dragged = byId(dragging);
+  const pickedMember = byId(picked);
   const empty = (discipline: Discipline) => view.areas.find((area) => area.discipline === discipline)?.warning != null;
 
+  const place = (memberId: string, target: Drop) => {
+    store.dispatch({ type: "set-area", memberId, area: target.area, captain: target.area ? target.captain : undefined });
+  };
   const drop = (target: Drop) => {
     setOver(null);
     setDragging(null);
-    if (!dragged) return;
-    store.dispatch({ type: "set-area", memberId: dragged.id, area: target.area, captain: target.area ? target.captain : undefined });
+    if (dragged) place(dragged.id, target);
   };
   const key = (target: Drop) => `${target.area ?? "none"}:${target.captain ? "c" : "m"}`;
   const zone = (target: Drop) => ({
@@ -66,6 +103,32 @@ export function Formation() {
       drop(target);
     }
   });
+
+  /** Clique numa vaga: com carta escolhida, põe ela ali; sem carta, abre a lista (vaga livre) ou escolhe a carta (vaga ocupada). */
+  const activate = (target: Drop, occupant: Member | null) => {
+    if (pickedMember) {
+      if (occupant?.id === pickedMember.id) setPicked(null);
+      else {
+        place(pickedMember.id, target);
+        setPicked(null);
+      }
+      setListFor(null);
+      return;
+    }
+    if (occupant) {
+      setPicked(occupant.id);
+      setListFor(null);
+    } else setListFor(listFor && sameTarget(listFor, target) ? null : target);
+  };
+  const choose = (memberId: string, target: Drop) => {
+    place(memberId, target);
+    setListFor(null);
+  };
+  const cancel = () => {
+    setPicked(null);
+    setListFor(null);
+  };
+
   const agendaOf = (member: Member) => (member.role === "president" ? findAgenda(member.agenda ?? "balanced").label : null);
   const cardOf = (member: Member, discipline: Discipline | null) => (
     <PlayerCard
@@ -75,6 +138,7 @@ export function Formation() {
       task={tasks.find((task) => task.id === member.taskId)?.label ?? null}
       agenda={agendaOf(member)}
       dragging={dragging === member.id}
+      selected={picked === member.id}
       onDragStart={() => setDragging(member.id)}
       onDragEnd={() => {
         setDragging(null);
@@ -82,63 +146,114 @@ export function Formation() {
       }}
     />
   );
+  const benchTarget: Drop = { area: null, captain: false };
+  const pickFromBench = (id: string) => {
+    setPicked(picked === id ? null : id);
+    setListFor(null);
+  };
 
   return (
-    <div class="formation">
-      <p class="muted small">
-        Arraste uma carta para a parte do avião que a área cuida. Trocar de área custa {BALANCE.formation.changeAreaMotivation} de
-        motivação (o conhecimento fica com a pessoa); quem ainda não tem área entra de graça.
+    <div class="formation" onKeyDown={(event) => event.key === "Escape" && cancel()}>
+      <p class={`muted small fm-help${pickedMember ? " is-picking" : ""}`} aria-live="polite">
+        {pickedMember ? (
+          <>
+            <strong>{pickedMember.name}</strong> escolhido(a): clique numa vaga para pôr a pessoa lá (Esc cancela).
+          </>
+        ) : (
+          <>
+            Arraste a carta para a parte do avião, ou clique na carta e depois na vaga (Tab e Enter também). Trocar de área custa{" "}
+            {BALANCE.formation.changeAreaMotivation} de motivação; quem não tem área entra de graça.
+          </>
+        )}
       </p>
 
-      <div class="fm-stage">
-        <AirplaneBackdrop empty={empty} />
-        {view.areas.map((area) => {
-          const place = PLACES[area.discipline];
-          return place ? (
-            <AreaCluster key={area.discipline} area={area} place={place} over={over} zone={zone} byId={byId} cardOf={cardOf} />
-          ) : null;
-        })}
+      <div class="fm-fit" ref={wrapRef}>
+        <div class="fm-sizer" style={{ width: `${STAGE_W * scale}px`, height: `${STAGE_H * scale}px` }}>
+          <div class="fm-stage" style={{ width: `${STAGE_W}px`, height: `${STAGE_H}px`, transform: `scale(${scale})` }}>
+            <AirplaneBackdrop empty={empty} />
+            {view.areas.map((area) => {
+              const spot = PLACES[area.discipline];
+              return spot ? (
+                <AreaCluster
+                  key={area.discipline}
+                  area={area}
+                  place={spot}
+                  over={over}
+                  zone={zone}
+                  byId={byId}
+                  cardOf={cardOf}
+                  picking={pickedMember !== null}
+                  listFor={listFor}
+                  candidates={members.filter((member) => member.role !== "trainee")}
+                  onActivate={activate}
+                  onChoose={choose}
+                />
+              ) : null;
+            })}
+
+            {view.trainees.length > 0 ? (
+              <div class="fm-corner fm-trainees" data-testid="trainee-strip" title="No fim da etapa (1/fev), cada trainee vira integrante ou desiste. Só então entram na escalação.">
+                <h3 class="fm-corner-title">Trainees · treino até 1/fev</h3>
+                <div class="fm-corner-chips">
+                  {view.trainees.map((id) => {
+                    const member = byId(id);
+                    if (!member) return null;
+                    return (
+                      <span key={id} class="fm-chip" title={`${member.name}: ${Math.round(traineeProgress(member) * 100)}% do treinamento`}>
+                        <PixelAvatar member={member} scale={1} />
+                        <span>{member.name.split(" ")[0]}</span>
+                        <EnergyBar member={member} />
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div
+              class={`fm-corner fm-bench${over === key(benchTarget) ? " is-over" : ""}${pickedMember ? " is-target" : ""}`}
+              {...zone(benchTarget)}
+              onClick={() => {
+                if (!pickedMember) return;
+                place(pickedMember.id, benchTarget);
+                setPicked(null);
+              }}
+            >
+              <h3 class="fm-corner-title">Sem área</h3>
+              <div class="fm-corner-chips">
+                {view.unassigned.length === 0 ? <span class="muted small">Todos escalados.</span> : null}
+                {view.unassigned.map((id) => {
+                  const member = byId(id);
+                  if (!member) return null;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      class={`fm-chip${picked === id ? " is-picked" : ""}`}
+                      draggable
+                      data-member={id}
+                      title={chipTitle(member, agendaOf(member))}
+                      onDragStart={() => setDragging(id)}
+                      onDragEnd={() => {
+                        setDragging(null);
+                        setOver(null);
+                      }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        pickFromBench(id);
+                      }}
+                    >
+                      <PixelAvatar member={member} scale={1} />
+                      <span>{member.name.split(" ")[0]}</span>
+                      <EnergyBar member={member} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-
-      {view.trainees.length > 0 ? (
-        <div class="trainee-strip" data-testid="trainee-strip">
-          <h3 class="pitch-col-title">Trainees · etapa de treino até 1/fev</h3>
-          <div class="trainee-cards">
-            {view.trainees.map((id) => {
-              const member = byId(id);
-              if (!member) return null;
-              const progress = traineeProgress(member);
-              return (
-                <article key={id} class="trainee-card" title={`${member.name}: ${Math.round(progress * 100)}% do treinamento`}>
-                  <PixelAvatar member={member} scale={1} />
-                  <div class="trainee-info">
-                    <strong>{member.name}</strong>
-                    <span class="small muted">
-                      {tasks.find((task) => task.id === member.taskId)?.label ?? "Sem treino agora"} · {Math.round(member.trainingHours ?? 0)} h
-                    </span>
-                    <span class="fm-mot" aria-hidden="true">
-                      <span class="fm-mot-fill tone-accent" style={{ width: `${Math.round(progress * 100)}%` }} />
-                    </span>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-          <p class="small muted">No fim da etapa, cada trainee vira integrante ou desiste. Só então entram na escalação.</p>
-        </div>
-      ) : null}
-
-      {view.unassigned.length > 0 ? (
-        <div class={`bench-strip${over === key({ area: null, captain: false }) ? " is-over" : ""}`} {...zone({ area: null, captain: false })}>
-          <h3 class="pitch-col-title">Sem área</h3>
-          <div class="bench-strip-cards">
-            {view.unassigned.map((id) => {
-              const member = byId(id);
-              return member ? cardOf(member, null) : null;
-            })}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -149,7 +264,12 @@ function AreaCluster({
   over,
   zone,
   byId,
-  cardOf
+  cardOf,
+  picking,
+  listFor,
+  candidates,
+  onActivate,
+  onChoose
 }: {
   area: FormationAreaView;
   place: Place;
@@ -157,9 +277,52 @@ function AreaCluster({
   zone: (target: Drop) => Record<string, unknown>;
   byId: (id: string | null) => Member | null;
   cardOf: (member: Member, discipline: Discipline | null) => JSX.Element;
+  picking: boolean;
+  listFor: Drop | null;
+  candidates: Member[];
+  onActivate: (target: Drop, occupant: Member | null) => void;
+  onChoose: (memberId: string, target: Drop) => void;
 }) {
   const captain = byId(area.captainId);
   const isEmpty = area.warning !== null;
+  const slot = (target: Drop, occupant: Member | null, k: string, hole: string) => {
+    const hovered = over === `${area.discipline}:${target.captain ? "c" : "m"}`;
+    const listing = listFor !== null && sameTarget(listFor, target) && listFor.area === area.discipline;
+    return (
+      <div
+        key={k}
+        class={`fm-slot${hovered ? " is-over" : ""}${picking ? " is-target" : ""}${listing ? " is-listing" : ""}`}
+        role="button"
+        tabIndex={0}
+        aria-label={occupant ? `${occupant.name}, ${targetLabel(target)}` : `${targetLabel(target)}, livre`}
+        {...zone(target)}
+        onClick={() => onActivate(target, occupant)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onActivate(target, occupant);
+          }
+        }}
+      >
+        {occupant ? cardOf(occupant, area.discipline) : <span class="fm-hole">{hole}</span>}
+        {listing ? (
+          <ul class={`fm-picker${place.top > 55 ? " is-up" : ""}`} role="listbox" aria-label={`Quem vai para ${targetLabel(target)}`} onClick={(event) => event.stopPropagation()}>
+            {candidates
+              .filter((member) => member.area !== area.discipline || (target.captain ? member.role !== "captain" : member.role === "captain"))
+              .filter((member) => !(target.captain && member.role === "president"))
+              .map((member) => (
+                <li key={member.id}>
+                  <button type="button" role="option" aria-selected="false" onClick={() => onChoose(member.id, target)}>
+                    <span>{member.name}</span>
+                    <small>{member.area ? DISCIPLINE_SHORT[member.area] : "Sem área"}</small>
+                  </button>
+                </li>
+              ))}
+          </ul>
+        ) : null}
+      </div>
+    );
+  };
   return (
     <section
       class={`fm-area${isEmpty ? " is-empty" : ""}`}
@@ -172,26 +335,9 @@ function AreaCluster({
         <span class="fm-area-part">{place.part}</span>
       </h3>
       <div class="fm-cards" style={{ gridTemplateColumns: `repeat(${place.cols}, var(--card-w))` }}>
-        <div class={`fm-slot${over === `${area.discipline}:c` ? " is-over" : ""}`} {...zone({ area: area.discipline, captain: true })}>
-          {captain ? cardOf(captain, area.discipline) : <span class="fm-hole">Capitão</span>}
-        </div>
-        {area.memberIds.map((id) => {
-          const member = byId(id);
-          return member ? (
-            <div key={id} class="fm-slot">
-              {cardOf(member, area.discipline)}
-            </div>
-          ) : null;
-        })}
-        {Array.from({ length: area.openSlots }, (_, i) => (
-          <div
-            key={`hole-${i}`}
-            class={`fm-slot${over === `${area.discipline}:m` ? " is-over" : ""}`}
-            {...zone({ area: area.discipline, captain: false })}
-          >
-            <span class="fm-hole">Vaga</span>
-          </div>
-        ))}
+        {slot({ area: area.discipline, captain: true }, captain, "captain", "Capitão")}
+        {area.memberIds.map((id) => slot({ area: area.discipline, captain: false }, byId(id), id, "Vaga"))}
+        {Array.from({ length: area.openSlots }, (_, i) => slot({ area: area.discipline, captain: false }, null, `hole-${i}`, "Vaga"))}
       </div>
     </section>
   );
@@ -201,7 +347,7 @@ function AreaCluster({
 function AirplaneBackdrop({ empty }: { empty: (discipline: Discipline) => boolean }) {
   const cls = (discipline: Discipline) => `fm-part${empty(discipline) ? " is-empty" : ""}`;
   return (
-    <svg class="fm-plane" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    <svg class="fm-plane" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
       <g class={cls("aerodynamics")}>
         <title>Asa</title>
         <path d="M255 20 H500 L520 40 V560 L500 580 H255 Z" />
@@ -240,6 +386,7 @@ function PlayerCard({
   task,
   agenda,
   dragging,
+  selected,
   onDragStart,
   onDragEnd
 }: {
@@ -249,6 +396,7 @@ function PlayerCard({
   /** Rótulo da agenda do presidente; null para os demais. */
   agenda: string | null;
   dragging: boolean;
+  selected: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
 }) {
@@ -256,10 +404,10 @@ function PlayerCard({
   const captain = member.role === "captain" && discipline !== null;
   return (
     <article
-      class={`fm-card tier-${tier(rating)}${captain ? " is-captain" : ""}${agenda ? " is-president" : ""}${dragging ? " is-dragging" : ""}`}
+      class={`fm-card tier-${tier(rating)}${captain ? " is-captain" : ""}${agenda ? " is-president" : ""}${dragging ? " is-dragging" : ""}${selected ? " is-selected" : ""}`}
       draggable
       data-member={member.id}
-      title={`${member.name}${agenda ? ` · Presidente (prioridade: ${agenda.toLowerCase()})` : ""} · ${motivationLabel(member.motivation)} · ${task ? `em tarefa: ${task}` : "livre"}`}
+      title={chipTitle(member, agenda, task)}
       onDragStart={(event) => {
         event.dataTransfer?.setData("text/plain", member.id);
         onDragStart();
@@ -270,13 +418,15 @@ function PlayerCard({
       <span class="fm-pos">{discipline ? DISCIPLINE_SHORT[discipline].slice(0, 3).toUpperCase() : "—"}</span>
       <PixelAvatar member={member} scale={2} class="fm-portrait" />
       <span class="fm-name">{member.name}</span>
-      <span class="fm-mot" aria-hidden="true">
+      <span class="fm-likes">{member.statedLikes.length > 0 ? `♥ ${member.statedLikes.map((item) => DISCIPLINE_SHORT[item].slice(0, 5)).join(", ")}` : "♥ —"}</span>
+      <span class="fm-mot" aria-hidden="true" title={`Motivação ${Math.round(member.motivation)}`}>
         <span class={`fm-mot-fill tone-${motivationTone(member.motivation)}`} style={{ width: `${Math.round(member.motivation)}%` }} />
       </span>
+      <EnergyBar member={member} class="fm-energy" />
       {captain ? <span class="fm-captain">C</span> : null}
       {agenda ? (
         <span class="fm-president" title={`Prioridade: ${agenda.toLowerCase()}`}>
-          Presidente · {agenda}
+          Presidente
         </span>
       ) : null}
     </article>

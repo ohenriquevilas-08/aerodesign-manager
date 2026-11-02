@@ -3,22 +3,13 @@ import { foundTeam } from "../app/session";
 import { store } from "../app/store";
 import { IntroScene } from "../scenes/IntroScene";
 import { introChannel } from "../scenes/intro/channel";
-import { DEFAULT_CATEGORY, findAgenda, FORMATIONS, FOUNDERS, type Discipline, type FounderFlair, type Member } from "../sim";
+import { DEFAULT_ADVISOR_NAME, DEFAULT_CATEGORY, findAgenda, FORMATIONS, FOUNDERS, type Discipline, type FounderFlair, type Member } from "../sim";
 import { PixelAvatar } from "./components/PixelAvatar";
 import { DISCIPLINE_SHORT } from "./format";
 import { PhaserStage } from "./PhaserStage";
 
 // Abertura e fundação (Fase 6, U2): em tela cheia antes do jogo, em 3 passos. A cena (C1) só anima;
 // o texto e as escolhas moram aqui. Termina com o comando found-team.
-
-const FLAIR_LABEL: Record<FounderFlair, string> = {
-  design: "Projeto",
-  build: "Fabricação",
-  fly: "Pilotagem",
-  organize: "Organização",
-  management: "Gestão",
-  marketing: "Marketing"
-};
 
 /** O que cada fundador diz no convite (uma fala por pessoa, na ordem da fileira). */
 const PITCH: Record<FounderFlair, string> = {
@@ -113,8 +104,8 @@ export function Intro({ seed, onDone }: { seed: number; onDone: () => void }) {
             ) : (
               <div class="intro-accept">
                 <label class="field">
-                  <span class="field-label">Seu nome, professor</span>
-                  <input type="text" value={advisorName} maxLength={40} onInput={(event) => setAdvisorName((event.target as HTMLInputElement).value)} />
+                  <span class="field-label">Nome do orientador</span>
+                  <input type="text" value={advisorName} maxLength={40} placeholder={DEFAULT_ADVISOR_NAME} onInput={(event) => setAdvisorName((event.target as HTMLInputElement).value)} />
                 </label>
                 <button type="button" class="btn-primary" onClick={() => setStep(1)}>
                   Aceitar o convite
@@ -127,7 +118,7 @@ export function Intro({ seed, onDone }: { seed: number; onDone: () => void }) {
         {step === 1 ? (
           <section class="intro-body">
             <h1 class="intro-title">Conheça a turma</h1>
-            <p class="muted">Ninguém tem cargo ainda. Cada um gosta de um tipo de trabalho; é isso que pesa na hora de escolher quem preside.</p>
+            <p class="muted">Ninguém tem cargo ainda. Eles dizem o que querem fazer, mas ninguém sabe ainda no que cada um é bom: isso aparece trabalhando. Escolha quem preside pelo que cada um quer para a equipe.</p>
             <div class="founder-cards">
               {founders.map((member, index) => {
                 const def = founderDef(member);
@@ -136,12 +127,10 @@ export function Intro({ seed, onDone }: { seed: number; onDone: () => void }) {
                     <PixelAvatar member={member} scale={2} class="founder-portrait" />
                     <div>
                       <h2 class="founder-name">{member.name}</h2>
-                      <span class="chip">{FLAIR_LABEL[member.flair ?? "design"]}</span>
                       <span class="chip" title={findAgenda(member.agenda ?? "balanced").text}>{findAgenda(member.agenda ?? "balanced").priority}</span>
-                      <p class="small muted">{def?.likes}</p>
+                      <p class="small">{def?.likes}</p>
                       <p class="small">
-                        Diz gostar de <strong>{member.statedLikes.length > 0 ? member.statedLikes.map((discipline) => DISCIPLINE_SHORT[discipline]).join(", ") : "—"}</strong> · comunicação{" "}
-                        {Math.round(member.communication)} · fabricação {Math.round(member.fabrication)}
+                        Diz gostar de <strong>{member.statedLikes.length > 0 ? member.statedLikes.map((discipline) => DISCIPLINE_SHORT[discipline]).join(", ") : "—"}</strong>
                       </p>
                     </div>
                   </article>
