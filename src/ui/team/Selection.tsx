@@ -119,7 +119,7 @@ function OpenCampaign() {
     },
     [format]
   );
-  const toggle = (id: string) => setPicked(picked.includes(id) ? picked.filter((item) => item !== id) : [...picked, id]);
+  const toggle = (id: string) => setPicked((list) => (list.includes(id) ? list.filter((item) => item !== id) : [...list, id]));
   const chosen = SELECTION_FORMATS.find((item) => item.id === format)!;
 
   return (

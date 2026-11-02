@@ -21,7 +21,7 @@ export function Interviews({ rows, running }: { rows: ApplicantView[]; running: 
     []
   );
   const current = called.find((row) => row.id === focus) ?? pending[0] ?? called[0];
-  const toggleCrew = (id: string) => setCrew(crew.includes(id) ? crew.filter((item) => item !== id) : [...crew, id]);
+  const toggleCrew = (id: string) => setCrew((list) => (list.includes(id) ? list.filter((item) => item !== id) : [...list, id]));
   const needed = BALANCE.selection.interviewers;
 
   const setQuestions = (applicantId: string, questionIds: string[]) => store.dispatch({ type: "set-interview-questions", applicantId, questionIds });

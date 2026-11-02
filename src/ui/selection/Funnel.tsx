@@ -14,8 +14,10 @@ export function Funnel({ steps }: { steps: readonly FunnelStep[] }) {
             <div class="funnel-bar" style={{ width: `${Math.max(step.reached ? 6 : 3, step.ratio * 100)}%` }}>
               <strong>{step.reached ? step.count : "–"}</strong>
             </div>
-            <span class="funnel-label">{step.label}</span>
-            <span class="funnel-kept muted small">{kept !== null ? `${kept}% da etapa anterior` : ""}</span>
+            <span class="funnel-meta">
+              <span class="funnel-label">{step.label}</span>
+              {kept !== null ? <span class="funnel-kept muted small">{kept}% da etapa anterior</span> : null}
+            </span>
           </li>
         );
       })}

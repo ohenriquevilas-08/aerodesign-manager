@@ -12,7 +12,7 @@ export function Shortlist({ rows, cap }: { rows: ApplicantView[]; cap: number })
   const [focus, setFocus] = useState<string | null>(null);
   // Começa com quem foi marcado "Chamar" (até o teto); o jogador ajusta.
   const chosen = picked ?? attended.filter((row) => row.tag === "call").slice(0, cap).map((row) => row.id);
-  const toggle = (id: string) => setPicked(chosen.includes(id) ? chosen.filter((item) => item !== id) : chosen.length < cap ? [...chosen, id] : chosen);
+  const toggle = (id: string) => setPicked((list) => { const base = list ?? chosen; return base.includes(id) ? base.filter((item) => item !== id) : base.length < cap ? [...base, id] : base; });
   const current = attended.find((row) => row.id === (focus ?? chosen[0])) ?? attended[0];
 
   return (

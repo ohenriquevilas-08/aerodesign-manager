@@ -18,7 +18,7 @@ export function Approval({ rows, cap }: { rows: ApplicantView[]; cap: number }) 
   const cost = trainingCost(chosen.length, now);
   const toggle = (id: string) => {
     setConfirming(false);
-    setChosen(chosen.includes(id) ? chosen.filter((item) => item !== id) : chosen.length < cap ? [...chosen, id] : chosen);
+    setChosen((list) => (list.includes(id) ? list.filter((item) => item !== id) : list.length < cap ? [...list, id] : list));
   };
 
   return (
