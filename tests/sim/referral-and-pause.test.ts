@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applicantViews,
+  blockHeadline,
   applyCommand,
   BALANCE,
   expectedApplicants,
@@ -243,5 +244,13 @@ describe("palestra como evento e triagem com o presidente", () => {
     expect(waited.inbox.some((m) => m.title === "A dinâmica espera a triagem")).toBe(true);
     const sent = advanceUntil(run(waited, { type: "send-triage" }), (s) => !!s.activeEvent, 3);
     expect(sent.activeEvent!.kind).toBe("selection-day");
+  });
+});
+
+describe("rótulo do bloco na barra", () => {
+  it("não repete o prefixo quando o rótulo já começa com o verbo", () => {
+    expect(blockHeadline({ id: "p", startsAt: 10, label: "Apresentação da equipe", kind: "presentation" })).toBe("Apresentação da equipe");
+    expect(blockHeadline({ id: "c", startsAt: 11, label: "Planador de balsa", kind: "challenge" })).toBe("Desafio prático: Planador de balsa");
+    expect(blockHeadline({ id: "c", startsAt: 11, label: "Desafio prático: planador de balsa", kind: "challenge" })).toBe("Desafio prático: planador de balsa");
   });
 });

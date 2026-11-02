@@ -159,6 +159,12 @@ const BLOCK_VERB: Record<EventBlockKind, string> = {
   teardown: "Desmontagem"
 };
 
+/** "Verbo: rótulo", sem repetir o verbo quando o rótulo já começa com ele ("Apresentação da equipe"). */
+export function blockHeadline(block: EventBlock): string {
+  const verb = BLOCK_VERB[block.kind];
+  return block.label.toLowerCase().startsWith(verb.toLowerCase()) ? block.label : `${verb}: ${block.label}`;
+}
+
 export function eventView(state: GameState): EventView | null {
   const event = state.activeEvent;
   if (!event) return null;
@@ -199,6 +205,6 @@ export function eventView(state: GameState): EventView | null {
     canAdvance: event.entered && !event.summary && !event.pendingDecision,
     presentIds: crewIds,
     lastPlayback,
-    headline: event.summary ? event.summary.title : block ? `${BLOCK_VERB[block.kind]}: ${block.label}` : event.title
+    headline: event.summary ? event.summary.title : block ? blockHeadline(block) : event.title
   };
 }

@@ -140,6 +140,7 @@ export {
   type FunnelCounts,
   type SelectionView
 } from "./selection";
+export { blockHeadline } from "./events";
 export { answerTriage, sendTriage, triageGateOf, triageSent } from "./triage";
 export { pauseNotices, type NoticeTarget, type PauseNotice } from "./pauseNotice";
 export { groupCountFor } from "./eventSelection";

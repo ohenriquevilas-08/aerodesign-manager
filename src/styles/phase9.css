@@ -727,6 +727,7 @@
 
 /* Triagem com o presidente. */
 .triage {
+  color: var(--text);
   display: grid;
   gap: var(--space-2);
 }
