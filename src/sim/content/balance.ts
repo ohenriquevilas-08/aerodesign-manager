@@ -500,9 +500,11 @@ export const BALANCE = {
     arrivalCurve: 1.6,
     /** Inscritos a mais por ponto de alcance somado durante as inscrições. */
     extraPerReach: 0.8,
-    /** Palestra: chance de ir = base + motivação/100 × slope (a tag não importa). */
-    lectureAttendBase: 0.25,
-    lectureAttendSlope: 0.6,
+    /** Palestra: chance de ir vai de min (motivação 0) a max (100), menos a queda perto de provas; a tag não importa. */
+    lectureAttendMin: 0.7,
+    lectureAttendMax: 0.9,
+    /** Perto de provas a presença cai este tanto. */
+    lectureExamPenalty: 0.08,
     /** Dinâmica: no máximo isto de convidados (quem tem tag "chamar" primeiro, "não" nunca) e chance de faltar. */
     dynamicCap: 36,
     dynamicNoShow: 0.1,

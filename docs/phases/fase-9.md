@@ -19,13 +19,13 @@ Escopo: **seletiva imersiva**, um funil de cerca de 6 semanas em que inscrito n�
 |---|---|---|---|
 | 1. Divulgação e abertura | ~1 semana, tarefa com gente | — | — |
 | 2. Inscrições abertas | ~3 semanas, espera no calendário (ninguém ocupado) | **40–120 inscritos**, conforme alcance, época e formato | Formulário: nome, curso, período e uma frase "por que quero entrar" |
-| 3. Palestra de apresentação | 1 noite | ~60% comparecem; quem falta sai | Presença |
+| 3. Palestra de apresentação | 1 noite | ~80% comparecem (70% a 90% pela motivação; cai um pouco perto de provas); quem falta sai | Presença |
 | 4. Dinâmica (evento da Fase 7) | 1 dia | Grupos de 5–6; o jogador acompanha só alguns | Anotações dos grupos observados |
 | 5. Entrevistas | ~1 semana, tarefa com gente (capitães) | Horas por entrevista; dá para ~15–20 | Respostas às perguntas escolhidas |
 | 6. Aprovação | 1 dia | O jogador define as vagas de trainee | Lista final; aprovados recebem e-mail |
 | 7. Trainee (já existe) | dez–jan | 30–50% desistem | Progresso do treinamento |
 
-Contagem esperada num Ano 1 bem divulgado: ~90 inscritos → ~55 na palestra → ~30 na dinâmica → ~16 entrevistados → ~10 trainees → ~6 membros.
+Contagem esperada num Ano 1 bem divulgado: ~90 inscritos → ~72 na palestra → ~30 na dinâmica → ~16 entrevistados → ~10 trainees → ~6 membros.
 
 ## Status
 
@@ -46,7 +46,7 @@ Contagem esperada num Ano 1 bem divulgado: ~90 inscritos → ~55 na palestra →
 - **Comandos:** `open-selection { format, memberIds }`, `tag-applicant { applicantId, tag }` (`null` limpa), `advance-applicants { ids }`, `schedule-interviews { applicantIds, memberIds }`, `set-interview-questions { applicantId, questionIds }`, `approve-applicants { ids }`. Saíram `hire-candidate`, `dismiss-candidates`, a ação `recruitment`, `Candidate`, `GameState.candidates` (veja o desvio) e `GameState.selectionDay`.
 - **Tarefas:** a ação `selection-open` (30 h-pessoa, soma alcance enquanto anda; ao terminar ou ser encerrada abre as inscrições) e `selection-interviews` (`internal`, só por `schedule-interviews`; horas = entrevistas × 1,5 h × 2 entrevistadores; uma entrevista entregue por vez).
 - **Números** em `BALANCE.selection` e `BALANCE.selectionDay` (**[PROPOSTA]**): inscrições 21 dias, palestra 2 dias depois (19h), dinâmica 3 dias depois (9h), teto de 36 convidados (10% faltam), 2 grupos acompanhados, até 24 para a entrevista, até 20 aprovados, ruído das respostas ±18 pontos (reduz até 55% com comunicação 100).
-- **Resultado medido** (seed 7, novembro, alcance 25, formato ampla): 86 inscritos → 56 na palestra → 34 na dinâmica → 16 entrevistados → 10 trainees, em 44 dias (6,3 semanas) da divulgação à aprovação.
+- **Resultado medido** (seed 7, novembro, alcance 25, formato ampla): 86 inscritos → 64 na palestra → 34 na dinâmica → 16 entrevistados → 10 trainees, em 44 dias (6,3 semanas) da divulgação à aprovação.
 
 ### Desvios do contrato
 

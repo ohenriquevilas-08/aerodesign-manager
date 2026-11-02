@@ -11,7 +11,7 @@ import { BALANCE } from "./content/balance";
 import { drawBaseKnowledge, drawPreferences } from "./aptitude";
 import { drawLook } from "./looks";
 import { drawPersonName } from "./naming";
-import { clockToDate, dateToHours } from "./time";
+import { academicFactor, clockToDate, dateToHours } from "./time";
 import { nextRandom } from "./rng";
 import { DISCIPLINES, zeroKnowledge } from "./state";
 import { addMessage, startAction, warn } from "./tasks";
@@ -306,10 +306,12 @@ export function advanceSelection(state: GameState): SelectionStep {
 function runLecture(state: GameState): { state: GameState; messageId: string } {
   const campaign = state.selection!;
   const rng = stream(state.rngState);
+  // Perto de provas (calendário acadêmico) cai um pouco.
+  const exams = academicFactor(clockToDate(state.clock.hours)).label === "Provas" ? S.lectureExamPenalty : 0;
   let present = 0;
   const applicants = campaign.applicants.map((applicant): Applicant => {
     if (applicant.stage !== "applied") return applicant;
-    const chance = Math.min(0.97, S.lectureAttendBase + S.lectureAttendSlope * (applicant.profile.motivation / 100));
+    const chance = S.lectureAttendMin + (S.lectureAttendMax - S.lectureAttendMin) * (clamp(applicant.profile.motivation) / 100) - exams;
     const came = rng.roll() < chance;
     if (came) present += 1;
     return {

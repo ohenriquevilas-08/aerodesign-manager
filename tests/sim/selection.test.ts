@@ -121,9 +121,9 @@ describe("campanha inteira (S1 a S5)", () => {
     expect(interviews.interviewed).toBeLessThan(dynamic.dynamic);
     expect(approvedCount).toBe(10);
     expect(approvedCount).toBeLessThan(interviews.interviewed);
-    // Proporção da palestra: perto de 60% dos inscritos.
-    expect(lecture.present / lecture.applicants).toBeGreaterThan(0.45);
-    expect(lecture.present / lecture.applicants).toBeLessThan(0.75);
+    // Proporção da palestra: perto de 80% dos inscritos.
+    expect(lecture.present / lecture.applicants).toBeGreaterThan(0.68);
+    expect(lecture.present / lecture.applicants).toBeLessThan(0.92);
   });
 
   it("dura cerca de 6 semanas, da divulgação à aprovação", () => {
@@ -302,7 +302,7 @@ describe("S1: campanha e inscritos", () => {
 });
 
 describe("S2: palestra", () => {
-  it("quem falta vira ausente, vem uns 60% e a tag não muda quem vem", () => {
+  it("quem falta vira ausente, vem uns 80% e a tag não muda quem vem", () => {
     const game = advanceUntil(opened(5), stageIs("lecture"));
     const noneTagged = run(game, ...applicants(game).map((item): Command => ({ type: "tag-applicant", applicantId: item.id, tag: "no" })));
     const after = advanceUntil(game, stageIs("dynamic"));
@@ -313,8 +313,8 @@ describe("S2: palestra", () => {
     expect(absent.length).toBeGreaterThan(5);
     for (const item of absent) expect(item.revealed.lecture).toBe("absent");
     const share = present(after).length / applicants(after).length;
-    expect(share).toBeGreaterThan(0.45);
-    expect(share).toBeLessThan(0.75);
+    expect(share).toBeGreaterThan(0.68);
+    expect(share).toBeLessThan(0.92);
     expect(after.pause?.reason).toBe("selection");
     const message = after.inbox.find((item) => item.title === "Palestra de apresentação")!;
     expect(message.body).toContain(`${present(after).length} de ${applicants(after).length} vieram`);
