@@ -10,6 +10,7 @@ import { useDerived } from "../hooks";
 import { navigate } from "../nav";
 import { Approval } from "../selection/Approval";
 import { Funnel } from "../selection/Funnel";
+import { Triage } from "../selection/Triage";
 import { Interviews } from "../selection/Interviews";
 import { openLecture } from "../selection/LectureOverlay";
 import { CAMPAIGN_STEPS, campaignStepIndex, dateLabel, funnelSteps, inDays } from "../selection/model";
@@ -46,6 +47,7 @@ export function Selection() {
                 </li>
               ))}
             </ol>
+            <Triage />
             <NextStep view={view} now={now} referral={campaign?.format === "referral"} />
             <div class="selection-buttons">
               {view.stage !== "promotion" ? (

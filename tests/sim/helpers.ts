@@ -83,3 +83,18 @@ export function playEvent(state: GameState, pick?: (decision: EventDecision, sta
   const played = driveEvent(state, { pick }).state;
   return played.activeEvent ? applyCommand(played, { type: "close-event" }) : played;
 }
+
+/**
+ * Um passo do relógio (um dia de jogo) para quem joga a seletiva de ponta a ponta: envia a triagem
+ * quando a etapa pede e joga a palestra (evento) até o fim, como o jogador faria.
+ */
+export function selectionDayStep(state: GameState): GameState {
+  let game = state;
+  const campaign = game.selection;
+  if (!game.activeEvent && campaign && (campaign.stage === "lecture" || campaign.stage === "dynamic") && !campaign.triage.sent.includes(campaign.stage)) {
+    game = applyCommand(game, { type: "send-triage" });
+  }
+  game = applyCommand(applyCommand(game, { type: "set-speed", speed: 1 }), { type: "tick", realSeconds: 10 });
+  if (game.activeEvent?.kind === "selection-lecture") game = playEvent(game);
+  return game;
+}

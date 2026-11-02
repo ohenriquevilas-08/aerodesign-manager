@@ -6,6 +6,7 @@ import { useMemo, useRef, useState } from "preact/hooks";
 import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import { applicantViews, COURSES, funnelCounts, selectionView, type ApplicantStage, type ApplicantTag, type ApplicantView } from "../../sim";
+import { Triage } from "../selection/Triage";
 import { dateLabel, filterApplicants, funnelSteps, NO_FILTER, nextSort, sortApplicants, STAGE_LABEL, stepIndex, TAG_LABEL, tagForKey, type SheetColumn, type SheetFilter, type SheetSort } from "../selection/model";
 
 const COLUMNS: { id: SheetColumn; label: string }[] = [
@@ -80,6 +81,7 @@ export function FormsSite() {
   return (
     <div class="forms-page">
       <FormsHead title="Seletiva da equipe: inscrições" status={status} />
+      <Triage />
       <div class="forms-funnel" aria-label="Funil da seletiva">
         {steps.map((step) => (
           <div key={step.id} class={`forms-count${step.reached ? " is-reached" : ""}`}>

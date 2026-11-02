@@ -22,7 +22,7 @@ import {
   type Command,
   type GameState
 } from "../../src/sim";
-import { foundedGame, playEvent, withApplicants, withTrainees } from "./helpers";
+import { foundedGame, playEvent, selectionDayStep, withApplicants, withTrainees } from "./helpers";
 
 const run = (state: GameState, ...commands: Command[]): GameState => commands.reduce(applyCommand, state);
 const CREW = ["founder-marina", "founder-caio"];
@@ -32,7 +32,7 @@ const S = BALANCE.selection;
 function advanceUntil(state: GameState, done: (state: GameState) => boolean, maxDays = 90): GameState {
   let game = state;
   for (let day = 0; day < maxDays && !done(game); day += 1) {
-    game = run(game, { type: "set-speed", speed: 1 }, { type: "tick", realSeconds: 10 });
+    game = selectionDayStep(game);
   }
   if (!done(game)) throw new Error(`Não chegou lá em ${maxDays} dias (etapa: ${game.selection?.stage})`);
   return game;
@@ -315,7 +315,7 @@ describe("S2: palestra", () => {
     const share = present(after).length / applicants(after).length;
     expect(share).toBeGreaterThan(0.68);
     expect(share).toBeLessThan(0.92);
-    expect(after.pause?.reason).toBe("selection");
+    expect(after.inbox.some((message) => message.title === "Palestra de apresentação")).toBe(true);
     const message = after.inbox.find((item) => item.title === "Palestra de apresentação")!;
     expect(message.body).toContain(`${present(after).length} de ${applicants(after).length} vieram`);
   });
@@ -527,8 +527,8 @@ describe("S5: aprovação", () => {
 });
 
 describe("save e estado inicial", () => {
-  it("a versão do estado é 10 e a campanha sobrevive ao save no meio", () => {
-    expect(createGame({ seed: 1, teamName: "T" }).version).toBe(10);
+  it("a versão do estado é 11 e a campanha sobrevive ao save no meio", () => {
+    expect(createGame({ seed: 1, teamName: "T" }).version).toBe(11);
     const mid = advanceUntil(opened(2), (s) => applicants(s).length > 10 && s.selection!.stage === "open");
     const loaded = deserializeState(serializeState(mid))!;
     expect(loaded).toEqual(mid);

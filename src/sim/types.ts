@@ -241,6 +241,35 @@ export interface SelectionCampaign {
   /** Como os inscritos chegam: total sorteado na abertura, extra por divulgação nas inscrições, os que já chegaram e o alcance já contado. */
   arrival: { total: number; extra: number; arrived: number; outreachSeen: number };
   interviews: InterviewPlan | null;
+  /** Triagem com o presidente (fase-9.md, ajustes do playtest): etapas já enviadas e o último parecer. */
+  triage: TriageState;
+}
+
+/** Etapas que só abrem depois da triagem enviada ao presidente: a palestra ("lecture") e a dinâmica ("dynamic"). */
+export type TriageGate = "lecture" | "dynamic";
+
+/** O parecer do presidente sobre a triagem: texto curto e até 2 nomes de que ele discorda. */
+export interface TriageReview {
+  gate: TriageGate;
+  opinion: string;
+  disagreements: TriageDisagreement[];
+}
+
+export interface TriageDisagreement {
+  applicantId: string;
+  /** Marca que o presidente daria. */
+  suggested: ApplicantTag;
+  reason: string;
+  /** null = ainda esperando; true = aceitou (a marca mudou); false = manteve a sua. */
+  accepted: boolean | null;
+}
+
+export interface TriageState {
+  /** Etapas cuja triagem já foi enviada. */
+  sent: TriageGate[];
+  review: TriageReview | null;
+  /** A etapa que já avisou "falta enviar a triagem" (um aviso só por etapa). */
+  nagged: TriageGate[];
 }
 
 /** Quem está na dinâmica (espelho enxuto do inscrito para as cenas; ver GameState.candidates). */
@@ -342,6 +371,10 @@ export type PauseReason =
   | "selection-day"
   /** Fase 9: a palestra da seletiva aconteceu (aviso com a presença). */
   | "selection"
+  /** Fase 9: a palestra virou evento (chamada "Hoje: ..."). */
+  | "selection-lecture"
+  /** Fase 9: a triagem da etapa precisa ser enviada ao presidente. */
+  | "triage"
   /** Fase 6: uma ação agendada não pôde começar (falta de gente, caixa ou pré-condição). */
   | "scheduled";
 
@@ -699,7 +732,7 @@ export interface PlannedAction {
 }
 
 export interface GameState {
-  version: 10;
+  version: 11;
   seed: number;
   rngState: number;
   clock: Clock;
@@ -939,7 +972,7 @@ export interface UpcomingEvent {
 // Fase 7, S1: modo evento (docs/phases/fase-7.md).
 // ---------------------------------------------------------------------------
 
-export type EventKind = "selection-day" | "flight-test" | "competition";
+export type EventKind = "selection-day" | "selection-lecture" | "flight-test" | "competition";
 
 export type EventBlockKind =
   | "arrival"
@@ -950,6 +983,9 @@ export type EventBlockKind =
   | "awards"
   | "reception"
   | "presentation"
+  | "process"
+  | "questions"
+  | "closing"
   | "challenge"
   | "interviews"
   | "deliberation"
@@ -1034,6 +1070,20 @@ export interface SelectionDayContext {
   captainsPick: string[];
 }
 
+/** Palestra de apresentação como evento (fase-9.md, ajustes do playtest). */
+export interface SelectionLectureContext {
+  kind: "selection-lecture";
+  /** Inscritos que vieram (ids de Applicant). */
+  attendeeIds: string[];
+  registered: number;
+  /** O que a apresentação destacou ("project" | "community" | "cv"); null antes da decisão. */
+  highlight: string | null;
+  /** Como a equipe respondeu às perguntas ("honest" | "sell"); null antes da decisão. */
+  answer: string | null;
+  /** Soma dos empurrões na motivação dos presentes (para o clima do resumo). */
+  mood: number;
+}
+
 export interface FlightTestContext {
   kind: "flight-test";
   testId: string;
@@ -1079,7 +1129,7 @@ export interface CompetitionEventContext {
   knowledge: string[];
 }
 
-export type EventContext = SelectionDayContext | FlightTestContext | CompetitionEventContext;
+export type EventContext = SelectionDayContext | SelectionLectureContext | FlightTestContext | CompetitionEventContext;
 
 export interface ActiveEvent {
   id: string;

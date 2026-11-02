@@ -527,6 +527,34 @@ export const BALANCE = {
      * inscritos a mais, em askHoursPerMember h-pessoa cada. Os indicados parecem com quem indicou
      * (mesma área de interesse) com chance `similarity`.
      */
+    /**
+     * Palestra como evento: o que a apresentação destaca e como a equipe responde às perguntas mexem na
+     * motivação escondida de quem veio. `lowBelow` e `highFrom` separam os pouco e os muito motivados.
+     */
+    lecture: {
+      lowBelow: 58,
+      highFrom: 75,
+      projectHigh: 4,
+      projectLow: 1,
+      communityLow: 3,
+      communityHigh: 1,
+      cvLow: 5,
+      cvHigh: -2,
+      honestHigh: 2,
+      honestLow: -3,
+      sellLow: 2,
+      sellHigh: -1,
+      /** Clima do resumo: média do empurrão por pessoa. */
+      moodWarm: 2,
+      moodOk: 0.5
+    },
+    /** Triagem com o presidente: ruído do palpite dele, folga até discordar e quantos nomes no máximo. */
+    triage: {
+      noise: 8,
+      gapDown: 12,
+      gapUp: 14,
+      maxDisagreements: 2
+    },
     referral: {
       perMember: 1.6,
       perCommunication: 3.2,

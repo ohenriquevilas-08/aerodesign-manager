@@ -20,7 +20,7 @@ export interface PauseNotice {
 }
 
 /** Motivos sem aviso central: início, pausa manual e eventos (esses têm o próprio "Entrar"). */
-const NO_NOTICE: ReadonlySet<PauseReason> = new Set<PauseReason>(["start", "manual", "selection-day", "flight-test", "competition"]);
+const NO_NOTICE: ReadonlySet<PauseReason> = new Set<PauseReason>(["start", "manual", "selection-day", "selection-lecture", "flight-test", "competition"]);
 
 const TARGET_BY_REASON: Partial<Record<PauseReason, NoticeTarget>> = {
   "deadline-soon": "calendar",
@@ -28,7 +28,8 @@ const TARGET_BY_REASON: Partial<Record<PauseReason, NoticeTarget>> = {
   scheduled: "calendar",
   order: "browser",
   flight: "competition",
-  selection: "lecture"
+  selection: "lecture",
+  triage: "browser"
 };
 
 /** Para onde levar o resultado de uma tarefa concluída, pela ação dela. */

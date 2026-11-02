@@ -13,7 +13,7 @@ import {
   type Command,
   type GameState
 } from "../../src/sim";
-import { foundedGame } from "./helpers";
+import { driveEvent, foundedGame } from "./helpers";
 
 const run = (state: GameState, ...commands: Command[]): GameState => commands.reduce(applyCommand, state);
 const CREW = ["founder-marina", "founder-caio"];
@@ -176,5 +176,72 @@ describe("leitura da pausa automática", () => {
     const [notice] = pauseNotices(withMessage);
     expect(notice!.target).toBe("calendar");
     expect(notice!.result).toBe("O prazo está chegando.");
+  });
+});
+
+describe("palestra como evento e triagem com o presidente", () => {
+  const closedInscriptions = (seed = 12): GameState => {
+    let game = run(foundedGame({ seed, teamName: "T" }), { type: "open-selection", format: "broad", memberIds: CREW });
+    return advanceUntil({ ...game, outreach: 40 }, (s) => s.selection?.stage === "lecture");
+  };
+  const tagAll = (game: GameState): GameState =>
+    run(game, ...game.selection!.applicants.map((item, index): Command => ({ type: "tag-applicant", applicantId: item.id, tag: index % 3 === 0 ? "call" : index % 3 === 1 ? "maybe" : "no" })));
+
+  it("ao fechar as inscrições a simulação pausa e lembra da triagem; sem enviar, a palestra não abre", () => {
+    const game = closedInscriptions();
+    expect(game.pause?.reason).toBe("triage");
+    expect(pauseNotices(game)[0]!.title).toContain("falta a triagem");
+    const waited = advanceUntil({ ...game, pause: null }, (s) => s.clock.hours > game.selection!.lectureAt! + 48, 10);
+    expect(waited.activeEvent).toBeNull();
+    expect(waited.selection!.stage).toBe("lecture");
+    expect(run(waited, { type: "send-triage" }).selection!.triage.sent).toEqual(["lecture"]);
+  });
+
+  it("com a triagem enviada a palestra vira evento com decisões e fecha com o resumo", () => {
+    let game = run(tagAll(closedInscriptions()), { type: "send-triage" });
+    expect(run(game, { type: "send-triage" }).warning?.text).toContain("já foi enviada");
+    game = advanceUntil({ ...game, pause: null }, (s) => !!s.activeEvent);
+    expect(game.activeEvent!.kind).toBe("selection-lecture");
+    expect(game.pause?.reason).toBe("selection-lecture");
+    expect(game.selection!.stage).toBe("dynamic");
+    const before = game.selection!.applicants.filter((a) => a.stage === "lecture").reduce((sum, a) => sum + a.profile.motivation, 0);
+    const picks: string[] = [];
+    const played = driveEvent(game, { pick: (decision) => (picks.push(decision.id), decision.options[0]!.id) }).state;
+    expect(picks).toEqual(["highlight", "answer"]);
+    expect(played.activeEvent!.summary!.lines.join(" ")).toContain("Clima da plateia");
+    const after = played.selection!.applicants.filter((a) => a.stage === "lecture").reduce((sum, a) => sum + a.profile.motivation, 0);
+    expect(after).not.toBe(before);
+    const closed = run(played, { type: "close-event" });
+    expect(closed.activeEvent).toBeNull();
+    expect(closed.inbox.some((m) => m.title === "Palestra de apresentação")).toBe(true);
+  });
+
+  it("o presidente discorda de até 2 nomes e o jogador aceita ou mantém", () => {
+    let game = run(tagAll(closedInscriptions(14)), { type: "send-triage" });
+    const review = game.selection!.triage.review!;
+    expect(review.gate).toBe("lecture");
+    expect(review.opinion.length).toBeGreaterThan(20);
+    expect(review.disagreements.length).toBeLessThanOrEqual(2);
+    expect(game.inbox.some((m) => m.title === "Parecer da triagem")).toBe(true);
+    for (const [index, item] of review.disagreements.entries()) {
+      const tag = game.selection!.applicants.find((a) => a.id === item.applicantId)!.tag;
+      game = run(game, { type: "answer-triage", applicantId: item.applicantId, accept: index === 0 });
+      const now = game.selection!.applicants.find((a) => a.id === item.applicantId)!.tag;
+      expect(now).toBe(index === 0 ? item.suggested : tag);
+      expect(game.selection!.triage.review!.disagreements[index]!.accepted).toBe(index === 0);
+      expect(item.reason.length).toBeGreaterThan(5);
+    }
+  });
+
+  it("a dinâmica também espera a triagem", () => {
+    let game = run(tagAll(closedInscriptions(15)), { type: "send-triage" });
+    game = advanceUntil({ ...game, pause: null }, (s) => !!s.activeEvent);
+    game = run(driveEvent(game).state, { type: "close-event" });
+    expect(game.selection!.stage).toBe("dynamic");
+    const waited = advanceUntil({ ...game, pause: null }, (s) => s.clock.hours > game.selection!.dynamicDayAt! + 24, 20);
+    expect(waited.activeEvent).toBeNull();
+    expect(waited.inbox.some((m) => m.title === "A dinâmica espera a triagem")).toBe(true);
+    const sent = advanceUntil(run(waited, { type: "send-triage" }), (s) => !!s.activeEvent, 3);
+    expect(sent.activeEvent!.kind).toBe("selection-day");
   });
 });

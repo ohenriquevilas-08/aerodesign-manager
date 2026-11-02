@@ -724,3 +724,45 @@
   gap: var(--space-2);
   justify-content: flex-end;
 }
+
+/* Triagem com o presidente. */
+.triage {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.triage:empty {
+  display: none;
+}
+
+.triage-ask,
+.triage-review {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+}
+
+.triage p {
+  margin: 0;
+}
+
+.triage-ask .btn-primary {
+  justify-self: start;
+}
+
+.triage-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.triage-buttons {
+  display: flex;
+  gap: var(--space-2);
+}

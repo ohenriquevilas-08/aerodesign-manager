@@ -11,6 +11,7 @@ import { findAction, type ActionDef } from "./content/actions";
 import { dueFlightTests } from "./flightTests";
 import { buildCompetitionEvent } from "./eventCompetition";
 import { buildFlightTestEvent } from "./eventFlightTest";
+import { buildLectureEvent } from "./eventLecture";
 import { buildSelectionDay } from "./eventSelection";
 import { openEvent } from "./events";
 import { crewRates } from "./crew";
@@ -21,6 +22,7 @@ import { addNews } from "./news";
 import { awardReputation, resolveTrainees, trackAgenda } from "./season";
 import { addMessage, closeUnderstaffed, completeTask, deliverProgress } from "./tasks";
 import { advanceSelection } from "./selection";
+import { nagTriage, triageSent } from "./triage";
 import { canWork, clamp, isExhausted, learn } from "./team";
 import { aptitudeFactor, revealText } from "./aptitude";
 import { energyDrainPerHour, stepEnergy } from "./energy";
@@ -249,9 +251,27 @@ export function step(state: GameState, dt: number): GameState {
   // Seletiva (Fase 9): chegada dos inscritos, fim das inscrições e palestra; depois, o dia da dinâmica.
   const selection = advanceSelection(next);
   next = selection.state;
-  if (selection.pause) pauses.push({ reason: "selection", messageId: selection.pause.messageId });
+  if (selection.pause) pauses.push({ reason: selection.pause.reason, messageId: selection.pause.messageId });
+  // Palestra (evento): só abre com a triagem enviada ao presidente; sem ela, avisa uma vez e espera.
+  const lecturing = next.selection;
+  if (!next.activeEvent && lecturing?.stage === "lecture" && lecturing.lectureAt !== null && t1 >= lecturing.lectureAt) {
+    if (triageSent(lecturing, "lecture")) {
+      const built = buildLectureEvent(next);
+      const opened = openEvent(built.state, built.event, "Os inscritos chegam ao auditório para a palestra de apresentação. Entre no evento para acompanhar a noite.");
+      next = opened.state;
+      pauses.unshift(opened.pause);
+    } else {
+      const nag = nagTriage(next, "lecture");
+      next = nag.state;
+      if (nag.messageId) pauses.push({ reason: "triage", messageId: nag.messageId });
+    }
+  }
   const campaign = next.selection;
-  if (!next.activeEvent && campaign?.stage === "dynamic" && campaign.dynamicDayAt !== null && t1 >= campaign.dynamicDayAt) {
+  if (!next.activeEvent && campaign?.stage === "dynamic" && campaign.dynamicDayAt !== null && t1 >= campaign.dynamicDayAt && !triageSent(campaign, "dynamic")) {
+    const nag = nagTriage(next, "dynamic");
+    next = nag.state;
+    if (nag.messageId) pauses.push({ reason: "triage", messageId: nag.messageId });
+  } else if (!next.activeEvent && campaign?.stage === "dynamic" && campaign.dynamicDayAt !== null && t1 >= campaign.dynamicDayAt) {
     const built = buildSelectionDay(next);
     next = built.state;
     if (built.event) {

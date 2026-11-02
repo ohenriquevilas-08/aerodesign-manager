@@ -23,7 +23,7 @@ import {
   type PartType
 } from "../../src/sim";
 import { drawApplicants, beginCampaign, findSelectionFormat } from "../../src/sim/selection";
-import { driveEvent, firstOption, foundedGame, playEvent, startedGame, TEST_START_HOURS } from "./helpers";
+import { driveEvent, firstOption, foundedGame, playEvent, selectionDayStep, startedGame, TEST_START_HOURS } from "./helpers";
 
 const run = (state: GameState, ...commands: Command[]): GameState => commands.reduce(applyCommand, state);
 const CREW = ["founder-marina", "founder-caio"];
@@ -36,14 +36,14 @@ const CREW = ["founder-marina", "founder-caio"];
 function runSelection(seed: number, outreach = 60): GameState {
   let game: GameState = { ...foundedGame({ seed, teamName: "T" }), outreach };
   game = run(game, { type: "open-selection", format: "broad", memberIds: CREW });
-  for (let i = 0; i < 90 && game.selection?.stage !== "dynamic"; i += 1) game = run(game, { type: "set-speed", speed: 1 }, { type: "tick", realSeconds: 10 });
+  for (let i = 0; i < 90 && game.selection?.stage !== "dynamic"; i += 1) game = selectionDayStep(game);
   return game;
 }
 
 /** Roda o relógio até a chamada do dia da dinâmica. */
 function untilSelectionCall(state: GameState): GameState {
   let game = state;
-  for (let i = 0; i < 200 && !game.activeEvent; i += 1) game = run(game, { type: "set-speed", speed: 4 }, { type: "tick", realSeconds: 10 });
+  for (let i = 0; i < 200 && !game.activeEvent; i += 1) game = selectionDayStep(game);
   return game;
 }
 

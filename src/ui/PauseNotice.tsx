@@ -7,7 +7,9 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import { store } from "../app/store";
 import { useGame } from "../app/useGame";
 import { pauseNotices, type NoticeTarget } from "../sim";
+import { FORMS_SITE } from "./browser/sites";
 import { navigate } from "./nav";
+import { openSite } from "./screens/Browser";
 import { openLecture } from "./selection/LectureOverlay";
 
 const TARGET_LABEL: Record<NoticeTarget, string> = {
@@ -38,6 +40,9 @@ export function PauseNotice() {
     if (current.target === "lecture") {
       navigate("team");
       openLecture();
+    } else if (current.reason === "triage") {
+      openSite(FORMS_SITE);
+      navigate("browser");
     } else navigate(current.target);
   };
 
