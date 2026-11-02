@@ -36,8 +36,8 @@ Contagem esperada num Ano 1 bem divulgado: ~90 inscritos → ~72 na palestra →
 | S3 dinâmica em grupos de 5–6, grupos acompanhados, `advance-applicants` | **feito** |
 | S4 entrevistas (`schedule-interviews`, `set-interview-questions`, `content/interviewQuestions.ts`) | **feito** |
 | S5 aprovação (`approve-applicants`), janelas de novembro e março | **feito** |
-| C1 palestra e dinâmica cheias (Cenas) | outra frente |
-| U1–U4 UI | pendente (há só um painel provisório na aba Seletiva da Equipe) |
+| C1 palestra e dinâmica cheias (Cenas) | **feito** (stubs trocados pelos tipos reais; `candidates` não é mais lido pelas cenas nem pela UI) |
+| U1–U4 UI | **feito** (branch de UI; falta revisão do Henrique e merge) |
 
 ### Como ficou (Simulação)
 
@@ -56,6 +56,15 @@ Contagem esperada num Ano 1 bem divulgado: ~90 inscritos → ~72 na palestra →
 - Nova razão de pausa `selection` (palestra aconteceu). Marco de março no calendário (`selection-march`); `SELECTION_END` saiu.
 - Entrevistas: o contrato diz ~1 semana; no teste da campanha completa elas levaram ~12 dias porque caíram em dezembro/janeiro (férias de verão a 50% das horas). A duração total (6,3 semanas) fica no alvo.
 - Treinamento de trainees: já escala (as 8 h-pessoa da tarefa se dividem entre mais trainees, então cada um treina menos); há teste em `tests/sim/selection.test.ts`.
+
+### Como ficou (UI)
+
+- **U1** `ui/browser/FormsSite.tsx`: "Formulários Goggle" (site `forms` no Navegador). A aba abre sozinha quando a campanha nasce (`Browser` guarda `formsFor`) e fecha quando ela some; só aparece nos favoritos com campanha. Linhas novas piscam; ordenar por coluna, filtros (texto sem acento, curso, etapa, marca); no teclado, setas andam, **C** chamar, **T** talvez, **N** não, **X** limpa (a linha em foco captura as letras, os atalhos de tela não disparam). Contador do funil no topo.
+- **U2** `ui/team/Selection.tsx` (aba Seletiva): sem campanha, formato com estimativa e escolha de quem divulga; com campanha, etapas, funil desenhado (`ui/selection/Funnel.tsx`), próxima data e os botões de cada etapa. A palestra abre em tela cheia (`ui/selection/LectureOverlay.tsx`, `LectureScene`) quando a simulação pausa com o motivo `selection`, e pode ser revista pelo botão. A dinâmica segue no modo evento da Fase 7.
+- **U3** `ui/selection/Shortlist.tsx` (quem vai para a entrevista, pré-marcando "Chamar" até o teto) e `Interviews.tsx` (entrevistadores, até 3 perguntas por pessoa, "usar em todos", progresso e respostas aparecendo na ficha `ApplicantSheet.tsx`).
+- **U4** `ui/selection/Approval.tsx`: vagas = marcados (teto 20), custo de treinamento (24 h por trainee, sessões de 8 h, dias até 1/fev) e confirmação antes de enviar.
+- Lógica pura e testada em `ui/selection/model.ts` (`tests/ui/selectionModel.test.ts`).
+- Desvio: `ApplicantView` ganhou `look` (aparência, cosmética) para a plateia da palestra e a dinâmica usarem a cara real do futuro trainee. `lectureViewFromCampaign` virou `lectureViewFromApplicants`.
 
 ## Frentes
 

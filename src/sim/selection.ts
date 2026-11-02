@@ -26,6 +26,7 @@ import type {
   GameState,
   InterviewAnswer,
   Member,
+  MemberLook,
   SelectionCampaign,
   SelectionStage
 } from "./types";
@@ -553,6 +554,8 @@ export interface ApplicantView {
   dynamic: boolean | null;
   questionIds: string[];
   answers: InterviewAnswer[];
+  /** Aparência (o que qualquer um vê na palestra); não revela nada do perfil. */
+  look: MemberLook;
 }
 
 const viewOf = (applicant: Applicant): ApplicantView => ({
@@ -568,7 +571,8 @@ const viewOf = (applicant: Applicant): ApplicantView => ({
   lecture: applicant.revealed.lecture,
   dynamic: applicant.revealed.dynamic,
   questionIds: [...applicant.questionIds],
-  answers: applicant.revealed.answers.map((answer) => ({ ...answer }))
+  answers: applicant.revealed.answers.map((answer) => ({ ...answer })),
+  look: { ...applicant.profile.look }
 });
 
 /** A ficha do inscrito: formulário, presença, anotações e respostas já reveladas; nada do perfil escondido. */

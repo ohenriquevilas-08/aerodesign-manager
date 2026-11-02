@@ -24,8 +24,8 @@ import {
   walkDuration
 } from "../../src/scenes/lecture/auditorium";
 import { lectureChannel } from "../../src/scenes/lecture/channel";
-import { attendedLecture, hashString, lectureViewFromCampaign, lookForApplicant, type Applicant } from "../../src/scenes/lecture/contract";
-import { MOCK_FOUNDERS, mockCampaign, mockLectureView } from "../../src/scenes/lecture/mock";
+import { attendedLecture, hashString, lectureViewFromApplicants, lookForApplicant } from "../../src/scenes/lecture/contract";
+import { MOCK_FOUNDERS, mockApplicants, mockLectureView } from "../../src/scenes/lecture/mock";
 
 describe("cadeiras do auditório", () => {
   it("há uma cadeira por lugar, todas distintas e dentro da sala, de frente para o palco", () => {
@@ -156,26 +156,27 @@ describe("palco e slides", () => {
   });
 });
 
-describe("leitura da palestra a partir da campanha (stub do contrato da Fase 9)", () => {
+describe("leitura da palestra a partir da campanha (contrato da Fase 9)", () => {
   it("só quem apareceu entra na plateia", () => {
     const stages = ["applied", "absent", "lecture", "dynamic", "interview", "approved", "rejected"] as const;
     expect(stages.filter((stage) => attendedLecture({ stage }))).toEqual(["lecture", "dynamic", "interview", "approved", "rejected"]);
   });
 
   it("a plateia tem os presentes, o total de inscritos e quem está no palco", () => {
-    const campaign = mockCampaign(92, 55);
-    const view = lectureViewFromCampaign(campaign, MOCK_FOUNDERS.slice(0, 1), "Equipe");
+    const applicants = mockApplicants(92, 55);
+    const view = lectureViewFromApplicants("c", applicants, MOCK_FOUNDERS.slice(0, 1), "Equipe");
     expect(view.attendees).toHaveLength(55);
     expect(view.registered).toBe(92);
     expect(view.onStage).toHaveLength(1);
-    const absentees = new Set(campaign.applicants.filter((a: Applicant) => a.stage === "absent").map((a) => a.id));
+    const absentees = new Set(applicants.filter((a) => a.stage === "absent").map((a) => a.id));
     expect(view.attendees.some((p) => absentees.has(p.id))).toBe(false);
   });
 
   it("o mesmo inscrito tem sempre a mesma aparência, e a camiseta não é a da equipe", () => {
-    expect(lookForApplicant("a7")).toEqual(lookForApplicant("a7"));
+    const people = mockApplicants(40, 40);
+    expect(lookForApplicant(people[7]!)).toEqual(lookForApplicant(people[7]!));
     expect(hashString("a7")).not.toBe(hashString("a8"));
-    for (let i = 0; i < 40; i += 1) expect(lookForApplicant(`a${i}`).shirt).not.toBe(0xff9f2e);
+    for (const person of people) expect(lookForApplicant(person).shirt).not.toBe(0xff9f2e);
   });
 
   it("a montagem de dev entrega 30 e 100 presentes", () => {

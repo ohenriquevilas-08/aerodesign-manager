@@ -2,7 +2,7 @@
 // os grupos da dinâmica e as luzes da inspeção. Sem evento aberto, devolve o `eventChannel` (só a
 // montagem de dev, /event-dev.html, usa o canal).
 
-import { eventView, inspectionFindings, type CompetitionEventContext, type GameState, type SelectionDayContext } from "../../sim";
+import { applicantView, eventView, inspectionFindings, type CompetitionEventContext, type GameState, type SelectionDayContext } from "../../sim";
 import { eventChannel } from "./channel";
 import type { EventPerson, InspectionItemView, StageView } from "./contract";
 
@@ -41,12 +41,13 @@ export function readEventView(state: GameState): StageView | null {
     const context: SelectionDayContext = event.context;
     selection = {
       observedGroupId: context.watchedGroupId,
+      observedGroupIds: context.watchedGroupIds,
       groups: context.groups.map((group) => ({
         id: group.id,
         label: group.name,
         gliderDistanceM: group.gliderDistanceM,
         members: group.candidateIds.flatMap((id) => {
-          const candidate = state.candidates.find((item) => item.id === id);
+          const candidate = applicantView(state, id);
           return candidate ? [{ id, name: candidate.name, look: candidate.look }] : [];
         })
       }))
