@@ -26,7 +26,7 @@ interface GroupDef {
 }
 
 export const ACTION_GROUPS: readonly GroupDef[] = [
-  { id: "team", title: "Equipe", goal: "Trazer gente nova e guardar o que a equipe já sabe.", actionIds: ["recruitment", "trainee-training", "document"] },
+  { id: "team", title: "Equipe", goal: "Trazer gente nova e guardar o que a equipe já sabe.", actionIds: ["selection-open", "trainee-training", "document"] },
   { id: "outreach", title: "Divulgação", goal: "Somar alcance para a próxima seletiva.", actionIds: ["outreach-posters", "outreach-social", "outreach-classroom", "outreach-freshers"] },
   { id: "project", title: "Projeto", goal: "Estudar, ler o regulamento e desenhar o avião.", actionIds: ["read-regulation", "study-aero", "drawings"] },
   { id: "fabrication", title: "Fabricação", goal: "Fazer e consertar as peças do avião.", actionIds: ["build-wing", "build-fuselage", "build-tail", "build-gear", "repair-part"], needsRegulation: true },
@@ -69,7 +69,7 @@ function lockedReason(state: GameState, action: ActionDef, needsRegulation: bool
     if (!regulationPublished(state)) return `quando sair o regulamento, ${shortDate(REGULATION_DATE)}`;
   }
   if (needsRegulation && !regulationPublished(state)) return `depois do regulamento, ${shortDate(REGULATION_DATE)}`;
-  if (action.id === "recruitment" && actionProblem(state, action)) return "só na seletiva do ano que vem";
+  if (action.id === "selection-open" && actionProblem(state, action)) return "quando o processo seletivo atual acabar";
   if (action.id === "trainee-training" && actionProblem(state, action)) return "quando houver trainees";
   return null;
 }
@@ -122,10 +122,7 @@ export function deliveredText(task: Pick<Task, "yielded" | "yieldTotal">, action
   const kind = action.effect?.kind;
   const done = task.yielded;
   switch (kind) {
-    case "selection": {
-      const count = Math.floor(done + 1e-9);
-      return count === 0 ? "Ninguém se inscreveu ainda" : count === 1 ? "1 candidato até agora" : `${count} candidatos até agora`;
-    }
+    case "selection-open":
     case "outreach":
       return done < 0.5 ? "Ainda sem alcance" : `+${Math.round(done)} de alcance até agora`;
     case "report-chapter":
@@ -149,7 +146,7 @@ export function yieldText(action: ActionDef): string | null {
   if (action.yield === "continuous") {
     return kind === "outreach" ? "O alcance chega aos poucos, na proporção das horas." : "Rende aos poucos, na proporção das horas. Encerrar antes fica com o que já rendeu.";
   }
-  if (kind === "selection") return "Os candidatos vão chegando a cada quarto da tarefa. Dá para encerrar no meio e ficar com eles.";
+  if (kind === "selection-open") return "A divulgação soma alcance enquanto anda; ao terminar (ou ao encerrar), as inscrições abrem e os inscritos chegam aos poucos.";
   if (kind === "fabricate") return "A peça avança em etapas (corte, montagem, acabamento). Encerrada no meio, fica parcial e dá para terminar depois.";
   return "Entrega em marcos ao longo da tarefa.";
 }

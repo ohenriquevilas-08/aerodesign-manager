@@ -20,6 +20,7 @@ import { advanceShops } from "./shop";
 import { addNews } from "./news";
 import { awardReputation, resolveTrainees, trackAgenda } from "./season";
 import { addMessage, closeUnderstaffed, completeTask, deliverProgress } from "./tasks";
+import { advanceSelection } from "./selection";
 import { canWork, clamp, isExhausted, learn } from "./team";
 import { aptitudeFactor, revealText } from "./aptitude";
 import { energyDrainPerHour, stepEnergy } from "./energy";
@@ -245,11 +246,16 @@ export function step(state: GameState, dt: number): GameState {
       pauses.unshift(opened.pause);
     }
   }
-  if (!next.activeEvent && next.selectionDay && t0 < next.selectionDay.at && next.selectionDay.at <= t1) {
-    const event = buildSelectionDay(next);
-    next = { ...next, selectionDay: null };
-    if (event) {
-      const opened = openEvent(next, event, "Os inscritos da seletiva chegam para o dia da dinâmica. Entre no evento para conhecê-los.");
+  // Seletiva (Fase 9): chegada dos inscritos, fim das inscrições e palestra; depois, o dia da dinâmica.
+  const selection = advanceSelection(next);
+  next = selection.state;
+  if (selection.pause) pauses.push({ reason: "selection", messageId: selection.pause.messageId });
+  const campaign = next.selection;
+  if (!next.activeEvent && campaign?.stage === "dynamic" && campaign.dynamicDayAt !== null && t1 >= campaign.dynamicDayAt) {
+    const built = buildSelectionDay(next);
+    next = built.state;
+    if (built.event) {
+      const opened = openEvent(next, built.event, "Os inscritos da seletiva chegam para o dia da dinâmica. Entre no evento para conhecê-los.");
       next = opened.state;
       pauses.unshift(opened.pause);
     }

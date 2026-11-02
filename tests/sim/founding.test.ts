@@ -18,8 +18,8 @@ import {
 } from "../../src/sim";
 import { completeTask } from "../../src/sim/tasks";
 import { awardReputation } from "../../src/sim/season";
-import { drawCandidates } from "../../src/sim/selection";
-import { foundedGame } from "./helpers";
+import { approveApplicants } from "../../src/sim/selection";
+import { foundedGame, withApplicants, withTrainees } from "./helpers";
 
 const run = (state: GameState, ...commands: Command[]): GameState => commands.reduce(applyCommand, state);
 const member = (state: GameState, id: string): Member => state.members.find((m) => m.id === id)!;
@@ -186,19 +186,16 @@ describe("presidente e agenda", () => {
 });
 
 describe("trainees", () => {
-  function withCandidates(state: GameState): GameState {
-    return drawCandidates({ ...state, outreach: 40 }, "broad", 3);
-  }
-
   it("quem entra pela seletiva chega como trainee antes de 1/fev e como integrante depois", () => {
-    const november = withCandidates(foundedGame({ seed: 6, teamName: "T" }));
-    const hired = run(november, { type: "hire-candidate", candidateId: november.candidates[0]!.id }).members.at(-1)!;
+    const november = withApplicants(foundedGame({ seed: 6, teamName: "T" }), 3);
+    const hired = approveApplicants(november, [november.selection!.applicants[0]!.id]).members.at(-1)!;
     expect(hired.role).toBe("trainee");
     expect(hired.trainingHours).toBe(0);
     expect(traineeProgress(hired)).toBe(0);
 
     const late = at(november, dateToHours(TRAINEE_END));
-    expect(run(late, { type: "hire-candidate", candidateId: late.candidates[0]!.id }).members.at(-1)!.role).toBe("member");
+    // Depois de 1/fev não há mais etapa trainee: o aprovado já entra como integrante.
+    expect(approveApplicants(late, [late.selection!.applicants[0]!.id]).members.at(-1)!.role).toBe("member");
   });
 
   it("a tarefa de treino exige trainee e dá horas de treino e conhecimento", () => {
@@ -207,8 +204,7 @@ describe("trainees", () => {
     expect(refused.tasks).toHaveLength(0);
     expect(refused.warning?.text).toContain("trainees");
 
-    let state = withCandidates(base);
-    state = run(state, { type: "hire-candidate", candidateId: state.candidates[0]!.id });
+    let state = withTrainees(base, 1);
     const trainee = state.members.at(-1)!;
     state = run(state, { type: "start-action", actionId: "trainee-training", memberIds: [trainee.id, "founder-marina"] });
     for (let i = 0; i < 20 && state.tasks[0]!.status !== "done"; i += 1) state = play(state, 1);
@@ -222,8 +218,7 @@ describe("trainees", () => {
 
   it("sem capitão no treino, o trainee aproveita só metade das horas", () => {
     const hoursWith = (captain: boolean): number => {
-      let state = withCandidates(foundedGame({ seed: 6, teamName: "T" }));
-      state = run(state, { type: "hire-candidate", candidateId: state.candidates[0]!.id });
+      let state = withTrainees(foundedGame({ seed: 6, teamName: "T" }), 1);
       const trainee = state.members.at(-1)!;
       state = run(state, { type: "start-action", actionId: "trainee-training", memberIds: [trainee.id, captain ? "founder-marina" : "founder-rafa"] });
       for (let i = 0; i < 20 && state.tasks[0]!.status !== "done"; i += 1) state = play(state, 1);
@@ -264,11 +259,11 @@ describe("trainees", () => {
 });
 
 describe("nomes de pessoa", () => {
-  it("fundadores, candidatos e trainees têm nome e sobrenome sorteados, sem repetir e sem rótulo de cargo", () => {
+  it("fundadores, inscritos e trainees têm nome e sobrenome sorteados, sem repetir e sem rótulo de cargo", () => {
     for (const seed of [1, 2, 3, 4, 5]) {
       const game = createGame({ seed, teamName: "T" });
-      const state = drawCandidates({ ...game, outreach: 200 }, "broad", 25);
-      const names = [...state.members, ...state.candidates].map((p) => p.name);
+      const state = withApplicants(game, 25);
+      const names = [...state.members, ...state.selection!.applicants].map((p) => p.name);
       expect(new Set(names).size).toBe(names.length);
       for (const name of names) expect(name).toMatch(/^\p{Lu}\p{L}+ \p{Lu}\p{L}+$/u);
       expect(names.some((n) => /Capit|President|Trainee/.test(n))).toBe(false);

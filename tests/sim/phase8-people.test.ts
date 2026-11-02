@@ -22,8 +22,8 @@ import {
   type Member
 } from "../../src/sim";
 import { FOUNDERS } from "../../src/sim/content/founders";
-import { drawCandidates } from "../../src/sim/selection";
-import { foundedGame, startedGame } from "./helpers";
+import { approveApplicants } from "../../src/sim/selection";
+import { foundedGame, startedGame, withApplicants } from "./helpers";
 
 const run = (state: GameState, ...commands: Command[]): GameState => commands.reduce(applyCommand, state);
 const member = (state: GameState, id: string): Member => state.members.find((item) => item.id === id)!;
@@ -174,11 +174,12 @@ describe("S5: alunos não determinados", () => {
     for (const seed of [1, 2, 3, 4, 5]) {
       const game = createGame({ seed, teamName: "T" });
       for (const founder of game.members) near(founder.knowledge);
-      const founded = drawCandidates({ ...foundedGame({ seed, teamName: "T" }), outreach: 40 }, "technical", 6);
-      for (const candidate of founded.candidates) near(candidate.knowledge, 6);
-      const hired = run(founded, { type: "hire-candidate", candidateId: founded.candidates[0]!.id }).members.at(-1)!;
+      // O curso puxa levemente (até +3) além do bônus do formato (até +6).
+      const founded = withApplicants(foundedGame({ seed, teamName: "T" }), 6, "technical");
+      for (const applicant of founded.selection!.applicants) near(applicant.profile.knowledge, 9);
+      const hired = approveApplicants(founded, [founded.selection!.applicants[0]!.id]).members.at(-1)!;
       expect(hired.role).toBe("trainee");
-      near(hired.knowledge, 6);
+      near(hired.knowledge, 9);
     }
     // Ninguém é "mais forte em X" por diferença grande: a amplitude entre fundadores é pequena.
     const founders = createGame({ seed: 9, teamName: "T" }).members;
@@ -216,17 +217,17 @@ describe("S5: alunos não determinados", () => {
     expect(withMismatch).toBeGreaterThan(50);
   });
 
-  it("candidatos declaram 0 a 2 gostos e carregam preferência e facilidade para o integrante", () => {
-    const game = drawCandidates({ ...foundedGame({ seed: 3, teamName: "T" }), outreach: 40 }, "broad", 9);
-    expect(new Set(game.candidates.map((c) => c.statedLikes.length)).size).toBeGreaterThan(1);
-    for (const candidate of game.candidates) {
-      expect(candidate.statedLikes.length).toBeLessThanOrEqual(2);
-      expect(Object.keys(candidate.aptitude).sort()).toEqual([...DISCIPLINES].sort());
-      expect(candidate.opinion).not.toMatch(/Chega sabendo|Tem base/);
+  it("inscritos declaram 0 a 2 gostos e carregam preferência e facilidade para o integrante", () => {
+    const game = withApplicants(foundedGame({ seed: 3, teamName: "T" }), 12);
+    const profiles = game.selection!.applicants.map((a) => a.profile);
+    expect(new Set(profiles.map((p) => p.statedLikes.length)).size).toBeGreaterThan(1);
+    for (const profile of profiles) {
+      expect(profile.statedLikes.length).toBeLessThanOrEqual(2);
+      expect(Object.keys(profile.aptitude).sort()).toEqual([...DISCIPLINES].sort());
     }
-    const first = game.candidates[0]!;
-    const hired = run(game, { type: "hire-candidate", candidateId: first.id }).members.at(-1)!;
-    expect(hired).toMatchObject({ statedLikes: first.statedLikes, likes: first.likes, dislikes: first.dislikes, aptitude: first.aptitude, revealedAptitude: [], energy: 100 });
+    const first = game.selection!.applicants[0]!;
+    const hired = approveApplicants(game, [first.id]).members.at(-1)!;
+    expect(hired).toMatchObject({ statedLikes: first.profile.statedLikes, likes: first.profile.likes, dislikes: first.profile.dislikes, aptitude: first.profile.aptitude, revealedAptitude: [], energy: 100 });
   });
 
   it("a facilidade escondida multiplica o ganho de conhecimento", () => {

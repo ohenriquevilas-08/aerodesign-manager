@@ -22,23 +22,21 @@ import {
   type Part,
   type PartType
 } from "../../src/sim";
-import { drawCandidates } from "../../src/sim/selection";
+import { drawApplicants, beginCampaign, findSelectionFormat } from "../../src/sim/selection";
 import { driveEvent, firstOption, foundedGame, playEvent, startedGame, TEST_START_HOURS } from "./helpers";
 
 const run = (state: GameState, ...commands: Command[]): GameState => commands.reduce(applyCommand, state);
 const CREW = ["founder-marina", "founder-caio"];
 
 // ---------------------------------------------------------------------------
-// Seletiva (S2)
+// Seletiva (S2; reescrito na Fase 9, S3: o evento recebe os presentes da palestra)
 // ---------------------------------------------------------------------------
 
-/** Faz a seletiva (tarefa) até o fim: divulgação e inscrição, como na Fase 6. */
+/** Abre a campanha e roda até depois da palestra: o dia da dinâmica ainda por vir. */
 function runSelection(seed: number, outreach = 60): GameState {
   let game: GameState = { ...foundedGame({ seed, teamName: "T" }), outreach };
-  game = run(game, { type: "start-action", actionId: "recruitment", targetId: "broad", memberIds: CREW });
-  for (let i = 0; i < 80 && game.tasks[0]!.status !== "done"; i += 1) {
-    game = run(game, { type: "set-speed", speed: 1 }, { type: "tick", realSeconds: 10 });
-  }
+  game = run(game, { type: "open-selection", format: "broad", memberIds: CREW });
+  for (let i = 0; i < 90 && game.selection?.stage !== "dynamic"; i += 1) game = run(game, { type: "set-speed", speed: 1 }, { type: "tick", realSeconds: 10 });
   return game;
 }
 
@@ -49,40 +47,38 @@ function untilSelectionCall(state: GameState): GameState {
   return game;
 }
 
-const selectionWith = (min: number) => {
-  for (let seed = 1; seed < 40; seed += 1) {
-    const game = runSelection(seed);
-    if (game.candidates.length >= min) return game;
-  }
-  throw new Error("sem seed com candidatos suficientes");
+const selectionWith = (_min: number) => runSelection(1);
+
+const contextOf = (state: GameState) => {
+  const context = state.activeEvent!.context;
+  if (context.kind !== "selection-day") throw new Error("não é a dinâmica");
+  return context;
 };
 
 describe("S2: dia da dinâmica da seletiva", () => {
-  it("a seletiva (tarefa) marca o dia da dinâmica para a manhã seguinte", () => {
+  it("a campanha marca a dinâmica depois da palestra, em data fixa e sem adiar", () => {
     const done = selectionWith(1);
-    expect(done.selectionDay).not.toBeNull();
-    const completedDay = Math.floor(done.clock.hours / 24);
-    expect(done.selectionDay!.at).toBe((completedDay + 1) * 24 + BALANCE.selectionDay.startHour);
-    expect(done.selectionDay!.format).toBe("broad");
+    expect(done.selection!.stage).toBe("dynamic");
+    expect(done.selection!.dynamicDayAt! % 24).toBe(BALANCE.selectionDay.startHour);
+    expect(done.selection!.dynamicDayAt!).toBeGreaterThan(done.clock.hours);
     expect(done.activeEvent).toBeNull();
-    expect(done.inbox.at(-1)!.body).toContain("dinâmica");
+    expect(done.inbox.some((message) => message.title === "Palestra de apresentação")).toBe(true);
   });
 
-  it("na hora o relógio pausa e abre a chamada; não há como adiar", () => {
+  it("na hora o relógio pausa e abre a chamada", () => {
     const called = untilSelectionCall(selectionWith(2));
     expect(called.activeEvent).toMatchObject({ kind: "selection-day", entered: false, day: 1, totalDays: 1 });
-    expect(called.selectionDay).toBeNull();
     expect(called.pause?.reason).toBe("selection-day");
     expect(called.clock.speed).toBe(0);
     expect(eventView(called)).toMatchObject({ stage: "call", canAdvance: false });
     expect(applyCommand(called, { type: "advance-event" }).warning?.text).toContain("chamada");
   });
 
-  it("o dia tem os cinco blocos, as decisões e um resumo; o fechamento anota as fichas", () => {
+  it("o dia tem os blocos, as decisões e um resumo; o fechamento anota as fichas e passa a escolher quem entrevista", () => {
     const base = untilSelectionCall(selectionWith(4));
-    const ids = base.activeEvent!.context.kind === "selection-day" ? base.activeEvent!.context.candidateIds : [];
-    expect(ids.length).toBeGreaterThanOrEqual(4);
-    expect(base.activeEvent!.blocks.map((block) => block.kind)).toEqual(["reception", "presentation", "challenge", "interviews", "deliberation"]);
+    const ids = contextOf(base).candidateIds;
+    expect(ids.length).toBeGreaterThanOrEqual(10);
+    expect(base.activeEvent!.blocks.map((block) => block.kind)).toEqual(["reception", "presentation", "challenge", "deliberation"]);
 
     const decisions: string[] = [];
     const played = driveEvent(base, {
@@ -92,77 +88,85 @@ describe("S2: dia da dinâmica da seletiva", () => {
       }
     }).state;
     expect(decisions).toContain("watch-group");
-    expect(decisions).toContain("deliberation");
     const summary = played.activeEvent!.summary!;
     expect(summary.title).toContain("dinâmica");
     expect(summary.lines.length).toBeGreaterThan(2);
 
     const closed = applyCommand(played, { type: "close-event" });
     expect(closed.activeEvent).toBeNull();
+    expect(closed.candidates).toEqual([]);
     expect(closed.pause?.reason).toBe("manual");
+    expect(closed.selection!.stage).toBe("shortlist");
     for (const id of ids) {
-      const candidate = closed.candidates.find((item) => item.id === id)!;
-      expect(candidate.verdict).toBeDefined();
-      expect(candidate.observations!.length).toBeGreaterThan(0);
+      const applicant = closed.selection!.applicants.find((item) => item.id === id)!;
+      expect(applicant.stage).toBe("dynamic");
+      expect(applicant.notes.length).toBeGreaterThan(0);
     }
-    expect(closed.candidates.some((candidate) => candidate.verdict === "strong")).toBe(true);
-    // Convidar continua sendo hire-candidate.
-    const hired = applyCommand(closed, { type: "hire-candidate", candidateId: ids[0]! });
-    expect(hired.members).toHaveLength(closed.members.length + 1);
   });
 
-  it("observar um grupo de perto revela mais sobre aqueles candidatos", () => {
+  it("os grupos têm 5 ou 6 pessoas e o jogador acompanha de perto até 2 deles", () => {
     const base = untilSelectionCall(selectionWith(4));
-    const context = base.activeEvent!.context;
-    if (context.kind !== "selection-day") throw new Error();
-    const [first, second] = context.groups;
-    const watching = (groupId: string) =>
-      driveEvent(base, { pick: (decision) => (decision.id === "watch-group" ? groupId : firstOption(decision)) }).state.activeEvent!.context;
-    const watchFirst = watching(first!.id);
-    const watchSecond = watching(second!.id);
-    if (watchFirst.kind !== "selection-day" || watchSecond.kind !== "selection-day") throw new Error();
-    const noteCount = (c: typeof watchFirst, ids: string[]) => ids.reduce((sum, id) => sum + (c.notes[id]?.length ?? 0), 0);
-    expect(noteCount(watchFirst, first!.candidateIds)).toBeGreaterThan(noteCount(watchSecond, first!.candidateIds));
-    expect(noteCount(watchSecond, second!.candidateIds)).toBeGreaterThan(noteCount(watchFirst, second!.candidateIds));
+    const context = contextOf(base);
+    expect(context.groups.length).toBeGreaterThan(2);
+    for (const group of context.groups) {
+      expect(group.candidateIds.length).toBeGreaterThanOrEqual(BALANCE.selectionDay.groupMin);
+      expect(group.candidateIds.length).toBeLessThanOrEqual(BALANCE.selectionDay.groupMax);
+    }
+    expect(context.groups.flatMap((group) => group.candidateIds).sort()).toEqual([...context.candidateIds].sort());
+    const asked: string[] = [];
+    const played = driveEvent(base, {
+      pick: (decision) => {
+        asked.push(decision.id);
+        return firstOption(decision);
+      }
+    }).state;
+    expect(asked.filter((id) => id === "watch-group")).toHaveLength(BALANCE.selection.watchedGroups);
+    const done = contextOf(played);
+    expect(done.watchedGroupIds).toHaveLength(2);
+    expect(done.watchedGroupId).toBe(done.watchedGroupIds[0]);
+    // O espelho para as cenas existe durante o evento.
+    expect(played.candidates).toHaveLength(context.candidateIds.length);
   });
 
-  it("quem travou ganha uma segunda chance como decisão e a lista segue os capitães ou a sua leitura", () => {
+  it("observar um grupo de perto dá anotações por pessoa; os outros ganham só uma anotação geral", () => {
+    const base = untilSelectionCall(selectionWith(4));
+    const [first, second, third] = contextOf(base).groups;
+    let count = 0;
+    const played = driveEvent(base, {
+      pick: (decision) => (decision.id === "watch-group" ? (count++ === 0 ? first!.id : second!.id) : firstOption(decision))
+    }).state;
+    const done = contextOf(played);
+    const noteCount = (ids: string[]) => ids.reduce((sum, id) => sum + (done.notes[id]?.length ?? 0), 0);
+    // Grupo acompanhado: várias anotações por pessoa; fora: exatamente uma anotação geral, igual para todos.
+    expect(noteCount(first!.candidateIds)).toBeGreaterThan(first!.candidateIds.length);
+    for (const id of third!.candidateIds) expect(done.notes[id]).toHaveLength(1);
+    expect(new Set(third!.candidateIds.map((id) => done.notes[id]![0])).size).toBe(1);
+  });
+
+  it("quem travou ganha uma segunda chance como decisão", () => {
     let seen = false;
-    for (let seed = 1; seed < 40 && !seen; seed += 1) {
+    for (let seed = 1; seed < 30 && !seen; seed += 1) {
       const called = untilSelectionCall(runSelection(seed));
       if (!called.activeEvent) continue;
       const asked: string[] = [];
       const played = driveEvent(called, {
         pick: (decision) => {
           asked.push(decision.id);
-          return decision.id === "second-chance" ? "yes" : decision.id === "deliberation" ? "mine" : firstOption(decision);
+          return decision.id === "second-chance" ? "yes" : firstOption(decision);
         }
       }).state;
       if (!asked.includes("second-chance")) continue;
       seen = true;
-      const context = played.activeEvent!.context;
-      if (context.kind !== "selection-day") throw new Error();
+      const context = contextOf(played);
       expect(context.secondChance).toBe(true);
-      expect(context.followed).toBe("mine");
       expect(context.notes[context.frozeId!]!.join(" ")).toMatch(/segunda chance|travou de novo/);
-      expect(context.verdicts[context.yourPick[0]!]).toBe("strong");
     }
     expect(seen).toBe(true);
   });
 
-  it("sem candidatos no dia (todos dispensados) nenhum evento abre", () => {
-    const done = selectionWith(1);
-    const emptied = applyCommand(done, { type: "dismiss-candidates" });
-    let after = emptied;
-    for (let i = 0; i < 200 && after.clock.hours <= done.selectionDay!.at + 1; i += 1) after = run(after, { type: "set-speed", speed: 4 }, { type: "tick", realSeconds: 10 });
-    expect(after.clock.hours).toBeGreaterThan(done.selectionDay!.at);
-    expect(after.activeEvent).toBeNull();
-    expect(after.selectionDay).toBeNull();
-  });
-
   it("é determinístico pelo rngState", () => {
     const called = untilSelectionCall(selectionWith(3));
-    expect(playEvent(called).candidates).toEqual(playEvent(called).candidates);
+    expect(playEvent(called).selection).toEqual(playEvent(called).selection);
   });
 });
 
@@ -208,7 +212,7 @@ describe("S1: motor de eventos", () => {
   it("eventView acompanha o dia: blocos feitos, atual e próximos; hora do dia para o céu", () => {
     const called = untilSelectionCall(selectionWith(3));
     const view = eventView(called)!;
-    expect(view.blocks.map((block) => block.status)).toEqual(["current", "upcoming", "upcoming", "upcoming", "upcoming"]);
+    expect(view.blocks.map((block) => block.status)).toEqual(["current", "upcoming", "upcoming", "upcoming"]);
     expect(view.hourOfDay).toBe(9);
     const next = applyCommand(applyCommand(called, { type: "enter-event" }), { type: "advance-event" });
     expect(eventView(next)!.blocks.map((block) => block.status).slice(0, 2)).toEqual(["done", "current"]);
@@ -222,7 +226,7 @@ describe("S1: motor de eventos", () => {
     const loaded = deserializeState(serializeState(mid))!;
     expect(loaded).toEqual(mid);
     const finish = (state: GameState) => playEvent(state);
-    expect(finish(loaded).candidates).toEqual(finish(mid).candidates);
+    expect(finish(loaded).selection).toEqual(finish(mid).selection);
   });
 });
 
@@ -376,8 +380,8 @@ describe("S5: gênero, prioridade do presidente e prazo da tarefa", () => {
   it("candidatos e trainees seguem a mesma proporção, e o gênero concorda com o nome", () => {
     const flags: boolean[] = [];
     for (let seed = 1; seed <= 120; seed += 1) {
-      const game = drawCandidates({ ...foundedGame({ seed, teamName: "T" }), candidates: [] }, "broad", 12);
-      flags.push(...game.candidates.map((c) => !!c.look.female));
+      const game = drawApplicants(beginCampaign(foundedGame({ seed, teamName: "T" }), "broad"), findSelectionFormat("broad")!, 12);
+      flags.push(...game.selection!.applicants.map((a) => !!a.profile.look.female));
     }
     expect(share(flags)).toBeGreaterThan(0.16);
     expect(share(flags)).toBeLessThan(0.25);

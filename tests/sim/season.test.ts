@@ -91,13 +91,16 @@ describe("S1: relógio e calendário da temporada", () => {
     expect(game.inbox.at(-1)!.title).toBe("Hoje: Regulamento 2026 publicado");
   });
 
-  it("o processo seletivo só vale em novembro", () => {
+  it("o processo seletivo abre em qualquer época (com menos inscritos fora de novembro e março), uma campanha por vez", () => {
     const november = foundedGame({ seed: 2, teamName: "T" });
-    expect(run(november, { type: "start-action", actionId: "recruitment", targetId: "broad", memberIds: ["founder-marina"] }).tasks).toHaveLength(1);
+    const opened = run(november, { type: "open-selection", format: "broad", memberIds: ["founder-marina"] });
+    expect(opened.tasks).toHaveLength(1);
+    expect(opened.selection).toMatchObject({ stage: "promotion", format: "broad" });
     const december = at(november, dateToHours(utc(2025, 12, 2)));
-    const refused = run(december, { type: "start-action", actionId: "recruitment", targetId: "broad", memberIds: ["founder-marina"] });
-    expect(refused.tasks).toHaveLength(0);
-    expect(refused.warning?.text).toContain("novembro");
+    expect(run(december, { type: "open-selection", format: "broad", memberIds: ["founder-marina"] }).tasks).toHaveLength(1);
+    const again = run(opened, { type: "open-selection", format: "technical", memberIds: ["founder-caio"] });
+    expect(again.tasks).toHaveLength(1);
+    expect(again.warning?.text).toContain("em andamento");
   });
 });
 
@@ -116,7 +119,7 @@ describe("S1: regulamento e Prancheta", () => {
   it("estudo, seletiva, captação e compras continuam permitidos antes de 9/fev", () => {
     let game = foundedGame({ seed: 3, teamName: "T" });
     const crew = ["founder-marina", "founder-caio", "founder-bia", "founder-rafa"];
-    for (const [index, [actionId, targetId]] of ([["study-aero"], ["raffle"], ["outreach-social"], ["recruitment", "broad"]] as const).entries()) {
+    for (const [index, [actionId, targetId]] of ([["study-aero"], ["raffle"], ["outreach-social"], ["selection-open", "broad"]] as const).entries()) {
       game = run(game, { type: "start-action", actionId, targetId, memberIds: [crew[index]!] });
     }
     expect(game.tasks).toHaveLength(4);
@@ -165,9 +168,9 @@ describe("S4: o que dependia da data antiga continua funcionando", () => {
     expect(started.activeEvent?.kind).toBe("competition");
   });
 
-  it("o save tem a versão 9 e descarta o da versão 6", () => {
+  it("o save tem a versão 10 e descarta o da versão 6", () => {
     const state = startedGame({ seed: 1, teamName: "X" });
-    expect(state.version).toBe(9);
+    expect(state.version).toBe(10);
     expect(deserializeState(serializeState(state))).toEqual(state);
     expect(deserializeState(JSON.stringify({ ...state, version: 6 }))).toBeNull();
   });

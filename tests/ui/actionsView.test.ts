@@ -18,12 +18,12 @@ describe("actionsView", () => {
   it("busca ignora acento e caixa", () => {
     expect(normalize("Fabricação")).toBe("fabricacao");
     const found = actionGroups(game, "SELETIVO").flatMap((group) => group.available.map((action) => action.id));
-    expect(found).toEqual(["recruitment"]);
+    expect(found).toEqual(["selection-open"]);
   });
 
   it("resume o grupo e diz o que já entregou", () => {
     expect(groupSummary(actionGroups(game).find((item) => item.id === "funding")!)).toBe("2 para fazer agora");
-    expect(deliveredText({ yielded: 3, yieldTotal: 6 }, findAction("recruitment"))).toBe("3 candidatos até agora");
+    expect(deliveredText({ yielded: 3, yieldTotal: 6 }, findAction("selection-open"))).toBe("+3 de alcance até agora");
     expect(deliveredText({ yielded: 0, yieldTotal: null }, findAction("raffle"))).toBeNull();
   });
 });

@@ -1,72 +1,97 @@
-// Dia da dinâmica da seletiva (Fase 7, S2; design §5.2). Depois da divulgação e da inscrição
-// (tarefa), um dia agendado vira evento: recepção, apresentação, desafio prático em grupos
-// (planador de balsa), entrevistas rápidas e deliberação. As decisões escolhem de que grupo
-// o orientador chega perto, se dá segunda chance a quem travou e em quem confia (capitães ou
-// a própria leitura). Convidar continua sendo `hire-candidate`; o fechamento só anota as fichas.
+// Dia da dinâmica da seletiva (Fase 7, S2; Fase 9, S3; design §5.2). Na data marcada pela campanha,
+// os inscritos que vieram (convidados pela planilha, sem os faltosos) viram um evento: recepção,
+// apresentação da equipe, desafio prático em grupos de 5–6 (planador de balsa) e deliberação. O
+// jogador acompanha de perto alguns grupos (BALANCE.selection.watchedGroups): os acompanhados geram
+// anotações para todos os membros, os outros só uma anotação geral do grupo. Quem passa para a
+// entrevista é escolha depois, em `advance-applicants`; o fechamento só passa as anotações às fichas.
 
 import { BALANCE } from "./content/balance";
 import { activeOf, askDecision, drawer, logLine, option, patchContext } from "./eventCore";
 import type { EventHandler } from "./events";
-import { clamp, DISCIPLINE_LABELS } from "./team";
-import type {
-  ActiveEvent,
-  Candidate,
-  CandidateVerdict,
-  DynamicsGroup,
-  EventBlock,
-  EventDecision,
-  EventSummary,
-  GameState,
-  SelectionDayContext
-} from "./types";
+import { inviteToDynamic } from "./selection";
+import { addMessage } from "./tasks";
+import { clamp } from "./team";
+import type { ActiveEvent, Applicant, DynamicsGroup, EventBlock, EventDecision, EventSummary, GameState, SelectionDayContext } from "./types";
 
 const S = BALANCE.selectionDay;
+const SEL = BALANCE.selection;
 
-const GROUP_NAMES = ["Grupo Azul", "Grupo Verde", "Grupo Amarelo"] as const;
+const GROUP_NAMES = ["Azul", "Verde", "Amarelo", "Vermelho", "Roxo", "Laranja", "Branco", "Preto", "Rosa", "Cinza", "Marrom", "Ciano"] as const;
 
 const BLOCKS: EventBlock[] = [
   { id: "reception", startsAt: 9, label: "Recepção no corredor do departamento", kind: "reception" },
   { id: "presentation", startsAt: 10, label: "Apresentação da equipe", kind: "presentation" },
   { id: "challenge", startsAt: 11, label: "Desafio prático: planador de balsa", kind: "challenge" },
-  { id: "interviews", startsAt: 14, label: "Entrevistas rápidas", kind: "interviews" },
   { id: "deliberation", startsAt: 16, label: "Deliberação", kind: "deliberation" }
 ];
 
 const ctxOf = (state: GameState) => activeOf(state).context as SelectionDayContext;
-const candidateOf = (state: GameState, id: string) => state.candidates.find((candidate) => candidate.id === id);
-const firstName = (candidate: Candidate) => candidate.name.split(" ")[0]!;
+const applicantOf = (state: GameState, id: string) => state.selection?.applicants.find((applicant) => applicant.id === id);
+const firstName = (applicant: Applicant) => applicant.name.split(" ")[0]!;
 
-/** Horas de jogo da primeira hora do dia da dinâmica: dia seguinte à conclusão, `startHour`. */
-export function selectionDayAt(completedAt: number): number {
-  return (Math.floor(completedAt / 24) + 1) * 24 + S.startHour;
+/** Quantos grupos de 5–6 para `n` pessoas (um só se houver poucos). */
+export function groupCountFor(n: number): number {
+  if (n <= S.groupMax) return 1;
+  const min = Math.ceil(n / S.groupMax);
+  const max = Math.floor(n / S.groupMin);
+  return min <= max ? Math.min(max, Math.max(min, Math.round(n / ((S.groupMin + S.groupMax) / 2)))) : min;
 }
 
-/** Abre o dia da dinâmica com os candidatos que ainda esperam resposta; null se não há ninguém. */
-export function buildSelectionDay(state: GameState): ActiveEvent | null {
-  const candidates = state.candidates.slice(0, S.maxCandidates);
-  if (candidates.length === 0) return null;
-  const groupCount = Math.max(1, Math.min(GROUP_NAMES.length, Math.ceil(candidates.length / S.groupSize)));
-  const groups: DynamicsGroup[] = Array.from({ length: groupCount }, (_, index) => ({
-    id: `group-${index + 1}`,
-    name: GROUP_NAMES[index]!,
-    candidateIds: [],
-    gliderDistanceM: null
-  }));
-  candidates.forEach((candidate, index) => groups[index % groupCount]!.candidateIds.push(candidate.id));
+function groupName(index: number): string {
+  return GROUP_NAMES[index] ? `Grupo ${GROUP_NAMES[index]}` : `Grupo ${index + 1}`;
+}
+
+/**
+ * Abre o dia da dinâmica da campanha: convida pela planilha (tags e teto), sorteia os faltosos e
+ * monta os grupos. Devolve o estado (inscritos já na etapa certa) e o evento; sem ninguém, a
+ * campanha acaba e `event` é null.
+ */
+export function buildSelectionDay(state: GameState): { state: GameState; event: ActiveEvent | null } {
+  const invited = inviteToDynamic(state);
+  let next = invited.state;
+  const ids = invited.attendees;
+  if (ids.length === 0) {
+    next = addMessage({ ...next, selection: null, outreach: 0 }, {
+      from: "Equipe",
+      title: "Ninguém veio à dinâmica",
+      body: "Nenhum dos convidados apareceu. O processo seletivo termina sem aprovados; dá para abrir outro."
+    }).state;
+    return { state: next, event: null };
+  }
+
+  const rng = drawer(next);
+  // Embaralha para os grupos não saírem na ordem da planilha.
+  const order = ids.map((id) => ({ id, key: rng.roll() })).sort((a, b) => a.key - b.key).map((item) => item.id);
+  next = rng.commit(next);
+  const count = groupCountFor(order.length);
+  const groups: DynamicsGroup[] = Array.from({ length: count }, (_, index) => ({ id: `group-${index + 1}`, name: groupName(index), candidateIds: [], gliderDistanceM: null }));
+  const base = Math.floor(order.length / count);
+  const extra = order.length % count;
+  let cursor = 0;
+  groups.forEach((group, index) => {
+    const size = base + (index < extra ? 1 : 0);
+    group.candidateIds = order.slice(cursor, cursor + size);
+    cursor += size;
+  });
+
   const context: SelectionDayContext = {
     kind: "selection-day",
-    candidateIds: candidates.map((candidate) => candidate.id),
+    candidateIds: order,
     groups,
-    watchedGroupId: groupCount === 1 ? groups[0]!.id : null,
+    watchedGroupId: null,
+    watchedGroupIds: [],
+    watchDone: false,
     frozeId: null,
     secondChance: null,
     notes: {},
-    captainsPick: [],
-    yourPick: [],
-    followed: null,
-    verdicts: {}
+    captainsPick: []
   };
-  return {
+  // Espelho enxuto para as cenas (GameState.candidates, deprecado).
+  const mirror = order.map((id) => {
+    const applicant = applicantOf(next, id)!;
+    return { id, name: applicant.name, look: applicant.profile.look };
+  });
+  const event: ActiveEvent = {
     id: `event-selection-${state.nextId}`,
     kind: "selection-day",
     title: "Dia da dinâmica da seletiva",
@@ -81,140 +106,106 @@ export function buildSelectionDay(state: GameState): ActiveEvent | null {
     summary: null,
     context
   };
+  return { state: { ...next, candidates: mirror }, event };
 }
 
-function addNote(state: GameState, candidateId: string, text: string): GameState {
+function addNote(state: GameState, applicantId: string, text: string): GameState {
   const context = ctxOf(state);
-  return patchContext<SelectionDayContext>(state, { notes: { ...context.notes, [candidateId]: [...(context.notes[candidateId] ?? []), text] } });
+  return patchContext<SelectionDayContext>(state, { notes: { ...context.notes, [applicantId]: [...(context.notes[applicantId] ?? []), text] } });
 }
 
-function groupOf(context: SelectionDayContext, candidateId: string): DynamicsGroup {
-  return context.groups.find((group) => group.candidateIds.includes(candidateId))!;
-}
+const groupOf = (context: SelectionDayContext, applicantId: string): DynamicsGroup => context.groups.find((group) => group.candidateIds.includes(applicantId))!;
+const isWatched = (context: SelectionDayContext, applicantId: string) => context.watchedGroupIds.includes(groupOf(context, applicantId).id);
 
 /** O que os capitães enxergam de longe: conhecimento no foco, mão na oficina e conversa. */
-const captainsScore = (candidate: Candidate) => candidate.knowledge[candidate.focus] * 0.5 + candidate.fabrication * 0.3 + candidate.communication * 0.2;
-
-function yourScore(state: GameState, candidate: Candidate): number {
-  const context = ctxOf(state);
-  const watched = groupOf(context, candidate.id).id === context.watchedGroupId;
-  const group = groupOf(context, candidate.id);
-  const glider = (group.gliderDistanceM ?? S.gliderBase) / S.gliderBase;
-  let score = candidate.motivation * 0.4 + candidate.agility * 0.2 + glider * 20 + (watched ? candidate.fabrication * 0.3 : 0);
-  if (context.frozeId === candidate.id) score -= context.secondChance ? 0 : 12;
-  if (context.notes[candidate.id]?.some((note) => note.startsWith("Recuperou"))) score += 8;
-  return score;
-}
-
-function top(candidates: Candidate[], score: (candidate: Candidate) => number): string[] {
-  const k = Math.max(1, Math.ceil(candidates.length / 2));
-  return [...candidates]
-    .sort((a, b) => score(b) - score(a) || a.id.localeCompare(b.id))
-    .slice(0, k)
-    .map((candidate) => candidate.id);
-}
+const captainsScore = (applicant: Applicant) => {
+  const profile = applicant.profile;
+  return profile.knowledge[profile.focus] * 0.5 + profile.fabrication * 0.3 + profile.communication * 0.2;
+};
 
 function run(state: GameState): { state: GameState; done: boolean } {
   const event = activeOf(state);
   const block = event.blocks[event.blockIndex]!;
   const context = ctxOf(state);
-  const candidates = context.candidateIds.map((id) => candidateOf(state, id)).filter((item): item is Candidate => !!item);
+  const people = context.candidateIds.map((id) => applicantOf(state, id)).filter((item): item is Applicant => !!item);
   let next = state;
 
   switch (block.kind) {
     case "reception": {
-      next = logLine(next, `${candidates.length} ${candidates.length === 1 ? "candidato chega" : "candidatos chegam"} ao departamento. Os capitães entregam crachás e dividem a turma em ${context.groups.length} ${context.groups.length === 1 ? "grupo" : "grupos"}.`);
-      for (const candidate of candidates) {
-        if (candidate.communication >= S.talkative) next = addNote(next, candidate.id, `${firstName(candidate)} chegou puxando conversa com todo mundo.`);
-        else if (candidate.communication <= S.shy) next = addNote(next, candidate.id, `${firstName(candidate)} ficou quieto no canto, olhando os aviões da estante.`);
-      }
+      next = logLine(next, `${people.length} ${people.length === 1 ? "inscrito chega" : "inscritos chegam"} ao departamento. Os capitães entregam crachás e dividem a turma em ${context.groups.length} ${context.groups.length === 1 ? "grupo" : "grupos"} de 5 a 6 pessoas.`);
       return { state: next, done: true };
     }
     case "presentation": {
       next = logLine(next, "A equipe mostra o hangar, as fotos da última competição e o que cada área faz.");
-      for (const candidate of candidates) {
-        if (candidate.motivation >= S.eager) next = addNote(next, candidate.id, `${firstName(candidate)} perguntou quando poderia pegar numa peça de verdade.`);
-      }
       return { state: next, done: true };
     }
     case "challenge":
-      return runChallenge(next, candidates);
-    case "interviews": {
-      next = logLine(next, "Entrevistas de cinco minutos: o que cada um sabe, quanto tempo tem e por que quer entrar.");
-      for (const candidate of candidates) {
-        const watched = groupOf(context, candidate.id).id === context.watchedGroupId;
-        // Fase 8, S5: ninguém chega sabendo muito; a entrevista ouve o que a pessoa diz gostar (que pode estar errado).
-        const detail =
-          candidate.statedLikes.length > 0
-            ? `diz que curte ${candidate.statedLikes.map((discipline) => DISCIPLINE_LABELS[discipline]).join(" e ")}`
-            : "não soube dizer do que gosta";
-        const time = watched ? ` e conta com ${candidate.hoursPerDay} h por dia` : "";
-        next = addNote(next, candidate.id, `Na entrevista, ${firstName(candidate)} ${detail}${time}.`);
-      }
-      return { state: next, done: true };
-    }
+      return runChallenge(next, people);
     case "deliberation": {
-      if (context.followed !== null) return { state: next, done: true };
-      const captainsPick = top(candidates, captainsScore);
-      const yourPick = top(candidates, (candidate) => yourScore(next, candidate));
-      next = patchContext<SelectionDayContext>(next, { captainsPick, yourPick });
-      next = logLine(next, "Hora de fechar a lista: os capitães e você comparam as anotações.");
-      const names = (ids: string[]) => ids.map((id) => candidateOf(next, id)?.name ?? id).join(", ");
-      const decision: EventDecision = {
-        id: "deliberation",
-        prompt: "Quem entra na lista de convidados?",
-        options: [
-          option("captains", "Seguir a recomendação dos capitães", `Eles indicam: ${names(captainsPick)}. Olham o que cada um já sabe fazer.`),
-          option("mine", "Confiar na minha leitura do dia", `Você aponta: ${names(yourPick)}. Pesa o que viu no desafio e na motivação.`)
-        ]
-      };
-      return { state: askDecision(next, decision), done: false };
+      if (context.captainsPick.length > 0) return { state: next, done: true };
+      const k = Math.max(1, Math.ceil(people.length / 3));
+      const pick = [...people].sort((a, b) => captainsScore(b) - captainsScore(a) || a.id.localeCompare(b.id)).slice(0, k);
+      next = patchContext<SelectionDayContext>(next, { captainsPick: pick.map((applicant) => applicant.id) });
+      next = logLine(next, "Hora de fechar: os capitães comparam as anotações. Quem avança para a entrevista é escolha sua, na aba Seletiva.");
+      next = logLine(next, `Os capitães ficaram de olho em ${pick.length} ${pick.length === 1 ? "pessoa" : "pessoas"}; isso vai para as fichas, sem decidir nada.`);
+      return { state: next, done: true };
     }
     default:
       return { state: next, done: true };
   }
 }
 
-function runChallenge(state: GameState, candidates: Candidate[]): { state: GameState; done: boolean } {
+function runChallenge(state: GameState, people: Applicant[]): { state: GameState; done: boolean } {
   const context = ctxOf(state);
   let next = state;
 
-  if (context.watchedGroupId === null) {
-    const decision: EventDecision = {
-      id: "watch-group",
-      prompt: "O desafio vai começar. De que grupo você chega perto?",
-      options: context.groups.map((group) =>
-        option(
-          group.id,
-          group.name,
-          `${group.candidateIds.map((id) => candidateOf(state, id)?.name ?? id).join(", ")}. Quem você observa de perto fica mais claro nas fichas.`
-        )
-      )
-    };
-    return { state: askDecision(next, decision), done: false };
+  if (!context.watchDone) {
+    const left = SEL.watchedGroups - context.watchedGroupIds.length;
+    const open = context.groups.filter((group) => !context.watchedGroupIds.includes(group.id));
+    const options = open.map((group) =>
+      option(group.id, group.name, `${group.candidateIds.length} pessoas. Quem você observa de perto fica claro nas fichas; os outros grupos ganham só uma anotação geral.`)
+    );
+    if (context.watchedGroupIds.length > 0) options.push(option("enough", "Já chega", "Acompanhar só os grupos escolhidos."));
+    const prompt =
+      context.watchedGroupIds.length === 0
+        ? `O desafio vai começar. De que grupo você chega perto? (Dá para acompanhar até ${SEL.watchedGroups}.)`
+        : `Mais um grupo para acompanhar de perto? (Restam ${left}.)`;
+    return { state: askDecision(next, { id: "watch-group", prompt, options } as EventDecision), done: false };
   }
 
   if (context.groups[0]!.gliderDistanceM === null) {
     const rng = drawer(next);
     const groups = context.groups.map((group) => {
-      const members = group.candidateIds.map((id) => candidateOf(next, id)).filter((item): item is Candidate => !!item);
-      const fabrication = members.reduce((sum, item) => sum + item.fabrication, 0) / members.length;
-      const agility = members.reduce((sum, item) => sum + item.agility, 0) / members.length;
+      const members = group.candidateIds.map((id) => applicantOf(next, id)).filter((item): item is Applicant => !!item);
+      const fabrication = members.reduce((sum, item) => sum + item.profile.fabrication, 0) / members.length;
+      const agility = members.reduce((sum, item) => sum + item.profile.agility, 0) / members.length;
       const distance = S.gliderBase * (0.6 + (fabrication / 100) * 0.9 + (agility / 100) * 0.3) + S.gliderNoise * (2 * rng.roll() - 1);
       return { ...group, gliderDistanceM: Math.round(distance * 10) / 10 };
     });
-    // Quem tem menos conversa e menos motivação é quem mais pode travar.
-    const nervous = [...candidates].sort((a, b) => a.motivation + a.communication - (b.motivation + b.communication))[0];
-    const froze = candidates.length >= 2 && nervous && rng.roll() < S.freezeChance ? nervous : null;
+    // Quem tem menos conversa e menos motivação é quem mais pode travar; só vale em grupo acompanhado.
+    const watched = people.filter((item) => context.watchedGroupIds.includes(groupOf({ ...context, groups }, item.id).id));
+    const nervous = [...watched].sort((a, b) => a.profile.motivation + a.profile.communication - (b.profile.motivation + b.profile.communication))[0];
+    const froze = watched.length >= 2 && nervous && rng.roll() < S.freezeChance ? nervous : null;
     next = rng.commit(next);
     next = patchContext<SelectionDayContext>(next, { groups, frozeId: froze?.id ?? null });
     next = logLine(next, "Cada grupo recebe balsa, cola e vinte minutos para montar um planador.");
-    const watched = groups.find((group) => group.id === context.watchedGroupId)!;
-    for (const id of watched.candidateIds) {
-      const candidate = candidateOf(next, id)!;
-      if (candidate.fabrication >= S.steadyHands) next = addNote(next, id, `${firstName(candidate)} montou a longarina sem refazer nada: mão firme.`);
-      else if (candidate.fabrication <= S.clumsyHands) next = addNote(next, id, `${firstName(candidate)} colou a asa torta e precisou de ajuda para refazer.`);
-      else next = addNote(next, id, `${firstName(candidate)} trabalhou no ritmo do grupo, sem se destacar na oficina.`);
+
+    for (const group of groups) {
+      const members = group.candidateIds.map((id) => applicantOf(next, id)!);
+      if (context.watchedGroupIds.includes(group.id)) {
+        for (const applicant of members) {
+          const profile = applicant.profile;
+          if (profile.fabrication >= S.steadyHands) next = addNote(next, applicant.id, `${firstName(applicant)} montou a longarina sem refazer nada: mão firme.`);
+          else if (profile.fabrication <= S.clumsyHands) next = addNote(next, applicant.id, `${firstName(applicant)} colou a asa torta e precisou de ajuda para refazer.`);
+          else next = addNote(next, applicant.id, `${firstName(applicant)} trabalhou no ritmo do grupo, sem se destacar na oficina.`);
+          if (profile.communication >= S.talkative) next = addNote(next, applicant.id, `${firstName(applicant)} puxou a conversa e distribuiu as tarefas do grupo.`);
+          else if (profile.communication <= S.shy) next = addNote(next, applicant.id, `${firstName(applicant)} ficou quieto e só falou quando perguntaram.`);
+          if (profile.motivation >= S.eager) next = addNote(next, applicant.id, `${firstName(applicant)} perguntou quando poderia pegar numa peça de verdade.`);
+        }
+      } else {
+        const text = `${group.name}: visto de longe, o grupo trabalhou junto e o planador voou ${group.gliderDistanceM!.toFixed(1)} m.`;
+        for (const applicant of members) next = addNote(next, applicant.id, text);
+      }
     }
     for (const group of groups) {
       next = logLine(next, `${group.name}: o planador voou ${group.gliderDistanceM!.toFixed(1)} m.`, group.gliderDistanceM! >= S.gliderBase ? "good" : "info");
@@ -241,36 +232,29 @@ function decide(state: GameState, decision: EventDecision, optionId: string): Ga
   const context = ctxOf(state);
   switch (decision.id) {
     case "watch-group": {
+      if (optionId === "enough") return patchContext<SelectionDayContext>(next, { watchDone: true });
       const group = context.groups.find((item) => item.id === optionId)!;
-      next = patchContext<SelectionDayContext>(next, { watchedGroupId: group.id });
+      const ids = [...context.watchedGroupIds, group.id];
+      next = patchContext<SelectionDayContext>(next, { watchedGroupIds: ids, watchedGroupId: context.watchedGroupId ?? group.id, watchDone: ids.length >= SEL.watchedGroups || ids.length >= context.groups.length });
       return logLine(next, `Você se aproxima do ${group.name} para acompanhar a montagem.`);
     }
-    case "second-chance": {
-      const candidate = candidateOf(next, context.frozeId!)!;
+    default: {
+      const applicant = applicantOf(next, context.frozeId!)!;
       if (optionId === "no") {
         next = patchContext<SelectionDayContext>(next, { secondChance: false });
-        return logLine(next, `O desafio segue sem ${firstName(candidate)}.`);
+        return logLine(next, `O desafio segue sem ${firstName(applicant)}.`);
       }
       const rng = drawer(next);
-      const recovered = rng.roll() < clamp(candidate.motivation / 100 + S.recoverBonus, 0, 0.95);
+      const recovered = rng.roll() < clamp(applicant.profile.motivation / 100 + S.recoverBonus, 0, 0.95);
       next = rng.commit(next);
       next = patchContext<SelectionDayContext>(next, { secondChance: true });
       next = payHours(next, 0.5);
       if (recovered) {
-        next = addNote(next, candidate.id, `Recuperou-se na segunda chance: ${firstName(candidate)} terminou a asa sozinho e pediu para refazer o teste.`);
-        return logLine(next, `${candidate.name} respirou, recomeçou e entregou a asa pronta.`, "good");
+        next = addNote(next, applicant.id, `Recuperou-se na segunda chance: ${firstName(applicant)} terminou a asa sozinho e pediu para refazer o teste.`);
+        return logLine(next, `${applicant.name} respirou, recomeçou e entregou a asa pronta.`, "good");
       }
-      next = addNote(next, candidate.id, `${firstName(candidate)} travou de novo, mesmo com um capitão ao lado.`);
-      return logLine(next, `${candidate.name} não conseguiu se soltar nem com ajuda.`, "bad");
-    }
-    default: {
-      const followed = optionId === "captains" ? "captains" : "mine";
-      const main = followed === "captains" ? context.captainsPick : context.yourPick;
-      const other = followed === "captains" ? context.yourPick : context.captainsPick;
-      const verdicts: Record<string, CandidateVerdict> = {};
-      for (const id of context.candidateIds) verdicts[id] = main.includes(id) ? "strong" : other.includes(id) ? "promising" : "unclear";
-      next = patchContext<SelectionDayContext>(next, { followed, verdicts });
-      return logLine(next, followed === "captains" ? "A lista segue a recomendação dos capitães." : "A lista segue a sua leitura do dia.", "info");
+      next = addNote(next, applicant.id, `${firstName(applicant)} travou de novo, mesmo com um capitão ao lado.`);
+      return logLine(next, `${applicant.name} não conseguiu se soltar nem com ajuda.`, "bad");
     }
   }
 }
@@ -282,43 +266,35 @@ function payHours(state: GameState, hours: number): GameState {
 
 function summarize(state: GameState): EventSummary {
   const context = ctxOf(state);
-  const lines: string[] = [];
-  for (const group of context.groups) lines.push(`${group.name}: planador a ${group.gliderDistanceM?.toFixed(1) ?? "?"} m.`);
+  const lines: string[] = [`${context.candidateIds.length} inscritos vieram, em ${context.groups.length} ${context.groups.length === 1 ? "grupo" : "grupos"}.`];
+  for (const group of context.groups) lines.push(`${group.name}: planador a ${group.gliderDistanceM?.toFixed(1) ?? "?"} m${context.watchedGroupIds.includes(group.id) ? " (acompanhado)" : ""}.`);
   if (context.frozeId) {
-    const candidate = candidateOf(state, context.frozeId);
-    if (candidate) lines.push(`${candidate.name} travou no desafio${context.secondChance ? " e ganhou uma segunda chance" : ""}.`);
+    const applicant = applicantOf(state, context.frozeId);
+    if (applicant) lines.push(`${applicant.name} travou no desafio${context.secondChance ? " e ganhou uma segunda chance" : ""}.`);
   }
-  const strong = context.candidateIds.filter((id) => context.verdicts[id] === "strong").map((id) => candidateOf(state, id)?.name).filter(Boolean);
-  lines.push(strong.length ? `Lista de convidados (${context.followed === "captains" ? "capitães" : "sua leitura"}): ${strong.join(", ")}.` : "Ninguém se destacou.");
+  lines.push("Escolha quem avança para a entrevista na aba Seletiva.");
   const noted = context.candidateIds.reduce((sum, id) => sum + (context.notes[id]?.length ?? 0), 0);
-  return {
-    title: "Fim da dinâmica da seletiva",
-    lines,
-    points: null,
-    damage: [],
-    knowledge: [`${noted} anotações nas fichas dos candidatos.`],
-    creditsSpent: 0
-  };
+  return { title: "Fim da dinâmica da seletiva", lines, points: null, damage: [], knowledge: [`${noted} anotações nas fichas dos inscritos.`], creditsSpent: 0 };
 }
 
-/** Fechamento: as anotações e o parecer vão para as fichas; convidar continua sendo hire-candidate. */
+/** Fechamento: anotações e a olhada dos capitães vão para as fichas; a campanha passa a escolher quem entrevista. */
 function close(state: GameState): GameState {
   const context = ctxOf(state);
   const event = activeOf(state);
-  const candidates = state.candidates.map((candidate) =>
-    context.candidateIds.includes(candidate.id)
-      ? {
-          ...candidate,
-          observations: [...(candidate.observations ?? []), ...(context.notes[candidate.id] ?? [])],
-          verdict: context.verdicts[candidate.id] ?? "unclear"
-        }
-      : candidate
-  );
-  // A equipe sai animada de um dia bem conduzido; quem foi ouvido (capitães seguidos) ganha um pouco.
-  const members = state.members.map((member) =>
-    member.role === "captain" && context.followed === "captains" ? { ...member, motivation: clamp(member.motivation + S.captainsHeardBoost) } : member
-  );
-  return { ...state, candidates, members, clock: { ...state.clock, hours: Math.max(state.clock.hours, event.startsAtDay + 17) } };
+  const campaign = state.selection;
+  let next = state;
+  if (campaign) {
+    const applicants = campaign.applicants.map((applicant) => {
+      const notes = context.notes[applicant.id];
+      if (!notes && !context.captainsPick.includes(applicant.id)) return applicant;
+      const extra = context.captainsPick.includes(applicant.id) ? ["Os capitães ficaram de olho nesta pessoa."] : [];
+      return { ...applicant, notes: [...applicant.notes, ...(notes ?? []), ...extra] };
+    });
+    next = { ...next, selection: { ...campaign, applicants, stage: "shortlist" } };
+  }
+  // A equipe sai animada de um dia bem conduzido.
+  const members = next.members.map((member) => (member.role === "captain" ? { ...member, motivation: clamp(member.motivation + S.captainsHeardBoost) } : member));
+  return { ...next, members, candidates: [], clock: { ...next.clock, hours: Math.max(next.clock.hours, event.startsAtDay + 17) } };
 }
 
 export const selectionHandler: EventHandler = { run, decide, summarize, close };

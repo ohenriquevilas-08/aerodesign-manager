@@ -18,7 +18,7 @@ const game = () => startedGame({ seed: 7, teamName: "Equipe Teste" });
 describe("estado inicial da Fase 3", () => {
   it("começa sem avião, sem pedidos, sem competição e com relatório vazio", () => {
     const state = game();
-    expect(state.version).toBe(9);
+    expect(state.version).toBe(10);
     expect(state.aircraft).toBeNull();
     expect(state.orders).toEqual([]);
     expect(state.competition).toBeNull();

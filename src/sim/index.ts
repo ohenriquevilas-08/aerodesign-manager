@@ -120,15 +120,33 @@ export {
 export { DEDICATIONS, findDedication, type Dedication, type DedicationDef } from "./content/dedication";
 export { applicantBand, crewQuality, estimateOutcome, outcomeBand, sponsorChance, type OutcomeBand, type OutcomeEstimate } from "./outcome";
 export { crewEfficiency, crewRates, positionShare, estimateRemainingDays, estimateTaskDays, leadDaysRange, taskEta, type TaskEta } from "./crew";
-export { expectedApplicants, missingCast } from "./selection";
-export { SELECTION_FORMATS, type SelectionFormat, type SelectionFormatDef } from "./content/selection";
+export {
+  applicantView,
+  applicantViews,
+  arrivalFraction,
+  expectedApplicants,
+  funnelCounts,
+  interviewHours,
+  interviewQuestionList,
+  interviewSpread,
+  missingCast,
+  selectionView,
+  selectionWindow,
+  SELECTION_STAGE_LABELS,
+  type ApplicantView,
+  type FunnelCounts,
+  type SelectionView
+} from "./selection";
+export { groupCountFor } from "./eventSelection";
+export { COURSES, findCourse, SELECTION_FORMATS, type CourseDef, type SelectionFormat, type SelectionFormatDef } from "./content/selection";
+export { INTERVIEW_QUESTIONS, findQuestion, type InterviewQuestion } from "./content/interviewQuestions";
+export { PHRASES, type PhraseKind } from "./content/applicantPhrases";
 export { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";
 export {
   ACADEMIC_PERIODS,
   OFFICIAL_CALENDAR,
   REGULATION_DATE,
   SEASON_START,
-  SELECTION_END,
   TRAINEE_END,
   TRAINEE_START,
   type AcademicPeriod,

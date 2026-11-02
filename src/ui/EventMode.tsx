@@ -239,20 +239,19 @@ function Summary({ view, summary }: { view: EventView; summary: NonNullable<Even
   );
 }
 
-const VERDICT_LABEL = { strong: "Forte", promising: "Promissor", unclear: "Indefinido" } as const;
-
 /** Anotações da dinâmica por candidato (as fichas dos observados). */
 function SelectionNotes() {
   const rows = useDerived((state) => {
     const context = state.activeEvent?.context;
     if (!context || context.kind !== "selection-day") return [];
     const c: SelectionDayContext = context;
+    // Só os grupos acompanhados têm anotações por pessoa; cada grupo solto tem uma anotação geral.
     return c.candidateIds.flatMap((id) => {
-      const candidate = state.candidates.find((item) => item.id === id);
+      const person = state.candidates.find((item) => item.id === id);
       const notes = c.notes[id] ?? [];
-      if (!candidate || notes.length === 0) return [];
-      const verdict = c.verdicts[id];
-      return [{ id, name: candidate.name, notes, verdict: verdict ? VERDICT_LABEL[verdict] : null }];
+      if (!person || notes.length === 0) return [];
+      const watched = c.watchedGroupIds.some((groupId) => c.groups.find((group) => group.id === groupId)?.candidateIds.includes(id));
+      return [{ id, name: person.name, notes, verdict: watched ? "Acompanhado" : null }];
     });
   }, []);
   if (rows.length === 0) return null;

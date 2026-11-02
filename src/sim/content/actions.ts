@@ -1,6 +1,7 @@
 // Catálogo de ações com custo nas três moedas (design §8.2).
 // Valores numéricos são provisórios: o balanceamento acontece no protótipo.
 
+import { BALANCE } from "./balance";
 import type { Cost, Discipline, PartType } from "../types";
 
 export type ActionCategory = "hours" | "credits" | "both";
@@ -21,7 +22,8 @@ export type EquipmentItem = "scale" | "thrust-stand";
  * - expedite: encurta a espera da tarefa alvo (fração da espera restante que sobra).
  * - agility: treino que aumenta agilidade de quem participou.
  * - outreach: soma alcance de divulgação (GameState.outreach), que a seletiva consome.
- * - selection: sorteia candidatos da seletiva no formato escolhido ao iniciar (design §5.2).
+ * - selection-open: divulgação e abertura da seletiva (Fase 9, S1): soma alcance e, ao terminar, abre as inscrições no formato escolhido.
+ * - selection-interviews: as entrevistas da seletiva (Fase 9, S4); só pelo comando schedule-interviews.
  * - test: ensaio (design §7.3); estreita margens, cita nos capítulos, desgasta peças (sim/aircraft.ts).
  * - report-chapter / drawings / oral-practice: horas que entram no relatório e na apresentação (sim/report.ts).
  * - read-regulation: marca o regulamento como lido (Fase 6, S1); só depois de 9/fev.
@@ -38,7 +40,8 @@ export type ActionEffect =
   | { kind: "repair"; amount: number }
   | { kind: "expedite"; remainingFactor: number }
   | { kind: "agility" }
-  | { kind: "selection" }
+  | { kind: "selection-open"; amount: number }
+  | { kind: "selection-interviews" }
   | { kind: "outreach"; amount: number }
   | { kind: "test"; test: "structural" | "thrust" }
   | { kind: "report-chapter" }
@@ -95,6 +98,8 @@ export interface ActionDef {
   workshop?: boolean;
   /** Exige duas pessoas no turno (resina, máquinas). */
   needsPair?: boolean;
+  /** Só começa por um comando próprio (ex.: schedule-interviews), nunca pela lista de ações. */
+  internal?: boolean;
 }
 
 const cost = (hours: number, credits: number, leadDays = 0, risk: Cost["risk"] = "none"): Cost => ({
@@ -115,11 +120,19 @@ const crew = (min: number, ideal: number, max: number | null): Crew => ({ min, i
 const defs: (Omit<ActionDef, "category" | "yield"> & { yield?: YieldMode })[] = [
   // Só horas
   {
-    id: "recruitment",
+    id: "selection-open",
     label: "Processo seletivo",
-    cost: cost(20, 0), crew: crew(1, 2, null), skill: "communication", yield: "milestones",
-    effect: { kind: "selection" },
+    cost: cost(BALANCE.selection.promoHours, 0), crew: crew(1, 3, null), skill: "communication", yield: "continuous",
+    effect: { kind: "selection-open", amount: BALANCE.selection.promoOutreach },
     target: "selection-format"
+  },
+  {
+    id: "selection-interviews",
+    label: "Entrevistas da seletiva",
+    // As horas reais dependem de quantas entrevistas (selection.ts, interviewHours): este valor só marca "tem horas".
+    cost: cost(BALANCE.selection.interviewHours, 0), crew: crew(2, 3, null), skill: "communication", yield: "continuous",
+    effect: { kind: "selection-interviews" },
+    internal: true
   },
   // Divulgação: ações pequenas que somam alcance para a próxima seletiva.
   { id: "outreach-posters", label: "Cartazes no campus", cost: cost(2, 0), crew: crew(1, 1, null), skill: "communication", yield: "continuous", effect: { kind: "outreach", amount: 4 } },
