@@ -13,8 +13,29 @@ import type { GameState, Member } from "./types";
 const MAX_ESTIMATE_DAYS = 400;
 
 /**
+ * Fase 8, S3: quanto rende a pessoa na posição `position` (0 = a primeira) numa equipe: 100% até
+ * `crew.ideal`; depois cai pela tabela BALANCE.crew.extraEfficiency (70%, 50%, 35%...).
+ */
+export function positionShare(position: number, crew: Crew): number {
+  if (position < crew.ideal) return 1;
+  const table = BALANCE.crew.extraEfficiency;
+  return table[Math.min(position - crew.ideal, table.length - 1)]!;
+}
+
+/**
+ * Leitura `crewEfficiency`: quantas "pessoas inteiras" de trabalho rendem `n` pessoas na ação
+ * (soma das fatias). O ganho de mais uma pessoa é `crewEfficiency(a, n + 1) - crewEfficiency(a, n)`.
+ */
+export function crewEfficiency(action: Pick<ActionDef, "crew">, n: number): number {
+  let total = 0;
+  const count = action.crew.max === null ? n : Math.min(n, action.crew.max);
+  for (let position = 0; position < count; position += 1) total += positionShare(position, action.crew);
+  return total;
+}
+
+/**
  * Horas-pessoa por dia que cada integrante rende na tarefa. Abaixo de crew.min ninguém rende;
- * acima de crew.ideal os que rendem menos entram com BALANCE.crew.extraEfficiency.
+ * acima de crew.ideal os que rendem menos entram com a fatia de positionShare (retorno decrescente).
  */
 export function crewRates(members: readonly Member[], crew: Crew, date: number): Map<string, number> {
   const rates = new Map<string, number>();
@@ -23,7 +44,7 @@ export function crewRates(members: readonly Member[], crew: Crew, date: number):
     .map((member, index) => ({ member, index, rate: memberHoursPerDay(member, date) }))
     .sort((a, b) => b.rate - a.rate || a.index - b.index);
   ranked.forEach(({ member, rate }, position) => {
-    rates.set(member.id, position < crew.ideal ? rate : rate * BALANCE.crew.extraEfficiency);
+    rates.set(member.id, rate * positionShare(position, crew));
   });
   return rates;
 }

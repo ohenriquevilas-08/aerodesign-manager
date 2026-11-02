@@ -55,7 +55,7 @@ export function ActionCard({
         {action.discipline ? <span class="chip">{DISCIPLINE_SHORT[action.discipline]}</span> : null}
       </span>
       <CostTag cost={action.cost} lead={leadDaysRange(action.id)} />
-      {action.crew.max > 0 ? (
+      {action.cost.hours > 0 ? (
         <span class="crew-rule">
           {crewText(action.crew)}
           {action.skill ? ` · rende com ${SKILL_LABEL[action.skill]}` : ""}

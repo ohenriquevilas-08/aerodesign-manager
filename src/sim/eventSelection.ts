@@ -143,10 +143,11 @@ function run(state: GameState): { state: GameState; done: boolean } {
       next = logLine(next, "Entrevistas de cinco minutos: o que cada um sabe, quanto tempo tem e por que quer entrar.");
       for (const candidate of candidates) {
         const watched = groupOf(context, candidate.id).id === context.watchedGroupId;
-        const level = candidate.knowledge[candidate.focus];
-        const subject = DISCIPLINE_LABELS[candidate.focus];
+        // Fase 8, S5: ninguém chega sabendo muito; a entrevista ouve o que a pessoa diz gostar (que pode estar errado).
         const detail =
-          level >= S.knowsLot ? `chega sabendo bastante de ${subject}` : level >= S.knowsSome ? `tem base em ${subject}` : `ainda não domina ${subject}`;
+          candidate.statedLikes.length > 0
+            ? `diz que curte ${candidate.statedLikes.map((discipline) => DISCIPLINE_LABELS[discipline]).join(" e ")}`
+            : "não soube dizer do que gosta";
         const time = watched ? ` e conta com ${candidate.hoursPerDay} h por dia` : "";
         next = addNote(next, candidate.id, `Na entrevista, ${firstName(candidate)} ${detail}${time}.`);
       }

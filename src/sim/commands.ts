@@ -14,7 +14,7 @@ import { setPredictions, submitReport } from "./report";
 import { payCustoms, placeOrder, type OrderRequest } from "./shop";
 import { hireCandidate } from "./selection";
 import { applySuggestedSchedule, grantKey, setShift } from "./workshop";
-import { assignMember, cancelTask, startAction, unassignMember, warn } from "./tasks";
+import { assignMember, closeTask, startAction, unassignMember, warn } from "./tasks";
 import type { AircraftDesign, ClockSpeed, Discipline, GameState, PayloadLine, SlotKey, TaskDedication } from "./types";
 
 export type Command =
@@ -25,11 +25,17 @@ export type Command =
    * targetId: disciplina (document), formato da seletiva (recruitment), id de peça (repair-part)
    * ou id de tarefa esperando (express-shipping).
    */
-  /** dedication: "rush" | "normal" | "careful" (padrão "normal"); ver DEDICATIONS. */
-  | { type: "start-action"; actionId: string; targetId?: string; dedication?: TaskDedication }
+  /**
+   * dedication: "rush" | "normal" | "careful" (padrão "normal"); ver DEDICATIONS.
+   * memberIds (Fase 8, S1): quem entra na tarefa; a ação com horas exige pelo menos `crew.min` pessoas livres.
+   */
+  | { type: "start-action"; actionId: string; targetId?: string; dedication?: TaskDedication; memberIds?: string[] }
+  /** Põe mais uma pessoa numa tarefa que já anda (sem limite onde a ação tem `max: null`). */
   | { type: "assign-member"; memberId: string; taskId: string }
+  /** Recusa se a tarefa ficar abaixo do mínimo; o caminho é close-task. */
   | { type: "unassign-member"; memberId: string }
-  | { type: "cancel-task"; taskId: string }
+  /** Fase 8, S1: encerra antes do fim, fica com o parcial (peça parcial, inscritos já chegados) e libera a equipe. */
+  | { type: "close-task"; taskId: string }
   | { type: "hire-candidate"; candidateId: string }
   | { type: "dismiss-candidates" }
   // Fase 3 (docs/phases/fase-3.md)
@@ -87,13 +93,13 @@ export function applyCommand(state: GameState, command: Command): GameState {
         inbox: state.inbox.map((message) => (message.id === command.id ? { ...message, read: true } : message))
       };
     case "start-action":
-      return startAction(state, command.actionId, command.targetId ?? null, command.dedication ?? "normal");
+      return startAction(state, command.actionId, command.targetId ?? null, command.dedication ?? "normal", command.memberIds ?? []);
     case "assign-member":
       return assignMember(state, command.memberId, command.taskId);
     case "unassign-member":
       return unassignMember(state, command.memberId);
-    case "cancel-task":
-      return cancelTask(state, command.taskId);
+    case "close-task":
+      return closeTask(state, command.taskId);
     case "hire-candidate":
       return hireCandidate(state, command.candidateId) ?? warn(state, "Esse candidato não está mais disponível.");
     case "dismiss-candidates":

@@ -13,7 +13,7 @@ export interface SelectionFormatDef {
   baseApplicants: number;
   /** Inscritos esperados a mais por ponto de alcance (GameState.outreach). */
   applicantsPerReach: number;
-  /** Conhecimento tácito na disciplina de foco do candidato. */
+  /** Fase 8: bônus pequeno de conhecimento na disciplina que o candidato diz gostar (a base é parecida para todos). */
   focusKnowledge: Range;
   fabrication: Range;
   motivation: Range;
@@ -26,8 +26,8 @@ export const SELECTION_FORMATS: readonly SelectionFormatDef[] = [
     description: "Divulgação no campus inteiro: muita gente, pouca experiência.",
     baseApplicants: 1,
     applicantsPerReach: 0.5,
-    focusKnowledge: [5, 20],
-    fabrication: [5, 35],
+    focusKnowledge: [0, 2],
+    fabrication: [10, 22],
     motivation: [50, 80]
   },
   {
@@ -36,8 +36,8 @@ export const SELECTION_FORMATS: readonly SelectionFormatDef[] = [
     description: "Prova de conceitos: poucos candidatos, mais preparados.",
     baseApplicants: 0.5,
     applicantsPerReach: 0.2,
-    focusKnowledge: [20, 40],
-    fabrication: [10, 30],
+    focusKnowledge: [3, 6],
+    fabrication: [10, 20],
     motivation: [55, 80]
   },
   {
@@ -46,8 +46,8 @@ export const SELECTION_FORMATS: readonly SelectionFormatDef[] = [
     description: "Colegas indicados pelos fundadores: poucos, muito motivados.",
     baseApplicants: 2,
     applicantsPerReach: 0,
-    focusKnowledge: [10, 25],
-    fabrication: [10, 30],
+    focusKnowledge: [1, 4],
+    fabrication: [10, 22],
     motivation: [75, 95]
   },
   {
@@ -56,8 +56,8 @@ export const SELECTION_FORMATS: readonly SelectionFormatDef[] = [
     description: "Montar uma peça na oficina: revela quem tem mão boa.",
     baseApplicants: 0.5,
     applicantsPerReach: 0.3,
-    focusKnowledge: [5, 20],
-    fabrication: [25, 50],
+    focusKnowledge: [0, 2],
+    fabrication: [18, 30],
     motivation: [60, 85]
   }
 ];

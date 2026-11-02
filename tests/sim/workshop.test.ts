@@ -14,7 +14,7 @@ const game = (): GameState => {
 describe("workshop schedule", () => {
   it("starts with captains holding keys and an empty schedule", () => {
     const state = base();
-    expect(state.version).toBe(8);
+    expect(state.version).toBe(9);
     expect(state.workshop.capacity).toBe(4);
     expect(state.workshop.keyHolders).toEqual(["founder-marina", "founder-caio"]);
     expect(state.workshop.schedule).toEqual({});
@@ -63,8 +63,7 @@ describe("workshop schedule", () => {
   it("suggested schedule avoids sleep conflicts", () => {
     let state = game();
     state = { ...state, credits: 9999, stock: { "carbon-fiber": 1 }, };
-    state = applyCommand(state, { type: "start-action", actionId: "build-gear" });
-    state = applyCommand(state, { type: "assign-member", memberId: "founder-marina", taskId: state.tasks[0]!.id });
+    state = applyCommand(state, { type: "start-action", actionId: "build-gear", memberIds: ["founder-marina"] });
     const { schedule } = suggestSchedule(state);
     const slots = Object.keys(schedule) as (keyof typeof schedule)[];
     expect(slots.length).toBeGreaterThan(0);

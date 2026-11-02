@@ -27,7 +27,9 @@ import {
   type Dedication,
   type Discipline,
   type Member,
-  type Task
+  type Task,
+  crewEfficiency,
+  taskKeeps,
 } from "../../sim";
 import { ActionCard, CostLegend, CostTag } from "../components/CostTag";
 import { Meter } from "../components/Controls";
@@ -129,7 +131,7 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
   // Compras não têm dedicação: sempre "normal".
   const [dedication, setDedication] = useState<Dedication>("normal");
 
-  const usesCrew = action.crew.max > 0;
+  const usesCrew = action.cost.hours > 0;
   const options = DEDICATIONS.map((item) => ({
     ...item,
     days: estimateTaskDays(store.getState(), action.id, usesCrew ? picked : [], item.id),
@@ -164,7 +166,7 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
 
   const toggle = (id: string) =>
     setPicked((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : current.length < action.crew.max ? [...current, id] : current
+      current.includes(id) ? current.filter((item) => item !== id) : action.crew.max === null || current.length < action.crew.max ? [...current, id] : current
     );
 
   const start = () => {
@@ -173,15 +175,11 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
       type: "start-action",
       actionId: action.id,
       targetId: target || undefined,
-      dedication: usesCrew ? dedication : undefined
+      dedication: usesCrew ? dedication : undefined,
+      memberIds: usesCrew ? picked : undefined
     });
-    const after = store.getState();
-    const created = after.tasks.length > before ? after.tasks[after.tasks.length - 1] : undefined;
-    if (!created) return; // recusado: o aviso da simulação aparece no topo
-    if (created.status !== "done") {
-      for (const memberId of picked) store.dispatch({ type: "assign-member", memberId, taskId: created.id });
-    }
-    onClose();
+    // Recusado (sem o mínimo de gente, por exemplo): o aviso da simulação aparece no topo.
+    if (store.getState().tasks.length > before) onClose();
   };
 
   return (
@@ -254,13 +252,14 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
               {members.map((member) => {
                 const checked = picked.includes(member.id);
                 const busy = member.taskId ? tasks.find((task) => task.id === member.taskId) : undefined;
-                const full = !checked && picked.length >= action.crew.max;
+                const full = !checked && action.crew.max !== null && picked.length >= action.crew.max;
+                const taken = member.taskId !== null;
                 return (
-                  <label key={member.id} class={`crew-option${full ? " is-disabled" : ""}`}>
-                    <input type="checkbox" checked={checked} disabled={full} onChange={() => toggle(member.id)} />
+                  <label key={member.id} class={`crew-option${full || taken ? " is-disabled" : ""}`}>
+                    <input type="checkbox" checked={checked} disabled={full || taken} onChange={() => toggle(member.id)} />
                     <span class="crew-name">{member.name}</span>
                     <span class="crew-meta">
-                      {busy ? `sai de: ${busy.label}` : "livre"} · ⏱ {formatNumber(memberHoursPerDay(member, date), 1)} h/dia
+                      {busy ? `ocupado em: ${busy.label}` : "livre"} · ⏱ {formatNumber(memberHoursPerDay(member, date), 1)} h/dia
                       {skillOf(member) !== null ? ` · ${skillName} ${Math.round(skillOf(member) ?? 0)}` : ""}
                     </span>
                   </label>
@@ -268,7 +267,9 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
               })}
             </div>
             {picked.length > action.crew.ideal ? (
-              <p class="muted small">Acima de {action.crew.ideal}, cada pessoa extra rende metade.</p>
+              <p class="muted small">
+                Acima de {action.crew.ideal}, cada pessoa extra rende menos (a próxima rende {Math.round((crewEfficiency(action, picked.length + 1) - crewEfficiency(action, picked.length)) * 100)}%).
+              </p>
             ) : null}
           </>
         ) : (
@@ -320,9 +321,7 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
         ) : null}
         {estimate === null ? (
           <p class="muted small">
-            {picked.length === 0
-              ? "Sem ninguém alocado a tarefa fica parada. Dá para alocar depois."
-              : `Precisa de pelo menos ${action.crew.min} pessoas para andar.`}
+            {`Escolha pelo menos ${action.crew.min} ${action.crew.min === 1 ? "pessoa" : "pessoas"} livres para começar.`}
           </p>
         ) : null}
         {problems.map((text) => (
@@ -330,7 +329,7 @@ function Composer({ action, initialTarget, onClose }: { action: ActionDef; initi
             {text}
           </p>
         ))}
-        <button type="button" class="btn-primary" disabled={problems.length > 0} onClick={start}>
+        <button type="button" class="btn-primary" disabled={problems.length > 0 || (usesCrew && picked.length < action.crew.min)} onClick={start}>
           Iniciar
         </button>
       </div>
@@ -418,7 +417,7 @@ function TaskRow({ task }: { task: Task }) {
   const hour = useGame((state) => Math.floor(state.clock.hours));
   const [confirming, setConfirming] = useState(false);
   const action = findAction(task.actionId);
-  const crew = action?.crew ?? { min: 0, ideal: 0, max: 0 };
+  const crew = action?.crew ?? { min: 0, ideal: 0, max: 0 as number | null };
   const eta = taskEta(store.getState(), task.id);
   const waiting = task.status === "waiting";
   const stalled = !waiting && task.hoursTotal > 0 && task.assignees.length < Math.max(1, crew.min);
@@ -448,7 +447,7 @@ function TaskRow({ task }: { task: Task }) {
       {eta && task.hoursTotal > 0 && eta.workHoursLeft > 0 ? (
         <span class="task-eta-detail">Faltam {formatNumber(eta.workHoursLeft)} h de trabalho (horas-pessoa, somadas entre a equipe).</span>
       ) : null}
-      {crew.max > 0 ? (
+      {task.hoursTotal > 0 ? (
         <div class="task-crew">
           {task.assignees.map((id) => (
             <span key={id} class="chip chip-member">
@@ -462,7 +461,7 @@ function TaskRow({ task }: { task: Task }) {
               </button>
             </span>
           ))}
-          {task.assignees.length < crew.max && candidates.length > 0 ? (
+          {(crew.max === null || task.assignees.length < crew.max) && candidates.length > 0 ? (
             <select
               class="add-member"
               value=""
@@ -487,8 +486,8 @@ function TaskRow({ task }: { task: Task }) {
       <div class="task-actions">
         {confirming ? (
           <>
-            <span class="muted small">Créditos e material não voltam.</span>
-            <button type="button" class="btn-ghost btn-danger" onClick={() => store.dispatch({ type: "cancel-task", taskId: task.id })}>
+            <span class="muted small">{taskKeeps(store.getState(), task.id) || "Créditos e material não voltam."}</span>
+            <button type="button" class="btn-ghost btn-danger" onClick={() => store.dispatch({ type: "close-task", taskId: task.id })}>
               Confirmar
             </button>
             <button type="button" class="btn-ghost" onClick={() => setConfirming(false)}>
@@ -497,7 +496,7 @@ function TaskRow({ task }: { task: Task }) {
           </>
         ) : (
           <button type="button" class="btn-ghost" onClick={() => setConfirming(true)}>
-            Cancelar tarefa
+            Encerrar agora
           </button>
         )}
       </div>

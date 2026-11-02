@@ -35,9 +35,7 @@ const CREW = ["founder-marina", "founder-caio"];
 /** Faz a seletiva (tarefa) até o fim: divulgação e inscrição, como na Fase 6. */
 function runSelection(seed: number, outreach = 60): GameState {
   let game: GameState = { ...foundedGame({ seed, teamName: "T" }), outreach };
-  game = run(game, { type: "start-action", actionId: "recruitment", targetId: "broad" });
-  const taskId = game.tasks[0]!.id;
-  game = run(game, ...CREW.map((memberId): Command => ({ type: "assign-member", memberId, taskId })));
+  game = run(game, { type: "start-action", actionId: "recruitment", targetId: "broad", memberIds: CREW });
   for (let i = 0; i < 80 && game.tasks[0]!.status !== "done"; i += 1) {
     game = run(game, { type: "set-speed", speed: 1 }, { type: "tick", realSeconds: 10 });
   }
@@ -404,12 +402,9 @@ describe("S5: gênero, prioridade do presidente e prazo da tarefa", () => {
 
   it("taskEta devolve prazo, percentual e horas de trabalho que faltam", () => {
     let game = startedGame({ seed: 4, teamName: "T" });
-    game = run(game, { type: "start-action", actionId: "study-aero" });
+    game = run(game, { type: "start-action", actionId: "study-aero", memberIds: ["founder-marina"] });
     const task = game.tasks[0]!;
     expect(taskEta(game, "ghost")).toBeNull();
-    const idle = taskEta(game, task.id)!;
-    expect(idle).toMatchObject({ finishesAt: null, daysLeft: null, percent: 0, workHoursLeft: task.hoursTotal });
-    game = run(game, { type: "assign-member", memberId: "founder-marina", taskId: task.id });
     const started = taskEta(game, task.id)!;
     expect(started.finishesAt).toBeGreaterThan(game.clock.hours);
     expect(started.daysLeft).toBeGreaterThanOrEqual(1);

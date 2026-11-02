@@ -59,11 +59,9 @@ describe("nota do relatório (11.1)", () => {
   });
 
   it("escrever o capítulo pelo catálogo soma horas na disciplina escolhida", () => {
-    let state = applyCommand(game(), { type: "start-action", actionId: "report-chapter" });
+    let state = applyCommand(game(), { type: "start-action", actionId: "report-chapter", memberIds: ["founder-marina"] });
     expect(state.warning?.text).toContain("disciplina");
-    state = applyCommand(state, { type: "start-action", actionId: "report-chapter", targetId: "performance" });
-    const taskId = state.tasks[0]!.id;
-    state = applyCommand(state, { type: "assign-member", memberId: "founder-marina", taskId });
+    state = applyCommand(state, { type: "start-action", actionId: "report-chapter", targetId: "performance", memberIds: ["founder-marina"] });
     for (let i = 0; i < 400 && state.tasks[0]!.status !== "done"; i += 1) {
       state = applyCommand(applyCommand(state, { type: "set-speed", speed: 4 }), { type: "tick", realSeconds: 10 });
     }

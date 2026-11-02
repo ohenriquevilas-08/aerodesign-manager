@@ -140,8 +140,8 @@ export function Intro({ seed, onDone }: { seed: number; onDone: () => void }) {
                       <span class="chip" title={findAgenda(member.agenda ?? "balanced").text}>{findAgenda(member.agenda ?? "balanced").priority}</span>
                       <p class="small muted">{def?.likes}</p>
                       <p class="small">
-                        Mais forte em <strong>{def ? DISCIPLINE_SHORT[def.focus] : "—"}</strong> · comunicação {Math.round(member.communication)} · fabricação{" "}
-                        {Math.round(member.fabrication)}
+                        Diz gostar de <strong>{member.statedLikes.length > 0 ? member.statedLikes.map((discipline) => DISCIPLINE_SHORT[discipline]).join(", ") : "—"}</strong> · comunicação{" "}
+                        {Math.round(member.communication)} · fabricação {Math.round(member.fabrication)}
                       </p>
                     </div>
                   </article>

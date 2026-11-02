@@ -5,8 +5,32 @@ export * from "./scoring";
 export * from "./time";
 export { applyCommand, type Command } from "./commands";
 export { deserializeState, SAVE_VERSION, serializeState } from "./save";
-export { createGame, drawField, DISCIPLINES, FIELD_SIZE } from "./state";
-export { canWork, DISCIPLINE_LABELS, effectiveKnowledge, isOverloaded, memberHoursPerDay, motivationFactor, rosterMembers, traineeProgress } from "./team";
+export { createGame, DEFAULT_ADVISOR_NAME, drawField, DISCIPLINES, FIELD_SIZE } from "./state";
+export {
+  canWork,
+  DISCIPLINE_LABELS,
+  effectiveKnowledge,
+  energyFactor,
+  energyQualityFactor,
+  isExhausted,
+  isOverloaded,
+  memberHoursPerDay,
+  motivationFactor,
+  rosterMembers,
+  traineeProgress
+} from "./team";
+export { energyDrainPerHour, energyOutlook, energyRecoveryPerHour, type EnergyOutlook, type EnergyTrend } from "./energy";
+export {
+  APTITUDE_LABELS,
+  aptitudeFactor,
+  drawBaseKnowledge,
+  drawPreferences,
+  isAptitudeRevealed,
+  revealAptitude,
+  revealText,
+  type Preferences
+} from "./aptitude";
+export { closeTask, taskKeeps } from "./tasks";
 export { partState, PART_STATE_LABELS } from "./parts";
 export {
   ACTIONS,
@@ -18,6 +42,7 @@ export {
   type ActionTarget,
   type ActionSkill,
   type Crew,
+  type YieldMode,
   type EquipmentItem,
   type StockItem
 } from "./content/actions";
@@ -94,7 +119,7 @@ export {
 } from "./content/shops";
 export { DEDICATIONS, findDedication, type Dedication, type DedicationDef } from "./content/dedication";
 export { applicantBand, crewQuality, estimateOutcome, outcomeBand, sponsorChance, type OutcomeBand, type OutcomeEstimate } from "./outcome";
-export { crewRates, estimateRemainingDays, estimateTaskDays, leadDaysRange, taskEta, type TaskEta } from "./crew";
+export { crewEfficiency, crewRates, positionShare, estimateRemainingDays, estimateTaskDays, leadDaysRange, taskEta, type TaskEta } from "./crew";
 export { expectedApplicants, missingCast } from "./selection";
 export { SELECTION_FORMATS, type SelectionFormat, type SelectionFormatDef } from "./content/selection";
 export { REGULAR_2026, REPORT_CHAPTERS } from "./content/regulation2026";

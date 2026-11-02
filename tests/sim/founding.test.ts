@@ -141,7 +141,11 @@ describe("presidente e agenda", () => {
 
   it("tarefa da agenda concluída dá bônus de motivação à equipe; fora da agenda, não", () => {
     let state = foundedGame({ seed: 4, teamName: "T" });
-    state = run(state, { type: "start-action", actionId: "raffle" }, { type: "start-action", actionId: "study-aero" });
+    state = run(
+      state,
+      { type: "start-action", actionId: "raffle", memberIds: ["founder-marina"] },
+      { type: "start-action", actionId: "study-aero", memberIds: ["founder-rafa"] }
+    );
     const [raffle, study] = state.tasks;
     const caio = member(state, "founder-caio").motivation;
     const withRaffle = completeTask({ ...state, tasks: state.tasks.map((t) => ({ ...t, hoursDone: t.hoursTotal })) }, raffle!.id).state;
@@ -159,8 +163,7 @@ describe("presidente e agenda", () => {
     expect(member(idle, "founder-rafa").motivation - member(idle, "founder-bia").motivation).toBeGreaterThanOrEqual(2 * BALANCE.agenda.idlePenalty);
 
     let busy = foundedGame({ seed: 4, teamName: "T" });
-    busy = run(busy, { type: "start-action", actionId: "raffle", dedication: "careful" });
-    busy = run(busy, { type: "assign-member", memberId: "founder-bia", taskId: busy.tasks[0]!.id });
+    busy = run(busy, { type: "start-action", actionId: "raffle", dedication: "careful", memberIds: ["founder-bia"] });
     busy = play(busy, 4);
     expect(presidentView(busy)!.alignedDays).toBeGreaterThanOrEqual(3);
     expect(presidentView(busy)!.status).toBe("on-track");
@@ -170,14 +173,14 @@ describe("presidente e agenda", () => {
   it("agenda equilibrada conta dias com tarefas de pelo menos duas frentes", () => {
     let state = foundedGame({ seed: 4, teamName: "T" });
     state = { ...state, members: state.members.map((m) => (m.id === "founder-bia" ? { ...m, agenda: "balanced" as const } : m)) };
-    state = run(state, { type: "start-action", actionId: "study-aero" }, { type: "start-action", actionId: "raffle" });
     state = run(
       state,
-      { type: "assign-member", memberId: "founder-marina", taskId: state.tasks[0]!.id },
-      { type: "assign-member", memberId: "founder-caio", taskId: state.tasks[1]!.id }
+      { type: "start-action", actionId: "study-aero", memberIds: ["founder-marina"] },
+      { type: "start-action", actionId: "raffle", memberIds: ["founder-caio"] }
     );
     expect(presidentView(play(state, 2))!.alignedDays).toBeGreaterThanOrEqual(1);
-    const single = run(state, { type: "unassign-member", memberId: "founder-caio" });
+    // Só a frente de relatório (uma frente): a agenda equilibrada não conta.
+    const single = run(state, { type: "close-task", taskId: state.tasks[1]!.id });
     expect(presidentView(play(single, 2))!.alignedDays).toBe(0);
   });
 });
@@ -200,20 +203,14 @@ describe("trainees", () => {
 
   it("a tarefa de treino exige trainee e dá horas de treino e conhecimento", () => {
     const base = foundedGame({ seed: 6, teamName: "T" });
-    const refused = run(base, { type: "start-action", actionId: "trainee-training" });
+    const refused = run(base, { type: "start-action", actionId: "trainee-training", memberIds: ["founder-marina", "founder-caio"] });
     expect(refused.tasks).toHaveLength(0);
     expect(refused.warning?.text).toContain("trainees");
 
     let state = withCandidates(base);
     state = run(state, { type: "hire-candidate", candidateId: state.candidates[0]!.id });
     const trainee = state.members.at(-1)!;
-    state = run(state, { type: "start-action", actionId: "trainee-training" });
-    const taskId = state.tasks[0]!.id;
-    state = run(
-      state,
-      { type: "assign-member", memberId: trainee.id, taskId },
-      { type: "assign-member", memberId: "founder-marina", taskId }
-    );
+    state = run(state, { type: "start-action", actionId: "trainee-training", memberIds: [trainee.id, "founder-marina"] });
     for (let i = 0; i < 20 && state.tasks[0]!.status !== "done"; i += 1) state = play(state, 1);
     const trained = member(state, trainee.id);
     expect(state.tasks[0]!.status).toBe("done");
@@ -228,9 +225,7 @@ describe("trainees", () => {
       let state = withCandidates(foundedGame({ seed: 6, teamName: "T" }));
       state = run(state, { type: "hire-candidate", candidateId: state.candidates[0]!.id });
       const trainee = state.members.at(-1)!;
-      state = run(state, { type: "start-action", actionId: "trainee-training" });
-      const taskId = state.tasks[0]!.id;
-      state = run(state, { type: "assign-member", memberId: trainee.id, taskId }, { type: "assign-member", memberId: captain ? "founder-marina" : "founder-rafa", taskId });
+      state = run(state, { type: "start-action", actionId: "trainee-training", memberIds: [trainee.id, captain ? "founder-marina" : "founder-rafa"] });
       for (let i = 0; i < 20 && state.tasks[0]!.status !== "done"; i += 1) state = play(state, 1);
       return member(state, trainee.id).trainingHours!;
     };
@@ -284,7 +279,7 @@ describe("nomes de pessoa", () => {
   });
 
   it("o orientador tem nome padrão editável na criação", () => {
-    expect(createGame({ seed: 1, teamName: "T" }).advisor.name).toBe("Helena Prado");
+    expect(createGame({ seed: 1, teamName: "T" }).advisor.name).toBe("Ricardo Prado");
     expect(createGame({ seed: 1, teamName: "T", advisorName: "Otávio Lins" }).advisor.name).toBe("Otávio Lins");
   });
 });

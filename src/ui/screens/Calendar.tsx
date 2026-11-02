@@ -265,7 +265,7 @@ function DayPanel({ day }: { day: CalendarDay }) {
   const past = startAt < hours;
   const canSchedule = !past && (!needsTarget || targetId !== "");
 
-  const toggle = (id: string) => setPicked(crew.includes(id) ? crew.filter((item) => item !== id) : [...crew, id].slice(0, Math.max(action.crew.max, 1)));
+  const toggle = (id: string) => setPicked(crew.includes(id) ? crew.filter((item) => item !== id) : [...crew, id].slice(0, Math.max(action.crew.max ?? Infinity, 1)));
   const changeAction = (id: string) => {
     setActionId(id);
     setTargetId("");
@@ -344,7 +344,7 @@ function DayPanel({ day }: { day: CalendarDay }) {
         {action.cost.hours > 0 ? (
           <div class="field">
             <span class="field-label">
-              Quem entra ({crew.length} de {action.crew.min}–{action.crew.max})
+              Quem entra ({crew.length}, mínimo {action.crew.min}{action.crew.max === null ? "" : `, máximo ${action.crew.max}`})
             </span>
             <div class="crew-pick">
               {eligible.map((member) => (

@@ -9,7 +9,7 @@ import { DISCIPLINES } from "./state";
 import { OFFICIAL_CALENDAR, SEASON_START, type Deadline } from "./content/season2026";
 import { findSelectionFormat } from "./selection";
 import { actionProblem } from "./season";
-import { addMessage, assignMember, startAction, warn } from "./tasks";
+import { addMessage, startAction, warn } from "./tasks";
 import { academicFactor, clockToDate, dateToHours } from "./time";
 import type { GameState, OrderStatus, PauseReason, PlannedAction, TaskDedication } from "./types";
 
@@ -99,22 +99,20 @@ export function advancePlanned(state: GameState, t1: number): { state: GameState
       continue;
     }
     const free = plan.memberIds.filter((id) => next.members.find((member) => member.id === id)?.taskId === null);
-    if (action.cost.hours > 0 && plan.memberIds.length > 0 && free.length < action.crew.min) {
+    if (action.cost.hours > 0 && free.length < action.crew.min) {
       const missing = plan.memberIds.filter((id) => !free.includes(id)).map((id) => next.members.find((member) => member.id === id)?.name ?? id);
       fail(`Faltou gente: ${missing.length > 0 ? `${missing.join(", ")} não está livre` : "equipe insuficiente"}. A tarefa pede pelo menos ${action.crew.min}.`);
       continue;
     }
 
-    const started = startAction(next, plan.actionId, plan.targetId, plan.dedication);
+    const crew = action.crew.max === null ? free : free.slice(0, action.crew.max);
+    const started = startAction(next, plan.actionId, plan.targetId, plan.dedication, crew);
     if (started.warning?.id !== next.warning?.id && started.warning) {
       fail(started.warning.text);
       continue;
     }
     next = started;
     const task = next.tasks[next.tasks.length - 1]!;
-    if (task.status !== "done") {
-      for (const id of free.slice(0, action.crew.max)) next = assignMember(next, id, task.id);
-    }
     next = addMessage(next, { from: "Calendário", title: `Ação agendada começou: ${task.label}`, body: "A tarefa começou sozinha, como marcado no calendário." }).state;
   }
   return { state: next, pauses };

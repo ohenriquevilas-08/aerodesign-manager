@@ -93,9 +93,9 @@ describe("S1: relógio e calendário da temporada", () => {
 
   it("o processo seletivo só vale em novembro", () => {
     const november = foundedGame({ seed: 2, teamName: "T" });
-    expect(run(november, { type: "start-action", actionId: "recruitment", targetId: "broad" }).tasks).toHaveLength(1);
+    expect(run(november, { type: "start-action", actionId: "recruitment", targetId: "broad", memberIds: ["founder-marina"] }).tasks).toHaveLength(1);
     const december = at(november, dateToHours(utc(2025, 12, 2)));
-    const refused = run(december, { type: "start-action", actionId: "recruitment", targetId: "broad" });
+    const refused = run(december, { type: "start-action", actionId: "recruitment", targetId: "broad", memberIds: ["founder-marina"] });
     expect(refused.tasks).toHaveLength(0);
     expect(refused.warning?.text).toContain("novembro");
   });
@@ -115,8 +115,9 @@ describe("S1: regulamento e Prancheta", () => {
 
   it("estudo, seletiva, captação e compras continuam permitidos antes de 9/fev", () => {
     let game = foundedGame({ seed: 3, teamName: "T" });
-    for (const [actionId, targetId] of [["study-aero"], ["raffle"], ["outreach-social"], ["recruitment", "broad"]] as const) {
-      game = run(game, { type: "start-action", actionId, targetId });
+    const crew = ["founder-marina", "founder-caio", "founder-bia", "founder-rafa"];
+    for (const [index, [actionId, targetId]] of ([["study-aero"], ["raffle"], ["outreach-social"], ["recruitment", "broad"]] as const).entries()) {
+      game = run(game, { type: "start-action", actionId, targetId, memberIds: [crew[index]!] });
     }
     expect(game.tasks).toHaveLength(4);
     expect(game.warning).toBeNull();
@@ -124,22 +125,20 @@ describe("S1: regulamento e Prancheta", () => {
 
   it("read-regulation só sai depois de 9/fev, dá conhecimento conceitual e marca o regulamento como lido", () => {
     const before = foundedGame({ seed: 4, teamName: "T" });
-    const refused = run(before, { type: "start-action", actionId: "read-regulation" });
+    const refused = run(before, { type: "start-action", actionId: "read-regulation", memberIds: ["founder-marina"] });
     expect(refused.tasks).toHaveLength(0);
     expect(refused.warning?.text).toContain("9/fev");
 
-    let game = run(at(before, REGULATION_HOURS), { type: "start-action", actionId: "read-regulation" });
+    const marina = before.members.find((m) => m.id === "founder-marina")!;
+    let game = run(at(before, REGULATION_HOURS), { type: "start-action", actionId: "read-regulation", memberIds: [marina.id] });
     expect(game.tasks).toHaveLength(1);
     // Uma leitura por vez.
-    expect(run(game, { type: "start-action", actionId: "read-regulation" }).tasks).toHaveLength(1);
-    const taskId = game.tasks[0]!.id;
-    const marina = game.members.find((m) => m.id === "founder-marina")!;
-    game = run(game, { type: "assign-member", memberId: marina.id, taskId });
+    expect(run(game, { type: "start-action", actionId: "read-regulation", memberIds: ["founder-caio"] }).tasks).toHaveLength(1);
     for (let i = 0; i < 40 && game.tasks[0]!.status !== "done"; i += 1) game = play(game, 1);
     expect(game.tasks[0]!.status).toBe("done");
     expect(game.regulationRead).toBe(true);
     expect(game.members.find((m) => m.id === marina.id)!.knowledge.conceptual).toBeGreaterThan(marina.knowledge.conceptual);
-    const again = run(game, { type: "start-action", actionId: "read-regulation" });
+    const again = run(game, { type: "start-action", actionId: "read-regulation", memberIds: [marina.id] });
     expect(again.warning?.text).toContain("já foi lido");
   });
 
@@ -166,9 +165,9 @@ describe("S4: o que dependia da data antiga continua funcionando", () => {
     expect(started.activeEvent?.kind).toBe("competition");
   });
 
-  it("o save tem a versão 8 e descarta o da versão 6", () => {
+  it("o save tem a versão 9 e descarta o da versão 6", () => {
     const state = startedGame({ seed: 1, teamName: "X" });
-    expect(state.version).toBe(8);
+    expect(state.version).toBe(9);
     expect(deserializeState(serializeState(state))).toEqual(state);
     expect(deserializeState(JSON.stringify({ ...state, version: 6 }))).toBeNull();
   });

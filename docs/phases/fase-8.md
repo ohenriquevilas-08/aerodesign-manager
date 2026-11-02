@@ -23,6 +23,35 @@ Escopo: o coração do jogo (tarefas, pessoas e tempo). Tarefas sempre com gente
 
 Sem frente de Cenas nesta fase (só um ajuste de cor de cabelo, que vai junto com a Simulação). Ordem: Simulação, depois UI.
 
+## Status
+
+| Item | Estado |
+|---|---|
+| S1 tarefas sempre com gente (`memberIds`, `close-task`) | **feito** (branch de Simulação; falta revisão do Henrique e merge) |
+| S2 resultado aos poucos (`yield`, `Task.yielded`, peça parcial) | **feito** |
+| S3 sem limite rígido (`Crew.max` pode ser `null`, `crewEfficiency`) | **feito** |
+| S4 energia por aluno (`Member.energy`) | **feito** |
+| S5 alunos não determinados e correções | **feito** |
+| U1–U5 UI | pendente (a UI atual só ganhou o ajuste mínimo para compilar) |
+
+### Contrato como implementado (Simulação)
+
+Valores e regras completos no design (§4.2, §5.1, §5.5, §8.3); números em `BALANCE` (`crew`, `energy`, `aptitude`, `yield`, `people`).
+
+- **Comandos:** `start-action { …, memberIds }`; `close-task { taskId }` (substitui `cancel-task`, que saiu); `assign-member` segue para pôr mais gente (sem limite onde `max` é `null`); `unassign-member` recusa deixar a tarefa abaixo de `crew.min`.
+- **Tipos:** `Crew.max` pode ser `null`; `ActionDef.yield: "continuous" | "milestones" | "at-end"`; `Task.yieldTotal` (quanto entrega ao todo, sorteado ao iniciar) e `Task.yielded`; `Part.partial?` (0–1); `Member.energy`, `statedLikes`, `likes`, `dislikes`, `aptitude`, `revealedAptitude`, `studyHours` (e os mesmos campos de preferência no `Candidate`); `workStreakHours` saiu. `GameState.version` = 9.
+- **Leituras novas (todas por `src/sim/index.ts`):** `crewEfficiency(ação, n)`, `positionShare`, `taskKeeps(estado, tarefa)` (texto do que fica ao encerrar), `energyOutlook(estado, integrante)`, `energyFactor`, `isExhausted`, `isAptitudeRevealed`, `revealAptitude` (gancho da Fase 9), `APTITUDE_LABELS`, `DEFAULT_ADVISOR_NAME`.
+- **Valores escolhidos:** extras além do ideal rendem 70%, 50%, 35%, 25%, 18%, 12%; energia gasta 5 por hora trabalhada (madrugada ×1,6 e ×2,2 depois da 1h; disciplina detestada ×1,4), recupera 0,5/h acordado e 1,5/h dormindo, ×1,5 no fim de semana; cansaço abaixo de 40, para sozinho abaixo de 15; facilidade 0,6/1/1,5, revelada com 10 horas na disciplina; conhecimento inicial 8 ± 3; declarado bate com o real em 60%; seletiva entrega a cada 25%, fabricação em terços.
+
+### Desvios e decisões do contrato
+
+- **Aprendizado hora a hora.** Conhecimento, fabricação, agilidade e pilotagem passaram a subir a cada passo do relógio (antes, na conclusão): é o que faz o parcial valer. Tarefa encerrada no meio mantém o que aprendeu, mesmo quando o resultado só sai no fim.
+- **Divulgação sem sorteio no fim.** O total do alcance é sorteado ao iniciar (com a equipe escolhida) e entregue proporcional às horas; o sorteio na conclusão saiu. O mesmo vale para os inscritos da seletiva (`yieldTotal`).
+- **`sleeping`/perder a manhã saiu** do turno da oficina, no lugar da energia. A escala ainda recusa madrugada e manhã seguinte da mesma pessoa (aviso ao montar), só não há mais o bloqueio automático.
+- **Espera de calendário com horas.** A única ação com horas e prazo (`sponsor-pitch`) mantém a equipe escolhida ocupada durante a espera; as ações só com prazo (pedidos) não ocupam ninguém e não são tarefas.
+- **`cancel-task` não é alias:** saiu. Encerrar apaga a tarefa e avisa na caixa de entrada; não fica no histórico de concluídas.
+- **UI mínima:** o painel da ação passa `memberIds` e só libera "Iniciar" com o mínimo; o cartão da tarefa ganhou "Encerrar agora" com o texto do que fica. A tela de Ações por objetivo, a escalação, as barras de energia e as preferências são das frentes de UI (U1–U5).
+
 ## Simulação
 
 Atualizar o design §4.2 (tarefas), §5 (equipe) e §8 (custos) junto.

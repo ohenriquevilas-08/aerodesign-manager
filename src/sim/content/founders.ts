@@ -66,12 +66,12 @@ export function frontOf(actionId: string): Exclude<PresidentAgenda, "balanced"> 
 export interface FounderDef {
   id: string;
   flair: FounderFlair;
-  /** Frase da carta: o que gosta de fazer. */
+  /** Fase 8: intenção declarada na carta ("Diz que quer mexer com aerodinâmica"), não uma afirmação sobre o que ele faz bem. */
   likes: string;
   agenda: PresidentAgenda;
-  focus: Discipline;
-  /** Conhecimento inicial baixo na disciplina de foco. */
-  knowledge: number;
+  /** Fase 8: o que o fundador diz gostar; o gosto real é sorteado e pode ser outro (BALANCE.people.statedTruthShare). */
+  stated: readonly Discipline[];
+  /** Fase 8: todo aluno chega com conhecimento baixo e parecido; só estas habilidades variam pouco. */
   fabrication: number;
   communication: number;
   piloting: number;
@@ -81,44 +81,40 @@ export const FOUNDERS: readonly FounderDef[] = [
   {
     id: "founder-marina",
     flair: "design",
-    likes: "Passa horas em polares e planilhas de dimensionamento.",
+    likes: "Diz que quer mexer com aerodinâmica e planilhas de dimensionamento.",
     agenda: "report",
-    focus: "aerodynamics",
-    knowledge: 14,
-    fabrication: 15,
-    communication: 35,
+    stated: ["aerodynamics"],
+    fabrication: 16,
+    communication: 38,
     piloting: 0
   },
   {
     id: "founder-caio",
     flair: "build",
-    likes: "Só fica feliz com resina nas mãos e uma asa na bancada.",
+    likes: "Diz que quer pôr a mão na massa: resina, asa na bancada, estrutura.",
     agenda: "flight",
-    focus: "structures",
-    knowledge: 14,
-    fabrication: 32,
-    communication: 25,
-    piloting: 10
+    stated: ["structures"],
+    fabrication: 20,
+    communication: 32,
+    piloting: 5
   },
   {
     id: "founder-bia",
     flair: "organize",
-    likes: "Faz rifa, convence patrocinador e sabe o nome de todo mundo.",
+    likes: "Diz que quer cuidar do projeto como um todo, das rifas e dos patrocinadores.",
     agenda: "funding",
-    focus: "conceptual",
-    knowledge: 12,
-    fabrication: 12,
-    communication: 60,
+    stated: ["conceptual"],
+    fabrication: 14,
+    communication: 48,
     piloting: 0
   },
   {
     id: "founder-rafa",
     flair: "fly",
-    likes: "Pilota aeromodelo desde o ensino médio e quer ver o avião no ar.",
+    likes: "Diz que quer ver o avião no ar e mexer com a eletrônica. Pilota aeromodelo.",
     agenda: "balanced",
-    focus: "electrical",
-    knowledge: 12,
-    fabrication: 20,
+    stated: ["electrical"],
+    fabrication: 16,
     communication: 40,
     piloting: 32
   }
