@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import { store } from "../../app/store";
 import { useGame } from "../../app/useGame";
 import { canWork, type GameState, type Member } from "../../sim";
+import { EnergyBar } from "../components/Energy";
 import { ROLE_LABEL } from "../format";
 import {
   classSlotsOf,
@@ -172,6 +173,7 @@ export function WorkshopSchedule() {
                         {ROLE_LABEL[member.role]} · {shifts} {shifts === 1 ? "turno" : "turnos"}
                       </small>
                     </span>
+                    <EnergyBar member={member} showValue class="roster-energy" />
                   </button>
                   {hasKey ? (
                     <span class="key-badge" title="Tem a chave da oficina">

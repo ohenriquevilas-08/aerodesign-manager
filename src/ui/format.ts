@@ -149,3 +149,8 @@ export function pauseReasonLabel(reason: string): string {
 export function isCounterfeit(part: Part): boolean {
   return (part as Part & { counterfeit?: boolean }).counterfeit === true;
 }
+
+/** O que a pessoa diz gostar (Fase 8, U4): é só o declarado; o gosto real fica escondido. */
+export function likesText(member: { statedLikes: readonly Discipline[] }): string {
+  return member.statedLikes.length > 0 ? `diz gostar de ${member.statedLikes.map((item) => DISCIPLINE_SHORT[item]).join(", ")}` : "não declarou preferência";
+}

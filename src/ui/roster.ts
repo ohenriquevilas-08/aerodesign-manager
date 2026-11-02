@@ -1,6 +1,6 @@
 // Central do Elenco (Fase 6, U5): colunas por aba, nota geral e ordenação. Puro, testado em tests/ui/.
 
-import { DISCIPLINES, isOverloaded, memberHoursPerDay, type Discipline, type GameState, type Member } from "../sim";
+import { DISCIPLINES, isAptitudeRevealed, isOverloaded, memberHoursPerDay, type Discipline, type EnergyOutlook, type GameState, type Member } from "../sim";
 import { DISCIPLINE_SHORT, motivationLabel, ROLE_LABEL } from "./format";
 
 export type RosterTab = "status" | "knowledge" | "availability" | "development";
@@ -19,6 +19,8 @@ export interface RosterContext {
   tasks: { id: string; label: string }[];
   /** Turnos escalados na oficina por aluno (workshop.schedule). */
   shifts: Record<string, number>;
+  /** Fase 8, U4: tendência da energia por aluno (energyOutlook); opcional (testes montam sem ela). */
+  outlook?: Record<string, EnergyOutlook | null>;
 }
 
 export function shiftsPerMember(schedule: GameState["workshop"]["schedule"]): Record<string, number> {
@@ -52,6 +54,14 @@ export interface RosterColumn {
 }
 
 const taskLabel = (member: Member, ctx: RosterContext) => ctx.tasks.find((item) => item.id === member.taskId)?.label ?? "";
+const TREND_MARK = { up: "↑", down: "↓", flat: "→" } as const;
+
+/** O que a pessoa diz gostar (o gosto real fica escondido). */
+export const statedLikesText = (member: Member): string => (member.statedLikes.length > 0 ? member.statedLikes.map((item) => DISCIPLINE_SHORT[item]).join(", ") : "—");
+
+/** Quantas facilidades já foram reveladas, de 7. */
+export const revealedCount = (member: Member): number => DISCIPLINES.filter((discipline) => isAptitudeRevealed(member, discipline)).length;
+
 const oneDecimal = (value: number) => value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const knowledgeColumn = (discipline: Discipline): RosterColumn => ({
@@ -81,6 +91,15 @@ export const ROSTER_COLUMNS: Record<RosterTab, RosterColumn[]> = {
       value: (member) => Math.round(member.motivation),
       text: (member) => `${Math.round(member.motivation)} · ${motivationLabel(member.motivation)}`
     },
+    {
+      id: "energy",
+      label: "Energia",
+      title: "Gasta ao trabalhar (mais de madrugada); recupera dormindo e no fim de semana. Abaixo de 40 rende menos; abaixo de 15 para.",
+      numeric: true,
+      meter: true,
+      value: (member) => Math.round(member.energy),
+      text: (member, ctx) => `${Math.round(member.energy)} ${TREND_MARK[ctx.outlook?.[member.id]?.trend ?? "flat"]}`
+    },
     { id: "task", label: "Tarefa atual", value: taskLabel, text: (member, ctx) => taskLabel(member, ctx) || "Sem tarefa" },
     { id: "shifts", label: "Turnos/sem", title: "Turnos escalados na oficina por semana", numeric: true, value: (member, ctx) => ctx.shifts[member.id] ?? 0 },
     { id: "overload", label: "Sobrecarga", value: (member) => (isOverloaded(member) ? 1 : 0), text: (member) => (isOverloaded(member) ? "Sobrecarregado" : "—") }
@@ -104,6 +123,15 @@ export const ROSTER_COLUMNS: Record<RosterTab, RosterColumn[]> = {
     skill("communication", "Comunicação"),
     skill("piloting", "Pilotagem"),
     skill("agility", "Agilidade"),
+    { id: "stated", label: "Diz gostar de", title: "Só o que a pessoa diz; o gosto de verdade aparece trabalhando.", value: statedLikesText },
+    {
+      id: "revealed",
+      label: "Facilidades vistas",
+      title: "Disciplinas em que a facilidade já apareceu (depois de horas de trabalho)",
+      numeric: true,
+      value: revealedCount,
+      text: (member) => `${revealedCount(member)}/${DISCIPLINES.length}`
+    },
     {
       id: "knowledge-total",
       label: "Conhecimento total",

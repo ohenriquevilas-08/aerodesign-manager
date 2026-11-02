@@ -32,7 +32,7 @@ Sem frente de Cenas nesta fase (só um ajuste de cor de cabelo, que vai junto co
 | S3 sem limite rígido (`Crew.max` pode ser `null`, `crewEfficiency`) | **feito** |
 | S4 energia por aluno (`Member.energy`) | **feito** |
 | S5 alunos não determinados e correções | **feito** |
-| U1–U5 UI | pendente (a UI atual só ganhou o ajuste mínimo para compilar) |
+| U1–U5 UI | **feito** (branch de UI; falta revisão do Henrique) |
 
 ### Contrato como implementado (Simulação)
 
