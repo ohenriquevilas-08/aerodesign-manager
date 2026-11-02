@@ -665,3 +665,46 @@
 .selection-tab > .panel {
   flex: none;
 }
+
+/* Escalação: o campo à esquerda e, à direita, uma coluna fixa com Trainees e Sem área (nada por cima do avião). */
+.fm-body {
+  display: flex;
+  flex: 1;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.fm-body > .fm-fit {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.fm-side {
+  display: flex;
+  flex: 0 0 300px;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.fm-side .fm-corner {
+  position: static;
+  width: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fm-side .fm-corner-chips {
+  overflow-y: auto;
+  align-content: flex-start;
+  min-height: 0;
+}
+
+.fm-side .fm-trainees {
+  flex: 0 1 auto;
+  max-height: 55%;
+}
+
+.fm-side .fm-bench {
+  flex: 1 1 0;
+}

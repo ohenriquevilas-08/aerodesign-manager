@@ -167,6 +167,7 @@ export function Formation() {
         )}
       </p>
 
+      <div class="fm-body">
       <div class="fm-fit" ref={wrapRef}>
         <div class="fm-sizer" style={{ width: `${STAGE_W * scale}px`, height: `${STAGE_H * scale}px` }}>
           <div class="fm-stage" style={{ width: `${STAGE_W}px`, height: `${STAGE_H}px`, transform: `scale(${scale})` }}>
@@ -190,7 +191,10 @@ export function Formation() {
                 />
               ) : null;
             })}
-
+          </div>
+        </div>
+      </div>
+      <aside class="fm-side" aria-label="Trainees e quem está sem área">
             {view.trainees.length > 0 ? (
               <div class="fm-corner fm-trainees" data-testid="trainee-strip" title="No fim da etapa (1/fev), cada trainee vira integrante ou desiste. Só então entram na escalação.">
                 <h3 class="fm-corner-title">Trainees · treino até 1/fev</h3>
@@ -251,8 +255,7 @@ export function Formation() {
                 })}
               </div>
             </div>
-          </div>
-        </div>
+      </aside>
       </div>
     </div>
   );
