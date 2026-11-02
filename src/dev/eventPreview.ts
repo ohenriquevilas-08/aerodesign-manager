@@ -1,6 +1,6 @@
 // Montagem só de desenvolvimento da EventStage (/event-dev.html), com eventos de mentira.
 // Mostra também como a UI (U1) encaixa FlightScene/QueueScene na janela da moldura (FRAME_WINDOW).
-// Parâmetros: ?event=selection-day|flight-test|competition&block=N&observed=gN
+// Parâmetros: ?event=selection-day|flight-test|competition&block=N&observed=g1,g4&candidates=32
 
 import Phaser from "phaser";
 import { createStore } from "../app/store";
@@ -38,7 +38,8 @@ const store = createStore({
 const params = new URLSearchParams(location.search);
 let kind = (params.get("event") as EventKind | null) ?? "selection-day";
 let blockIndex = Number(params.get("block") ?? 0);
-let observed: string | null = params.get("observed");
+const observed = new Set<string>((params.get("observed") ?? "g1,g4").split(",").filter(Boolean));
+let candidates = Number(params.get("candidates") ?? 32);
 
 const newGame = (parent: string | HTMLElement, scene: new () => Phaser.Scene, key: string) => {
   const host = typeof parent === "string" ? document.getElementById(parent)! : parent;
@@ -84,8 +85,8 @@ function syncNested(view: StageView) {
 const bar = document.getElementById("bar")!;
 
 function render() {
-  const view = mockEventView(kind, blockIndex);
-  if (view.selection) view.selection.observedGroupId = observed;
+  const view = mockEventView(kind, blockIndex, candidates);
+  if (view.selection) view.selection.observedGroupIds = [...observed];
   eventChannel.show(view);
   syncNested(view);
 
@@ -110,13 +111,18 @@ function render() {
     render();
   }));
   if (view.selection) {
-    bar.appendChild(document.createTextNode(" | observar: "));
-    button("nenhum", observed === null, () => {
-      observed = null;
+    bar.appendChild(document.createTextNode(" | acompanhar: "));
+    button("nenhum", observed.size === 0, () => {
+      observed.clear();
       render();
     });
-    view.selection.groups.forEach((group) => button(group.label, observed === group.id, () => {
-      observed = group.id;
+    view.selection.groups.forEach((group) => button(group.label, observed.has(group.id), () => {
+      if (!observed.delete(group.id)) observed.add(group.id);
+      render();
+    }));
+    bar.appendChild(document.createTextNode(" | gente: "));
+    [12, 20, 32, 40].forEach((n) => button(String(n), n === candidates, () => {
+      candidates = n;
       render();
     }));
   }

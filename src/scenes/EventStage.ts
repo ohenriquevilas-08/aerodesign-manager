@@ -11,6 +11,7 @@ import type { GameStore } from "../app/store";
 import { sceneryForVenue } from "./flight/scenery";
 import type { EventBlock, StageView } from "./event/contract";
 import { eventChannel } from "./event/channel";
+import { groupEmphasis, observedLabel, observedSet } from "./event/groups";
 import { readEventView } from "./event/source";
 import {
   CHECK_BENCH,
@@ -30,11 +31,14 @@ import {
   inspectionLights,
   inspectionTally,
   landedGlider,
+  laneRow,
   planFigures,
   selectionPhase,
   settingForEvent,
   skyAt,
-  zoomFor,
+  figureScale,
+  GROUP_LABEL_OFFSET,
+  zoomForView,
   type FigurePlan,
   type StageSetting
 } from "./event/stage";
@@ -42,7 +46,6 @@ import { iso, isoBox, rowWallQuad, vec } from "./hangar/iso";
 import { css, fonts, palette, shade } from "./palette";
 import { setSprite } from "./people/sprite/phaser";
 
-const AVATAR_SCALE = 2;
 const WALK_SPEED = 3.2; // casas por segundo
 const HORIZON = -10;
 const GROUND_DEPTH = -1_000_000;
@@ -91,6 +94,10 @@ export class EventStage extends Phaser.Scene {
   private figures = new Map<string, Figure>();
   private tables: TableView[] = [];
   private tablesKey = "";
+  /** Quantas pistas de lançamento o campus desenha (uma por grupo; o cenário redesenha quando muda). */
+  private laneCount = 0;
+  /** Escala inteira dos bonecos neste evento (1 na dinâmica cheia, 2 no resto). */
+  private scale1 = 2;
   private skyKey = "";
   private blockKey = "";
   private t = 0;
@@ -206,12 +213,15 @@ export class EventStage extends Phaser.Scene {
       return;
     }
     const setting = settingForEvent(view.kind);
-    if (setting !== this.setting || view.venueId !== previous?.venueId) {
+    const laneCount = Math.max(4, view.selection?.groups.length ?? 4);
+    if (setting !== this.setting || view.venueId !== previous?.venueId || laneCount !== this.laneCount) {
       this.setting = setting;
+      this.laneCount = laneCount;
       this.drawGround(setting, view.venueId);
       this.drawProps(setting);
       this.skyKey = "";
     }
+    this.scale1 = figureScale(view);
     const key = `${view.id}:${view.day}:${view.blockIndex}`;
     if (key !== this.blockKey) {
       this.blockKey = key;
@@ -232,7 +242,7 @@ export class EventStage extends Phaser.Scene {
         continue;
       }
       // Quem chega entra pela borda esquerda do pátio, andando até o lugar.
-      const gfx = this.world(this.add.image(0, 0, "__DEFAULT").setScale(AVATAR_SCALE));
+      const gfx = this.world(this.add.image(0, 0, "__DEFAULT").setScale(this.scale1));
       const enters = !instant && plan.role !== "inspector";
       this.figures.set(plan.id, { plan, gfx, col: enters ? -1 : plan.col, row: plan.row, drawnKey: "" });
     }
@@ -272,7 +282,14 @@ export class EventStage extends Phaser.Scene {
       const gfx = this.world(this.add.graphics().setDepth(base.y));
       const label = this.world(
         this.add
-          .text(base.x, base.y - 74, group.label.toUpperCase(), { fontFamily: fonts.display, fontSize: "15px", color: css(palette.ink), fontStyle: "600" })
+          .text(base.x, base.y - GROUP_LABEL_OFFSET, group.label.toUpperCase(), {
+            fontFamily: fonts.display,
+            fontSize: "15px",
+            color: css(palette.ink),
+            fontStyle: "600",
+            backgroundColor: css(palette.bg),
+            padding: { x: 5, y: 1 }
+          })
           .setOrigin(0.5, 1)
           .setResolution(2)
           .setLetterSpacing(1)
@@ -434,12 +451,13 @@ export class EventStage extends Phaser.Scene {
       isoBox(g, 2.6, 4.6, 2.8, 2.9, 0, 30, this.face(g, palette.blueprint));
       g.fillStyle(this.dim(palette.highlight, hour), 1).fillPoints(rowWallQuad(2.9, 2.75, 4.45, 16, 24), true);
       // Pista de lançamento: faixa clara com marcas a cada 5 m.
-      const lane = (n: number) => LAUNCH_LANE.row0 + n * LAUNCH_LANE.rowStep;
-      strip(LAUNCH_LANE.col0 - 1.4, LAUNCH_LANE.col0 + LAUNCH_LANE.length + 0.8, lane(0) - 0.3, lane(3) + 0.35, mix(palette.venueWall, palette.ink, 0.25));
-      line(LAUNCH_LANE.col0, lane(0) - 0.3, LAUNCH_LANE.col0, lane(3) + 0.35, palette.ink, 0.9);
+      const laneTop = laneRow(0, this.laneCount) - 0.3;
+      const laneEnd = laneRow(this.laneCount - 1, this.laneCount) + 0.35;
+      strip(LAUNCH_LANE.col0 - 1.4, LAUNCH_LANE.col0 + LAUNCH_LANE.length + 0.8, laneTop, laneEnd, mix(palette.venueWall, palette.ink, 0.25));
+      line(LAUNCH_LANE.col0, laneTop, LAUNCH_LANE.col0, laneEnd, palette.ink, 0.9);
       for (let m = 5; m <= LANE_FULL_M; m += 5) {
         const col = LAUNCH_LANE.col0 + (m / LANE_FULL_M) * LAUNCH_LANE.length;
-        line(col, lane(0) - 0.3, col, lane(3) + 0.35, palette.inkMuted, 0.6, 1);
+        line(col, laneTop, col, laneEnd, palette.inkMuted, 0.6, 1);
       }
     } else if (setting === "aeroclub") {
       this.building(g, 0.8, 6, 0.4, 3, 78, palette.venueWall, palette.venueRoof);
@@ -501,7 +519,7 @@ export class EventStage extends Phaser.Scene {
     const top = -240;
     const bottom = iso(GRID.cols, GRID.rows).y + 40;
     const fit = Math.min(width / (right - left), height / (bottom - top));
-    const zoom = Phaser.Math.Clamp(fit * zoomFor(setting, focus), 0.35, 3);
+    const zoom = Phaser.Math.Clamp(fit * zoomForView(view), 0.35, 3);
     if (this.snap) {
       this.camX = anchor.x;
       this.camY = anchor.y - 30;
@@ -518,7 +536,7 @@ export class EventStage extends Phaser.Scene {
   }
 
   private updateFigures(dt: number) {
-    const observed = this.view?.selection?.observedGroupId ?? null;
+    const observed = observedSet(this.view?.selection);
     for (const figure of this.figures.values()) {
       const { plan } = figure;
       const dc = plan.col - figure.col;
@@ -540,7 +558,8 @@ export class EventStage extends Phaser.Scene {
       }
       const base = iso(figure.col, figure.row);
       const bob = walking ? -Math.abs(Math.sin(this.t * 11)) * 3 : 0;
-      const dim = observed && plan.role === "candidate" && plan.groupId !== observed ? 0.65 : 1;
+      const dim = plan.role === "candidate" && plan.groupId ? groupEmphasis(observed, plan.groupId).alpha : 1;
+      figure.gfx.setScale(this.scale1);
       figure.gfx.setPosition(base.x + (working ? Math.round(phase) * facing : 0), base.y + bob).setDepth(base.y).setAlpha(dim);
     }
   }
@@ -590,8 +609,9 @@ export class EventStage extends Phaser.Scene {
   /** Mesas dos grupos, planadores em montagem, destaque do grupo observado e os lançamentos. */
   private updateTables(view: StageView) {
     const groups = view.selection?.groups ?? [];
-    const observed = view.selection?.observedGroupId ?? null;
+    const observed = observedSet(view.selection);
     const phase = selectionPhase(view);
+    if (view.selection) this.tallyText.setText(observedLabel(observed));
     const spots = groupTables(groups.length);
     const fx = this.floorFx;
     fx.clear();
@@ -602,8 +622,7 @@ export class EventStage extends Phaser.Scene {
       const view2 = this.tables[g];
       const spot = spots[g];
       if (!view2 || !spot) return;
-      const isObserved = observed === group.id;
-      const dim = observed && !isObserved ? 0.75 : 1;
+      const { observed: isObserved, alpha: dim } = groupEmphasis(observed, group.id);
       const tg = view2.gfx;
       tg.clear();
       tg.setAlpha(dim);
@@ -617,6 +636,8 @@ export class EventStage extends Phaser.Scene {
       tg.setPosition(iso(spot.col, spot.row).x - iso(0, 0).x, iso(spot.col, spot.row).y - iso(0, 0).y);
       this.drawKit(tg, phase, g, this.blockT);
 
+      const labelText = isObserved ? `${group.label.toUpperCase()} · ACOMPANHADO` : group.label.toUpperCase();
+      if (view2.label.text !== labelText) view2.label.setText(labelText);
       view2.label.setAlpha(dim).setColor(isObserved ? css(palette.highlight) : css(palette.ink));
       if (isObserved) {
         const base = iso(spot.col, spot.row);
@@ -631,7 +652,7 @@ export class EventStage extends Phaser.Scene {
       view2.distance.setVisible(false);
       const distanceM = group.gliderDistanceM;
       if ((phase === "launching" || phase === "landed") && distanceM !== null) {
-        const frame = phase === "landed" ? landedGlider(g, distanceM) : gliderFrame(g, distanceM, this.blockT);
+        const frame = phase === "landed" ? landedGlider(g, distanceM, groups.length) : gliderFrame(g, distanceM, this.blockT, groups.length);
         const p = iso(frame.col, frame.row, frame.z);
         const shadowP = iso(frame.col, frame.row);
         gg.fillStyle(palette.bg, 0.3).fillEllipse(shadowP.x, shadowP.y, 16, 6);

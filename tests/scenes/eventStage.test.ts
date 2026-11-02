@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mockEventView, MOCK_SELECTION_BLOCKS } from "../../src/scenes/event/mock";
+import { mockEventView, MOCK_CANDIDATE_COUNT, MOCK_SELECTION_BLOCKS } from "../../src/scenes/event/mock";
 import {
   ASSEMBLY_SECONDS,
   FRAME_WINDOW,
@@ -15,8 +15,11 @@ import {
   focusForView,
   formatDistance,
   framedSceneFor,
+  GRID,
   gliderFrame,
   groupTables,
+  laneRow,
+  laneStep,
   inspectionLights,
   inspectionTally,
   landedGlider,
@@ -123,10 +126,11 @@ describe("planFigures", () => {
 
   it("candidatos da seletiva ficam em volta das mesas e depois na linha de lançamento", () => {
     const candidates = (index: number) => planFigures(mockEventView("selection-day", index)).filter((p) => p.role === "candidate");
-    expect(candidates(0)).toHaveLength(12);
-    const tables = groupTables(4);
+    expect(candidates(0)).toHaveLength(MOCK_CANDIDATE_COUNT);
+    const tables = groupTables(Math.ceil(MOCK_CANDIDATE_COUNT / 6));
     const first = candidates(2)[0]!;
-    expect(Math.hypot(first.col - tables[0]!.col, first.row - tables[0]!.row)).toBeCloseTo(1.5, 5);
+    // Grupos de 5 a 6: a roda em volta da mesa abre (raio 1,75).
+    expect(Math.hypot(first.col - tables[0]!.col, first.row - tables[0]!.row)).toBeCloseTo(1.75, 5);
     expect(candidates(2).every((c) => c.pose === "work")).toBe(true);
     expect(candidates(3).every((c) => c.col < LAUNCH_LANE.col0)).toBe(true);
     expect(candidates(3).every((c) => c.pose === "stand")).toBe(true);
@@ -229,5 +233,49 @@ describe("janela do voo e da fila", () => {
   it("a janela cabe na tela", () => {
     expect(FRAME_WINDOW.x + FRAME_WINDOW.w).toBeLessThanOrEqual(1);
     expect(FRAME_WINDOW.y + FRAME_WINDOW.h).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("dinâmica cheia (Fase 9): grupos de 5 a 6", () => {
+  const dist = (a: { col: number; row: number }, b: { col: number; row: number }) => Math.hypot(a.col - b.col, a.row - b.row);
+
+  it("com 5 a 8 grupos as mesas continuam separadas e dentro do piso", () => {
+    for (const n of [5, 6, 7, 8]) {
+      const tables = groupTables(n);
+      for (let i = 0; i < n; i += 1) {
+        expect(tables[i]!.col).toBeGreaterThan(1);
+        expect(tables[i]!.col).toBeLessThan(GRID.cols - 1);
+        expect(tables[i]!.row).toBeGreaterThan(0.5);
+        expect(tables[i]!.row).toBeLessThan(GRID.rows - 1);
+        for (let j = i + 1; j < n; j += 1) expect(dist(tables[i]!, tables[j]!)).toBeGreaterThan(3);
+      }
+    }
+  });
+
+  it("os lugares em volta da mesa de 6 não se tocam", () => {
+    const around = seatsAround({ col: 10, row: 5 }, 6);
+    for (let i = 0; i < 6; i += 1) for (let j = i + 1; j < 6; j += 1) expect(dist(around[i]!, around[j]!)).toBeGreaterThan(1);
+  });
+
+  it("a pista comprime as faixas com mais grupos, mas mantém o espaço antigo até 4", () => {
+    expect(laneStep(4)).toBe(LAUNCH_LANE.rowStep);
+    expect(laneStep(6)).toBeLessThan(LAUNCH_LANE.rowStep);
+    expect(laneRow(5, 6)).toBeLessThanOrEqual(GRID.rows);
+    expect(laneRow(0, 6)).toBe(LAUNCH_LANE.row0);
+    expect(gliderFrame(1, 10, 0).row).toBe(laneRow(1, 4));
+    expect(gliderFrame(5, 10, 0, 6).row).toBe(laneRow(5, 6));
+    expect(landedGlider(5, 10, 6).row).toBe(laneRow(5, 6));
+  });
+
+  it("no lançamento os candidatos ficam atrás da linha, cada grupo na sua faixa", () => {
+    const view = mockEventView("selection-day", 3);
+    const plans = planFigures(view).filter((p) => p.role === "candidate");
+    expect(plans).toHaveLength(MOCK_CANDIDATE_COUNT);
+    const groups = view.selection!.groups;
+    groups.forEach((group, g) => {
+      const mine = plans.filter((p) => p.groupId === group.id);
+      expect(mine).toHaveLength(group.members.length);
+      expect(mine.every((p) => Math.abs(p.row - laneRow(g, groups.length)) < 0.2)).toBe(true);
+    });
   });
 });

@@ -4,6 +4,7 @@
 import type { MemberLook } from "../../sim";
 import { palette } from "../palette";
 import type { EventBlock, EventPerson, StageView } from "./contract";
+import { splitIntoGroups } from "./groups";
 
 const SHIRT = palette.highlight;
 const CANDIDATE_SHIRTS = [palette.inkMuted, palette.accent, palette.ok, palette.ink, palette.warn, palette.inkDim];
@@ -41,15 +42,21 @@ const candidateLooks: MemberLook[] = [
   look(1, 4, 3)
 ];
 
-const GROUP_LABELS = ["Grupo A", "Grupo B", "Grupo C", "Grupo D"];
-const DISTANCES = [14.2, 21.6, 9.8, 17.5];
+const GROUP_LABELS = ["Grupo A", "Grupo B", "Grupo C", "Grupo D", "Grupo E", "Grupo F", "Grupo G", "Grupo H"];
+const DISTANCES = [14.2, 21.6, 9.8, 17.5, 12.3, 19.1, 8.4, 16.0];
 
-function groups() {
-  return GROUP_LABELS.map((label, g) => ({
+/** Quem veio à dinâmica na montagem de dev (Fase 9: dezenas de pessoas em grupos de 5 a 6). */
+export const MOCK_CANDIDATE_COUNT = 32;
+
+function groups(total = MOCK_CANDIDATE_COUNT) {
+  const people = Array.from({ length: total }, (_, k) =>
+    person(`k${k}`, `Candidato ${k + 1}`, { ...candidateLooks[k % candidateLooks.length]!, shirt: CANDIDATE_SHIRTS[k % CANDIDATE_SHIRTS.length]! })
+  );
+  return splitIntoGroups(people).map((members, g) => ({
     id: `g${g}`,
-    label,
+    label: GROUP_LABELS[g]!,
     gliderDistanceM: DISTANCES[g]!,
-    members: [0, 1, 2].map((k) => person(`k${g * 3 + k}`, `Candidato ${g * 3 + k + 1}`, { ...candidateLooks[g * 3 + k]!, shirt: CANDIDATE_SHIRTS[(g * 3 + k) % CANDIDATE_SHIRTS.length]! }))
+    members
   }));
 }
 
@@ -85,7 +92,7 @@ export const MOCK_COMPETITION_BLOCKS: EventBlock[] = [
   block("awards", 17.5, "Premiação", "awards")
 ];
 
-export function mockEventView(kind: StageView["kind"], blockIndex = 0): StageView {
+export function mockEventView(kind: StageView["kind"], blockIndex = 0, candidates = MOCK_CANDIDATE_COUNT): StageView {
   if (kind === "selection-day") {
     return {
       id: "mock-selection",
@@ -95,7 +102,7 @@ export function mockEventView(kind: StageView["kind"], blockIndex = 0): StageVie
       blocks: MOCK_SELECTION_BLOCKS,
       blockIndex,
       crew: MOCK_CREW.slice(0, 4),
-      selection: { groups: groups(), observedGroupId: "g1" },
+      selection: { groups: groups(candidates), observedGroupId: null, observedGroupIds: ["g1", "g4"] },
       inspection: null
     };
   }
