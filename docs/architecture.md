@@ -185,6 +185,7 @@ Este arquivo é o núcleo. O contrato e as regras de cada fase vivem em `docs/ph
 - [`docs/phases/fase-6.md`](phases/fase-6.md): professor orientador, temporada desde novembro com abertura dos fundadores, calendário anual e ações agendadas, e a UI (abertura, Calendário, Central do Elenco).
 - [`docs/phases/fase-7.md`](phases/fase-7.md): modo evento (seletiva, ensaio de voo, competição) e correções do playtest.
 - [`docs/phases/fase-8.md`](phases/fase-8.md): tarefas sempre com gente e resultado aos poucos, energia, alunos não determinados, Ações por objetivo.
+- [`docs/phases/fase-9.md`](phases/fase-9.md): seletiva imersiva (funil de ~6 semanas, inscritos, palestra, dinâmica, entrevistas, aprovação).
 
 ## Comandos
 
