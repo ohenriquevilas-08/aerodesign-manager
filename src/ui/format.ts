@@ -117,6 +117,7 @@ export function formatDays(days: number | null): string {
 /** Quantas pessoas a tarefa aceita (crew da ação): "1 pessoa", "1–3 pessoas · ideal 2". */
 export function crewText(crew: Crew): string {
   if (crew.max === 0) return "sem equipe";
+  if (crew.max === null) return `${crew.min}+ pessoas · ideal ${crew.ideal}`;
   if (crew.min === crew.max) return crew.max === 1 ? "1 pessoa" : `${crew.max} pessoas`;
   const ideal = crew.ideal < crew.max ? ` · ideal ${crew.ideal}` : "";
   return `${crew.min}–${crew.max} pessoas${ideal}`;

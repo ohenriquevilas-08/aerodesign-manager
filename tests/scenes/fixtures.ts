@@ -30,6 +30,8 @@ export function task(overrides: Partial<Task> & Pick<Task, "id" | "actionId">): 
     startedAt: 0,
     doneAt: null,
     dedication: "normal",
+    yieldTotal: null,
+    yielded: 0,
     ...overrides
   };
 }

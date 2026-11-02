@@ -156,7 +156,7 @@ describe("estimatePerformance", () => {
 
 describe("ensaios", () => {
   it("são recusados sem as peças necessárias", () => {
-    const state = applyCommand(withDesign(), { type: "start-action", actionId: "test-structural" });
+    const state = applyCommand(withDesign(), { type: "start-action", actionId: "test-structural", memberIds: ["founder-caio", "founder-marina"] });
     expect(state.tasks).toHaveLength(0);
     expect(state.warning?.text).toContain("asa");
     // Voo de ensaio virou evento (Fase 5): a recusa vem do agendamento.

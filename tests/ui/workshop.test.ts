@@ -47,7 +47,9 @@ describe("escala do capitão", () => {
       targetId: null,
       startedAt: 0,
       doneAt: null,
-      dedication: "normal"
+      dedication: "normal",
+      yieldTotal: null,
+      yielded: 0
     };
     const result = suggestSchedule({ ...state, tasks: [task] });
     const slots = Object.values(result.schedule);

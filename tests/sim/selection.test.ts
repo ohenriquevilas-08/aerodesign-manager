@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyCommand,
+  BALANCE,
   estimateOutcome,
   missingCast,
   SELECTION_FORMATS,
@@ -16,9 +17,7 @@ const CREW = ["founder-marina", "founder-caio"];
 /** Faz uma seletiva completa no formato dado, com os dois capitães e um alcance de divulgação inicial. */
 function runSelection(seed: number, format: string, outreach = 20): GameState {
   let game: GameState = { ...startedGame({ seed, teamName: "T" }), outreach };
-  game = run(game, { type: "start-action", actionId: "recruitment", targetId: format });
-  const taskId = game.tasks[0]!.id;
-  game = run(game, ...CREW.map((memberId): Command => ({ type: "assign-member", memberId, taskId })));
+  game = run(game, { type: "start-action", actionId: "recruitment", targetId: format, memberIds: CREW });
   for (let i = 0; i < 60 && game.tasks[0]!.status !== "done"; i += 1) {
     game = run(game, { type: "set-speed", speed: 1 }, { type: "tick", realSeconds: 10 });
   }
@@ -27,7 +26,7 @@ function runSelection(seed: number, format: string, outreach = 20): GameState {
 
 describe("seletiva de fundação", () => {
   it("exige escolher o formato", () => {
-    const game = run(startedGame({ seed: 1, teamName: "T" }), { type: "start-action", actionId: "recruitment" });
+    const game = run(startedGame({ seed: 1, teamName: "T" }), { type: "start-action", actionId: "recruitment", memberIds: CREW });
     expect(game.tasks).toHaveLength(0);
     expect(game.warning?.text).toContain("formato");
   });
@@ -37,9 +36,11 @@ describe("seletiva de fundação", () => {
       const game = runSelection(3, format.id, 30);
       expect(game.tasks[0]!.label).toBe(`Processo seletivo (${format.label})`);
       for (const candidate of game.candidates) {
+        // Conhecimento baixo e parecido: base ± variação, mais um bônus pequeno no que ele diz gostar.
+        const { baseKnowledge, knowledgeSpread } = BALANCE.people;
         const focus = candidate.knowledge[candidate.focus];
-        expect(focus).toBeGreaterThanOrEqual(format.focusKnowledge[0]);
-        expect(focus).toBeLessThanOrEqual(format.focusKnowledge[1]);
+        expect(focus).toBeGreaterThanOrEqual(baseKnowledge - knowledgeSpread + format.focusKnowledge[0]);
+        expect(focus).toBeLessThanOrEqual(baseKnowledge + knowledgeSpread + format.focusKnowledge[1]);
         expect(candidate.motivation).toBeGreaterThanOrEqual(format.motivation[0]);
         expect(candidate.motivation).toBeLessThanOrEqual(format.motivation[1]);
         expect(candidate.opinion).toMatch(/^[\p{L} ]+: "/u);

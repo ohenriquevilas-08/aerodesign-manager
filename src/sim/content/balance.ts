@@ -10,12 +10,11 @@ export const BALANCE = {
     hoursFactorAtZero: 0.5,
     /** Queda por dia de jogo de quem está sem tarefa. */
     idleDecayPerDay: 1,
-    /** Horas seguidas em tarefa a partir das quais a pessoa fica sobrecarregada. */
-    overloadAfterHours: 14 * 24,
-    /** Queda por dia de jogo de quem está sobrecarregado. */
-    overloadDecayPerDay: 1.5,
-    /** Quanto a sequência de trabalho se recupera por hora parada (em horas). */
-    restRecoveryPerHour: 2,
+    /** Fase 8, S4: queda por dia de jogo de quem parou de exaustão (energia abaixo de energy.exhaustedBelow). */
+    exhaustedDecayPerDay: 4,
+    /** Fase 8, S5: motivação por hora trabalhada no que a pessoa gosta de verdade (e perda no que detesta). */
+    likedPerHour: 0.3,
+    dislikedPerHour: 0.15,
     /** Ganho ao concluir uma tarefa, para cada pessoa alocada no fim. */
     completionBoost: 6
   },
@@ -40,8 +39,56 @@ export const BALANCE = {
   },
 
   crew: {
-    /** Rendimento de cada pessoa além do número ideal da ação. */
-    extraEfficiency: 0.5
+    /**
+     * Fase 8, S3: rendimento de cada pessoa além do número ideal da ação, na ordem em que entram
+     * (a 1ª extra rende 70%, a 2ª 50%...). Passando da tabela vale o último valor.
+     */
+    extraEfficiency: [0.7, 0.5, 0.35, 0.25, 0.18, 0.12] as readonly number[]
+  },
+
+  /**
+   * Fase 8, S4: energia por aluno (0–100). Trabalhar gasta por hora trabalhada; descansar, dormir e
+   * o fim de semana recuperam por hora de relógio. PROPOSTA: calibrar no balanceamento.
+   */
+  energy: {
+    start: 100,
+    /** Gasto por hora trabalhada; madrugada multiplica (depois da 1h, mais ainda); disciplina detestada também. */
+    workPerHour: 5,
+    overnightFactor: 1.6,
+    lateOvernightFactor: 2.2,
+    dislikedFactor: 1.4,
+    /** Recuperação por hora de relógio: acordado, dormindo (23h–7h) e fim de semana (multiplicador). Sem recuperar enquanto trabalha. */
+    awakePerHour: 0.5,
+    sleepPerHour: 1.5,
+    sleepFromHour: 23,
+    sleepToHour: 7,
+    weekendFactor: 1.5,
+    /** Abaixo disto rendimento e qualidade caem (linear até exhaustedBelow); abaixo de exhaustedBelow a pessoa para. */
+    tiredBelow: 40,
+    exhaustedBelow: 15,
+    /** Rendimento e qualidade em exhaustedBelow (em tiredBelow é 1). */
+    factorAtExhausted: 0.5,
+    /** Leitura de tendência: variação diária abaixo disto é "estável". */
+    trendEpsilonPerDay: 2
+  },
+
+  /** Fase 8, S5: facilidade escondida por disciplina. */
+  aptitude: {
+    /** Multiplicador do ganho de conhecimento. */
+    factor: { slow: 0.6, normal: 1, fast: 1.5 } as Record<string, number>,
+    /** Chance de sorteio: devagar, rápido (o resto é normal). */
+    chanceSlow: 0.25,
+    chanceFast: 0.25,
+    /** Horas trabalhadas na disciplina até a facilidade aparecer. */
+    revealAfterHours: 10
+  },
+
+  /** Fase 8, S2: entrega em marcos. */
+  yield: {
+    /** Seletiva: candidatos chegam a cada fração das horas. */
+    selectionStep: 0.25,
+    /** Fabricação: corte, montagem e acabamento (a peça só voa depois da última). */
+    fabricateStep: 1 / 3
   },
 
   sponsor: {
@@ -394,7 +441,12 @@ export const BALANCE = {
   /** Pessoas (Fase 7, S5): proporção realista da engenharia aeronáutica, sem diversidade forçada. */
   people: {
     /** Chance de cada aluno sorteado (fundadores, candidatos, trainees) ter nome e aparência femininos. */
-    femaleShare: 0.2
+    femaleShare: 0.2,
+    /** Fase 8, S5: conhecimento inicial de todo aluno em cada disciplina: base + sorteio ±spread (baixo e parecido). */
+    baseKnowledge: 8,
+    knowledgeSpread: 3,
+    /** Fase 8, S5: de cada preferência declarada, esta fração bate com o gosto real. */
+    statedTruthShare: 0.6
   },
 
   /** Dia da dinâmica da seletiva (Fase 7, S2). PROPOSTA. */

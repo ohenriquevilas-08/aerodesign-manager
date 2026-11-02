@@ -91,15 +91,14 @@ describe("a ação agendada começa sozinha", () => {
     expect(after.inbox.map((m) => m.title)).toContain("Ação agendada começou: Organizar rifa");
   });
 
-  it("sem memberIds, a tarefa nasce sem ninguém alocado", () => {
+  it("sem memberIds, a ação com horas não começa (nenhuma tarefa nasce parada)", () => {
     const state = play(schedule(game(), { memberIds: [] }), 3);
-    expect(state.tasks).toHaveLength(1);
-    expect(state.tasks[0]!.assignees).toEqual([]);
+    expect(state.tasks).toHaveLength(0);
+    expect(state.inbox.map((m) => m.title)).toContain("Ação agendada não começou: Organizar rifa");
   });
 
   it("sem gente livre: não começa, avisa, pausa com o motivo 'scheduled' e sai da lista", () => {
-    let state = run(game(), { type: "start-action", actionId: "study-aero" });
-    state = run(state, { type: "assign-member", memberId: "founder-marina", taskId: state.tasks[0]!.id }, { type: "set-speed", speed: 4 });
+    let state = run(game(), { type: "start-action", actionId: "study-aero", memberIds: ["founder-marina"] }, { type: "set-speed", speed: 4 });
     state = schedule(state, { startAt: state.clock.hours + 2 });
     state = run(state, { type: "tick", realSeconds: 2 });
     expect(state.clock.speed).toBe(0);
@@ -156,8 +155,7 @@ describe("calendarMonth", () => {
 
   it("junta ações agendadas, tarefas em andamento, pedidos e ensaios no dia certo", () => {
     let state = schedule(game());
-    state = run(state, { type: "start-action", actionId: "study-aero" });
-    state = run(state, { type: "assign-member", memberId: "founder-caio", taskId: state.tasks[0]!.id });
+    state = run(state, { type: "start-action", actionId: "study-aero", memberIds: ["founder-caio"] });
     const month = calendarMonth(state, 2025, 11);
     expect(month.days[11]!.planned).toEqual([
       { plannedId: state.plannedActions[0]!.id, actionId: "raffle", label: "Organizar rifa", startAt: hoursOf(2025, 11, 12, 8), memberIds: ["founder-marina"] }

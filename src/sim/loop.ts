@@ -7,7 +7,7 @@ import { advancePlanned } from "./calendar";
 import { COMPETITION_START, startCompetition } from "./competition";
 import { BALANCE } from "./content/balance";
 import { OFFICIAL_CALENDAR } from "./content/season2026";
-import { findAction } from "./content/actions";
+import { findAction, type ActionDef } from "./content/actions";
 import { dueFlightTests } from "./flightTests";
 import { buildCompetitionEvent } from "./eventCompetition";
 import { buildFlightTestEvent } from "./eventFlightTest";
@@ -19,10 +19,13 @@ import { reportEvents } from "./report";
 import { advanceShops } from "./shop";
 import { addNews } from "./news";
 import { awardReputation, resolveTrainees, trackAgenda } from "./season";
-import { addMessage, completeTask } from "./tasks";
-import { canWork, clamp, isOverloaded } from "./team";
+import { addMessage, closeUnderstaffed, completeTask, deliverProgress } from "./tasks";
+import { canWork, clamp, isExhausted, learn } from "./team";
+import { aptitudeFactor, revealText } from "./aptitude";
+import { energyDrainPerHour, stepEnergy } from "./energy";
 import { clockToDate, dateToHours, gameHoursForRealSeconds } from "./time";
-import type { GameState, Member, PauseInfo, PauseReason } from "./types";
+import { DISCIPLINES } from "./state";
+import type { Aptitude, Discipline, GameState, Member, PauseInfo, PauseReason } from "./types";
 
 const EPSILON = 1e-9;
 
@@ -43,6 +46,23 @@ export function tick(state: GameState, realSeconds: number): GameState {
   return next;
 }
 
+/** O que uma pessoa trabalhou no passo: horas, gasto de energia, gosto e o que aprende. */
+interface MemberWork {
+  hours: number;
+  drain: number;
+  motivation: number;
+  byDiscipline: Map<Discipline, number>;
+  fabrication: number;
+  agility: number;
+  piloting: number;
+}
+
+/** Disciplina que a ação trabalha (a da ação ou o alvo escolhido), para gosto e aversão. */
+function actionSubject(action: ActionDef, targetId: string | null): Discipline | null {
+  if (action.discipline) return action.discipline;
+  return targetId !== null && (DISCIPLINES as readonly string[]).includes(targetId) ? (targetId as Discipline) : null;
+}
+
 interface Pending {
   reason: PauseReason;
   messageId: string;
@@ -53,6 +73,7 @@ export function step(state: GameState, dt: number): GameState {
   const t0 = state.clock.hours;
   const t1 = t0 + dt;
   const date = clockToDate(t0);
+  const m = BALANCE.motivation;
   const pauses: Pending[] = [];
   let next: GameState = { ...state, clock: { ...state.clock, hours: t1 } };
 
@@ -68,7 +89,9 @@ export function step(state: GameState, dt: number): GameState {
   };
 
   // 2. Trabalho: a equipe alocada em tarefa ativa gera horas-pessoa conforme o crew da ação.
+  // O que cada pessoa trabalhou (horas, disciplina, habilidade) vira aprendizado, motivação e gasto de energia abaixo.
   const membersById = new Map(next.members.map((member) => [member.id, member]));
+  const work = new Map<string, MemberWork>();
   next = {
     ...next,
     tasks: next.tasks.map((task) => {
@@ -81,42 +104,83 @@ export function step(state: GameState, dt: number): GameState {
       const perStep = action.workshop ? dt : dt / 24;
       const contributions = { ...task.contributions };
       let hoursDone = task.hoursDone;
+      const subject = actionSubject(action, task.targetId);
       rates.forEach((rate, memberId) => {
         const hours = rate * perStep;
         contributions[memberId] = (contributions[memberId] ?? 0) + hours;
         hoursDone += hours;
+        const member = membersById.get(memberId);
+        if (!member || hours <= 0) return;
+        const entry = work.get(memberId) ?? { hours: 0, drain: 0, motivation: 0, byDiscipline: new Map<Discipline, number>(), fabrication: 0, agility: 0, piloting: 0 };
+        entry.hours += hours;
+        const disliked = subject !== null && member.dislikes.includes(subject);
+        entry.drain += hours * energyDrainPerHour(t0, !!action.workshop, disliked);
+        if (subject !== null) entry.motivation += hours * (member.likes.includes(subject) ? m.likedPerHour : disliked ? -m.dislikedPerHour : 0);
+        if (action.discipline) entry.byDiscipline.set(action.discipline, (entry.byDiscipline.get(action.discipline) ?? 0) + hours);
+        if (action.effect?.kind === "fabricate") entry.fabrication += hours;
+        if (action.effect?.kind === "agility") entry.agility += hours;
+        if (action.skill === "piloting") entry.piloting += hours;
+        work.set(memberId, entry);
       });
+      const done = { ...task, hoursDone, contributions };
       const weight = action.workshop ? overnightWeight(t0) : 0;
-      if (weight === 0) return { ...task, hoursDone, contributions };
-      return { ...task, hoursDone, contributions, overnightHours: (task.overnightHours ?? 0) + (hoursDone - task.hoursDone) * weight };
+      return weight === 0 ? done : { ...done, overnightHours: (task.overnightHours ?? 0) + (hoursDone - task.hoursDone) * weight };
     })
   };
 
-  // 2a. Turno corrente: madrugada mexe na motivação; veterano ensina novato.
+  // 2a. Conhecimento, habilidades e gosto: hora a hora (a facilidade escondida multiplica; horas revelam).
+  const reveals: { name: string; discipline: Discipline; aptitude: Aptitude }[] = [];
+  next = {
+    ...next,
+    members: next.members.map((member) => {
+      const entry = work.get(member.id);
+      if (!entry) return member;
+      let updated: Member = member;
+      if (entry.motivation !== 0) updated = { ...updated, motivation: clamp(updated.motivation + entry.motivation) };
+      entry.byDiscipline.forEach((hours, discipline) => {
+        const studied = updated.studyHours[discipline] + hours;
+        const revealed = !updated.revealedAptitude.includes(discipline) && studied >= BALANCE.aptitude.revealAfterHours;
+        if (revealed) reveals.push({ name: updated.name, discipline, aptitude: updated.aptitude[discipline] });
+        updated = {
+          ...updated,
+          knowledge: { ...updated.knowledge, [discipline]: learn(updated.knowledge[discipline], hours, BALANCE.knowledge.perHour * aptitudeFactor(updated, discipline)) },
+          studyHours: { ...updated.studyHours, [discipline]: studied },
+          revealedAptitude: revealed ? [...updated.revealedAptitude, discipline] : updated.revealedAptitude
+        };
+      });
+      if (entry.fabrication > 0) updated = { ...updated, fabrication: learn(updated.fabrication, entry.fabrication, BALANCE.knowledge.fabricationPerHour) };
+      if (entry.agility > 0) updated = { ...updated, agility: learn(updated.agility, entry.agility, BALANCE.knowledge.agilityPerHour) };
+      if (entry.piloting > 0) updated = { ...updated, piloting: learn(updated.piloting, entry.piloting, BALANCE.tests.pilotingPerHour) };
+      return updated;
+    })
+  };
+  for (const reveal of reveals) {
+    next = addMessage(next, { from: "Equipe", title: "Dá para ver como a pessoa aprende", body: revealText(reveal.name, reveal.discipline, reveal.aptitude) }).state;
+  }
+
+  // 2b. Entregas parciais (alcance, inscritos, horas de relatório) conforme as horas andaram.
+  for (const task of next.tasks) if (task.status === "active" && task.yieldTotal !== null) next = deliverProgress(next, task.id);
+
+  // 2c. Turno corrente: madrugada mexe na motivação; veterano ensina novato.
   next = shiftEffects(next, t0, dt);
 
-  // 2b. Alcance de divulgação esfria com o tempo.
+  // 2d. Alcance de divulgação esfria com o tempo.
   if (next.outreach > 0) next = { ...next, outreach: next.outreach * Math.pow(1 - BALANCE.outreach.decayPerDay, dt / 24) };
 
-  // 3. Motivação: cai para quem está parado e para quem está sobrecarregado (design §4.2).
-  const statusById = new Map(next.tasks.map((task) => [task.id, task.status]));
+  // 3. Motivação: cai para quem está parado e para quem parou de exaustão (design §4.2).
   const days = dt / 24;
-  const m = BALANCE.motivation;
   next = {
     ...next,
     members: next.members.map((member) => {
       if (!canWork(member)) return member;
-      const working = member.taskId !== null && statusById.get(member.taskId) === "active";
-      if (working) {
-        const streak = member.workStreakHours + dt;
-        const updated = { ...member, workStreakHours: streak };
-        return isOverloaded(updated) ? { ...updated, motivation: clamp(member.motivation - m.overloadDecayPerDay * days) } : updated;
-      }
-      const rested = Math.max(0, member.workStreakHours - m.restRecoveryPerHour * dt);
-      const motivation = member.taskId === null ? clamp(member.motivation - m.idleDecayPerDay * days) : member.motivation;
-      return { ...member, workStreakHours: rested, motivation };
+      if (member.taskId === null) return { ...member, motivation: clamp(member.motivation - m.idleDecayPerDay * days) };
+      if (isExhausted(member) && !work.has(member.id)) return { ...member, motivation: clamp(member.motivation - m.exhaustedDecayPerDay * days) };
+      return member;
     })
   };
+
+  // 3b. Energia (Fase 8, S4): quem trabalhou gasta; os demais descansam.
+  next = stepEnergy(next, work, t0, dt);
 
   // 4. Conclusões: compras que chegaram e tarefas com as horas completas.
   const finished = [
@@ -165,6 +229,8 @@ export function step(state: GameState, dt: number): GameState {
 
   // 5a. Fim da etapa trainee (1/fev): cada trainee vira integrante ou desiste.
   next = resolveTrainees(next, t0, t1);
+  // Quem saiu deixa tarefas abaixo do mínimo: encerram sozinhas com o parcial (Fase 8, S1).
+  next = closeUnderstaffed(next);
 
   // 5b. Relatório: envio automático no prazo e apresentação oral (os marcos acima já pausam).
   next = reportEvents(next, t0, t1);

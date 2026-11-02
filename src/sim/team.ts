@@ -40,13 +40,31 @@ export function rosterMembers(state: { members: readonly Member[] }): Member[] {
   return state.members.filter(canWork);
 }
 
-/** Horas por dia = disponibilidade × calendário acadêmico × motivação (design §8.1). */
-export function memberHoursPerDay(member: Member, date: number): number {
-  return member.hoursPerDay * academicFactor(date).factor * motivationFactor(member.motivation);
+/**
+ * Fase 8, S4: energia 0–100 vira multiplicador de rendimento: 1 a partir de tiredBelow, cai até
+ * factorAtExhausted em exhaustedBelow e vale 0 abaixo disso (a pessoa para sozinha).
+ */
+export function energyFactor(energy: number): number {
+  const e = BALANCE.energy;
+  if (energy >= e.tiredBelow) return 1;
+  if (energy < e.exhaustedBelow) return 0;
+  return e.factorAtExhausted + (1 - e.factorAtExhausted) * ((energy - e.exhaustedBelow) / (e.tiredBelow - e.exhaustedBelow));
 }
 
-export function isOverloaded(member: Member): boolean {
-  return member.workStreakHours > BALANCE.motivation.overloadAfterHours;
+/** Multiplicador de qualidade pela energia: como o de rendimento, mas nunca zera. */
+export const energyQualityFactor = (energy: number): number => Math.max(BALANCE.energy.factorAtExhausted, energyFactor(energy));
+
+/** Parou de exaustão (abaixo de exhaustedBelow). */
+export const isExhausted = (member: Pick<Member, "energy">): boolean => member.energy < BALANCE.energy.exhaustedBelow;
+
+/** Horas por dia = disponibilidade × calendário acadêmico × motivação × energia (design §8.1). */
+export function memberHoursPerDay(member: Member, date: number): number {
+  return member.hoursPerDay * academicFactor(date).factor * motivationFactor(member.motivation) * energyFactor(member.energy);
+}
+
+/** Cansado: energia abaixo de BALANCE.energy.tiredBelow (rende menos). Substitui a antiga sobrecarga escondida. */
+export function isOverloaded(member: Pick<Member, "energy">): boolean {
+  return member.energy < BALANCE.energy.tiredBelow;
 }
 
 /** O documentado é o piso de qualquer integrante na disciplina (design §5.3). */

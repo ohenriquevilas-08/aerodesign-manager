@@ -45,7 +45,7 @@ describe("relógio", () => {
 describe("estado inicial do Ano 1", () => {
   it("começa com caixa zero, quatro fundadores sem cargo e o orientador", () => {
     const game = createGame({ seed: 42, teamName: "Teste" });
-    expect(game.version).toBe(8);
+    expect(game.version).toBe(9);
     expect(game.credits).toBe(0);
     expect(game.members).toHaveLength(4);
     expect(game.members.every((member) => member.role === "member" && member.area === null)).toBe(true);

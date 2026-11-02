@@ -2,6 +2,7 @@
 
 import { BALANCE } from "./content/balance";
 import { FOUNDERS, type FounderDef } from "./content/founders";
+import { drawBaseKnowledge, drawPreferences, type Preferences } from "./aptitude";
 import { TEAM_POOL } from "./content/teams";
 import { drawPerson } from "./naming";
 import { createReport } from "./report";
@@ -23,13 +24,17 @@ export const DISCIPLINES: readonly Discipline[] = [
 
 export const FIELD_SIZE = 30;
 
+/** Nome padrão do orientador (Fase 8, S5: masculino; o jogador pode trocar na abertura). */
+export const DEFAULT_ADVISOR_NAME = "Ricardo Prado";
+
 export const zeroKnowledge = (): Record<Discipline, number> =>
   Object.fromEntries(DISCIPLINES.map((discipline) => [discipline, 0])) as Record<Discipline, number>;
 
-/** Aluno fundador (content/founders.ts): conhecimento inicial baixo no foco e uma "cara". Ninguém começa com cargo. */
-function founderMember(def: FounderDef, name: string): Member {
-  const knowledge = zeroKnowledge();
-  knowledge[def.focus] = def.knowledge;
+/**
+ * Aluno fundador (content/founders.ts): conhecimento inicial baixo e parecido, uma "cara" e uma
+ * preferência declarada que pode não bater com o gosto real (Fase 8, S5). Ninguém começa com cargo.
+ */
+function founderMember(def: FounderDef, name: string, knowledge: Record<Discipline, number>, prefs: Preferences): Member {
   return {
     id: def.id,
     name,
@@ -43,7 +48,10 @@ function founderMember(def: FounderDef, name: string): Member {
     hoursPerDay: 3,
     graduation: "2027.2",
     taskId: null,
-    workStreakHours: 0,
+    energy: BALANCE.energy.start,
+    ...prefs,
+    revealedAptitude: [],
+    studyHours: zeroKnowledge(),
     classSlots: [],
     area: null,
     look: { skin: 0, hair: 0, hairColor: 0, shirt: TEAM_SHIRT_COLOR },
@@ -90,14 +98,17 @@ export function createGame(options: { seed: number; teamName: string; advisorNam
     const drawnName = drawPerson(rngState, taken);
     taken.add(drawnName.name);
     rngState = drawnName.rngState;
-    const member = founderMember(def, drawnName.name);
+    const base = drawBaseKnowledge(rngState);
+    const drawnPrefs = drawPreferences(base.rngState, def.stated);
+    rngState = drawnPrefs.rngState;
+    const member = founderMember(def, drawnName.name, base.knowledge, drawnPrefs.prefs);
     const looks = drawLook(rngState, drawnName.female);
     const drawn = drawClassSlots(looks.rngState);
     rngState = drawn.rngState;
     return { ...member, classSlots: drawn.slots, look: looks.look };
   });
   return {
-    version: 8,
+    version: 9,
     seed: options.seed,
     rngState,
     clock: { hours: 0, speed: 0 },
@@ -135,7 +146,7 @@ export function createGame(options: { seed: number; teamName: string; advisorNam
     ledger: [],
     testLog: [],
     flightTests: [],
-    advisor: { name: options.advisorName ?? "Helena Prado", reputation: BALANCE.advisor.startReputation },
+    advisor: { name: options.advisorName ?? DEFAULT_ADVISOR_NAME, reputation: BALANCE.advisor.startReputation },
     founding: true,
     regulationRead: false,
     plannedActions: [],

@@ -9,7 +9,8 @@ import { OFFICIAL_CALENDAR } from "./content/season2026";
 import { findShift, parseSlot, SHIFTS, slotKey, WEEKDAYS } from "./content/workshop";
 import { nextRandom } from "./rng";
 import { warn } from "./tasks";
-import { canWork, motivationFactor } from "./team";
+import { canWork, energyFactor, motivationFactor } from "./team";
+import { positionShare } from "./crew";
 import { academicFactor, clockToDate, dateToHours } from "./time";
 import type { GameState, Member, ShiftId, SlotKey, Task, Weekday, WorkshopState } from "./types";
 
@@ -99,12 +100,6 @@ function sleepConflict(schedule: WorkshopState["schedule"], memberId: string, sl
   return false;
 }
 
-/** Quem fez a madrugada de ontem está dormindo de manhã (design §5.5). */
-function sleeping(state: GameState, memberId: string, day: Weekday, shift: ShiftId): boolean {
-  if (shift !== "morning") return false;
-  return (state.workshop.schedule[slotKey(previousDay(day), "overnight")] ?? []).includes(memberId);
-}
-
 /** Quem está de fato na oficina num instante: escalado, sem aula/prova, acordado. */
 export function presentAt(state: GameState, hours: number): { slot: SlotKey | null; present: string[] } {
   const now = shiftAt(hours);
@@ -112,7 +107,7 @@ export function presentAt(state: GameState, hours: number): { slot: SlotKey | nu
   const slot = slotKey(now.day, now.shift);
   const present = (state.workshop.schedule[slot] ?? []).filter((id) => {
     const member = state.members.find((item) => item.id === id);
-    return !!member && canWork(member) && statusAt(state, member, slot, hours) === "free" && !sleeping(state, id, now.day, now.shift);
+    return !!member && canWork(member) && statusAt(state, member, slot, hours) === "free";
   });
   return { slot, present };
 }
@@ -157,9 +152,9 @@ function workshopRatesAt(state: GameState, action: ActionDef, memberIds: readonl
     .filter((member): member is Member => !!member && present.includes(member.id));
   if (here.length < needed(action)) return rates;
   here
-    .map((member, index) => ({ member, index, rate: motivationFactor(member.motivation) }))
+    .map((member, index) => ({ member, index, rate: motivationFactor(member.motivation) * energyFactor(member.energy) }))
     .sort((a, b) => b.rate - a.rate || a.index - b.index)
-    .forEach(({ member, rate }, position) => rates.set(member.id, position < action.crew.ideal ? rate : rate * BALANCE.crew.extraEfficiency));
+    .forEach(({ member, rate }, position) => rates.set(member.id, rate * positionShare(position, action.crew)));
   return rates;
 }
 

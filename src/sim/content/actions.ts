@@ -51,15 +51,25 @@ export type ActionEffect =
 export type ActionTarget = "part" | "waiting-task" | "discipline" | "selection-format";
 
 /**
- * Quantas pessoas trabalham juntas. Abaixo de `min` a tarefa não avança; acima de `ideal`
- * cada pessoa extra rende BALANCE.crew.extraEfficiency; `max` é o teto do assign-member.
+ * Quantas pessoas trabalham juntas. A tarefa só começa com `min` pessoas livres (Fase 8, S1); até
+ * `ideal` cada pessoa soma 100%, acima dela cada extra rende menos (BALANCE.crew.extraEfficiency).
+ * `max` é o teto físico (oficina, bancada); `null` em tarefa de organização, sem limite rígido (S3).
  * Ações sem horas (compras) têm tudo 0.
  */
 export interface Crew {
   min: number;
   ideal: number;
-  max: number;
+  max: number | null;
 }
+
+/**
+ * Fase 8, S2: como a tarefa entrega o resultado.
+ * - continuous: o efeito acontece proporcional às horas (alcance, horas de relatório).
+ * - milestones: em marcos (candidatos da seletiva a cada 25%; fabricação em etapas, peça parcial).
+ * - at-end: só no fim, onde não há parcial que faça sentido.
+ * O conhecimento e as habilidades de quem trabalha sobem hora a hora em qualquer modo.
+ */
+export type YieldMode = "continuous" | "milestones" | "at-end";
 
 /**
  * Habilidade que define a qualidade da equipe na tarefa (sim/outcome.ts).
@@ -73,6 +83,7 @@ export interface ActionDef {
   category: ActionCategory;
   cost: Cost;
   crew: Crew;
+  yield: YieldMode;
   skill?: ActionSkill;
   /** Disciplina que ganha conhecimento tácito com a ação, se houver. */
   discipline?: Discipline;
@@ -99,45 +110,45 @@ export function categoryOf(value: Cost): ActionCategory {
   return value.credits > 0 ? "credits" : "hours";
 }
 
-const crew = (min: number, ideal: number, max: number): Crew => ({ min, ideal, max });
+const crew = (min: number, ideal: number, max: number | null): Crew => ({ min, ideal, max });
 
-const defs: Omit<ActionDef, "category">[] = [
+const defs: (Omit<ActionDef, "category" | "yield"> & { yield?: YieldMode })[] = [
   // Só horas
   {
     id: "recruitment",
     label: "Processo seletivo",
-    cost: cost(20, 0), crew: crew(1, 2, 2), skill: "communication",
+    cost: cost(20, 0), crew: crew(1, 2, null), skill: "communication", yield: "milestones",
     effect: { kind: "selection" },
     target: "selection-format"
   },
   // Divulgação: ações pequenas que somam alcance para a próxima seletiva.
-  { id: "outreach-posters", label: "Cartazes no campus", cost: cost(2, 0), crew: crew(1, 1, 1), skill: "communication", effect: { kind: "outreach", amount: 4 } },
-  { id: "outreach-social", label: "Post nas redes", cost: cost(1, 0), crew: crew(1, 1, 1), skill: "communication", effect: { kind: "outreach", amount: 2 } },
-  { id: "outreach-classroom", label: "Passar em sala de aula", cost: cost(3, 0), crew: crew(1, 2, 2), skill: "communication", effect: { kind: "outreach", amount: 6 } },
-  { id: "outreach-freshers", label: "Stand na recepção de calouros", cost: cost(6, 0), crew: crew(2, 2, 3), skill: "communication", effect: { kind: "outreach", amount: 12 } },
+  { id: "outreach-posters", label: "Cartazes no campus", cost: cost(2, 0), crew: crew(1, 1, null), skill: "communication", yield: "continuous", effect: { kind: "outreach", amount: 4 } },
+  { id: "outreach-social", label: "Post nas redes", cost: cost(1, 0), crew: crew(1, 1, null), skill: "communication", yield: "continuous", effect: { kind: "outreach", amount: 2 } },
+  { id: "outreach-classroom", label: "Passar em sala de aula", cost: cost(3, 0), crew: crew(1, 2, null), skill: "communication", yield: "continuous", effect: { kind: "outreach", amount: 6 } },
+  { id: "outreach-freshers", label: "Stand na recepção de calouros", cost: cost(6, 0), crew: crew(2, 2, null), skill: "communication", yield: "continuous", effect: { kind: "outreach", amount: 12 } },
   // Fase 6: leitura do regulamento (libera em 9/fev) e treino da etapa trainee (dez–jan).
-  { id: "read-regulation", label: "Leitura do regulamento", cost: cost(12, 0), crew: crew(1, 2, 3), skill: "knowledge", discipline: "conceptual", effect: { kind: "read-regulation" } },
-  { id: "trainee-training", label: "Treinamento de trainees", cost: cost(8, 0), crew: crew(2, 3, 4), skill: "knowledge", effect: { kind: "train" } },
-  { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), crew: crew(1, 2, 3), skill: "knowledge", discipline: "aerodynamics" },
+  { id: "read-regulation", label: "Leitura do regulamento", cost: cost(12, 0), crew: crew(1, 2, null), skill: "knowledge", discipline: "conceptual", effect: { kind: "read-regulation" } },
+  { id: "trainee-training", label: "Treinamento de trainees", cost: cost(8, 0), crew: crew(2, 3, null), skill: "knowledge", effect: { kind: "train" } },
+  { id: "study-aero", label: "Estudo de aerodinâmica", cost: cost(24, 0), crew: crew(1, 2, null), skill: "knowledge", discipline: "aerodynamics", yield: "continuous" },
   // Relatório (design §9.1): o capítulo é a disciplina escolhida; as horas entram na nota.
   {
     id: "report-chapter",
     label: "Escrever capítulo do relatório",
-    cost: cost(30, 0), crew: crew(1, 1, 1), skill: "knowledge",
+    cost: cost(30, 0), crew: crew(1, 1, null), skill: "knowledge", yield: "continuous",
     effect: { kind: "report-chapter" },
     target: "discipline"
   },
-  { id: "drawings", label: "Desenhar plantas", cost: cost(20, 0), crew: crew(1, 1, 2), skill: "knowledge", discipline: "conceptual", effect: { kind: "drawings" } },
-  { id: "oral-rehearsal", label: "Ensaiar apresentação oral", cost: cost(6, 0), crew: crew(1, 2, 3), skill: "communication", effect: { kind: "oral-practice" } },
-  { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), crew: crew(1, 1, 1), skill: "knowledge", effect: { kind: "document" }, target: "discipline" },
-  { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), crew: crew(1, 3, 4), skill: "communication", effect: { kind: "credits", amount: 500 } },
-  { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), crew: crew(1, 1, 2), skill: "communication", effect: { kind: "sponsor" } },
+  { id: "drawings", label: "Desenhar plantas", cost: cost(20, 0), crew: crew(1, 1, null), skill: "knowledge", discipline: "conceptual", yield: "continuous", effect: { kind: "drawings" } },
+  { id: "oral-rehearsal", label: "Ensaiar apresentação oral", cost: cost(6, 0), crew: crew(1, 2, null), skill: "communication", yield: "continuous", effect: { kind: "oral-practice" } },
+  { id: "document", label: "Documentar conhecimento", cost: cost(12, 0), crew: crew(1, 1, null), skill: "knowledge", effect: { kind: "document" }, target: "discipline" },
+  { id: "raffle", label: "Organizar rifa", cost: cost(16, 0), crew: crew(1, 3, null), skill: "communication", effect: { kind: "credits", amount: 500 } },
+  { id: "sponsor-pitch", label: "Contato com patrocinador", cost: cost(10, 0, 14), crew: crew(1, 1, null), skill: "communication", effect: { kind: "sponsor" } },
   { id: "unload-drill", label: "Treino de retirada de carga", cost: cost(4, 0), crew: crew(1, 2, 2), skill: "agility", effect: { kind: "agility" } },
   // Horas + créditos
   {
     id: "build-wing",
     label: "Fabricar asa (balsa)",
-    cost: cost(60, 180), crew: crew(1, 2, 3), skill: "fabrication",
+    cost: cost(60, 180), crew: crew(1, 2, 3), skill: "fabrication", yield: "milestones",
     discipline: "structures",
     effect: { kind: "fabricate", part: "wing", label: "Asa (balsa)" },
     requires: { balsa: 1 },
@@ -146,7 +157,7 @@ const defs: Omit<ActionDef, "category">[] = [
   {
     id: "build-fuselage",
     label: "Fabricar fuselagem (balsa)",
-    cost: cost(40, 120), crew: crew(1, 2, 3), skill: "fabrication",
+    cost: cost(40, 120), crew: crew(1, 2, 3), skill: "fabrication", yield: "milestones",
     discipline: "structures",
     effect: { kind: "fabricate", part: "fuselage", label: "Fuselagem" },
     requires: { "balsa-hard": 1 },
@@ -155,7 +166,7 @@ const defs: Omit<ActionDef, "category">[] = [
   {
     id: "build-tail",
     label: "Fabricar empenagem (balsa)",
-    cost: cost(24, 60), crew: crew(1, 2, 2), skill: "fabrication",
+    cost: cost(24, 60), crew: crew(1, 2, 2), skill: "fabrication", yield: "milestones",
     discipline: "stability",
     effect: { kind: "fabricate", part: "tail", label: "Empenagem" },
     requires: { "balsa-light": 1 },
@@ -164,7 +175,7 @@ const defs: Omit<ActionDef, "category">[] = [
   {
     id: "build-gear",
     label: "Fabricar trem de pouso",
-    cost: cost(16, 80), crew: crew(1, 1, 2), skill: "fabrication",
+    cost: cost(16, 80), crew: crew(1, 1, 2), skill: "fabrication", yield: "milestones",
     discipline: "loads",
     effect: { kind: "fabricate", part: "landingGear", label: "Trem de pouso" },
     requires: { "carbon-fiber": 1 },
@@ -179,7 +190,7 @@ const defs: Omit<ActionDef, "category">[] = [
   { id: "pilot-training", label: "Treino de pilotagem (simulador e aeromodelo-escola)", cost: cost(10, 20, 0, "low"), crew: crew(1, 1, 2), skill: "piloting" }
 ];
 
-export const ACTIONS: readonly ActionDef[] = defs.map((def) => ({ ...def, category: categoryOf(def.cost) }));
+export const ACTIONS: readonly ActionDef[] = defs.map((def) => ({ ...def, yield: def.yield ?? "at-end", category: categoryOf(def.cost) }));
 
 export function findAction(id: string): ActionDef | undefined {
   return ACTIONS.find((action) => action.id === id);

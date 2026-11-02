@@ -66,6 +66,9 @@ export interface WorkshopState {
   schedule: Partial<Record<SlotKey, string[]>>;
 }
 
+/** Fase 8, S5: facilidade escondida numa disciplina; multiplica o ganho de conhecimento. */
+export type Aptitude = "slow" | "normal" | "fast";
+
 export interface Member {
   id: string;
   name: string;
@@ -85,10 +88,22 @@ export interface Member {
   graduation: string;
   taskId: string | null;
   /**
-   * Horas de jogo seguidas em tarefa ativa; acima de BALANCE.motivation.overloadAfterHours
-   * a pessoa está sobrecarregada. Recupera quando fica parada.
+   * Fase 8, S4: energia 0–100. Trabalhar gasta (mais de madrugada); descansar, dormir e o fim de semana
+   * recuperam. Abaixo de BALANCE.energy.tiredBelow rende menos; abaixo de exhaustedBelow para.
    */
-  workStreakHours: number;
+  energy: number;
+  /** Fase 8, S5: o que a pessoa diz gostar (0–2 disciplinas); pode estar errado. */
+  statedLikes: Discipline[];
+  /** Fase 8, S5: o que ela gosta de verdade (escondido): trabalhar nisso anima. */
+  likes: Discipline[];
+  /** Fase 8, S5: o que ela detesta (escondido): trabalhar nisso gasta mais energia. */
+  dislikes: Discipline[];
+  /** Fase 8, S5: facilidade em cada disciplina (escondida até ser revelada). */
+  aptitude: Record<Discipline, Aptitude>;
+  /** Fase 8, S5: disciplinas cuja facilidade já apareceu (horas de trabalho ou, na Fase 9, a árvore do orientador). */
+  revealedAptitude: Discipline[];
+  /** Fase 8, S5: horas de trabalho acumuladas por disciplina; revelam a facilidade. */
+  studyHours: Record<Discipline, number>;
   /** Turnos com aula no semestre (fim de semana e madrugada nunca têm aula). */
   classSlots: SlotKey[];
   /** Área da formação (content/formations.ts); null = novato sem área ou presidente. */
@@ -139,6 +154,11 @@ export interface Candidate {
   motivation: number;
   hoursPerDay: number;
   graduation: string;
+  /** Fase 8, S5: preferências e facilidade, como no Member. */
+  statedLikes: Discipline[];
+  likes: Discipline[];
+  dislikes: Discipline[];
+  aptitude: Record<Discipline, Aptitude>;
   /** Parecer de um capitão, em PT-BR. */
   opinion: string;
   /** Turnos com aula no semestre; passa para o integrante ao contratar. */
@@ -172,6 +192,11 @@ export interface Part {
    * inspeção de segurança da competição (design §9.2) ou no relatório final.
    */
   counterfeit?: boolean;
+  /**
+   * Fase 8, S2: peça fabricada só até uma etapa (0–1 do trabalho). Não voa; uma nova tarefa de
+   * fabricar com esta peça como alvo termina o que falta.
+   */
+  partial?: number;
 }
 
 /** waiting: esperando prazo ⌛ (readyAt); active: consome horas; done: concluída (fica como histórico). */
@@ -207,6 +232,13 @@ export interface Task {
   dedication: TaskDedication;
   /** Horas-pessoa feitas de madrugada (depois da 1h contam em dobro); tiram qualidade na conclusão. */
   overnightHours?: number;
+  /**
+   * Fase 8, S2: quanto a tarefa entrega ao todo, na unidade do efeito (pontos de alcance, inscritos,
+   * horas de relatório, 1 = peça inteira); definido ao iniciar. null: só entrega no fim.
+   */
+  yieldTotal: number | null;
+  /** Fase 8, S2: quanto já foi entregue (mesma unidade de yieldTotal); nada é entregue duas vezes. */
+  yielded: number;
 }
 
 export interface InboxMessage {
@@ -587,7 +619,7 @@ export interface PlannedAction {
 }
 
 export interface GameState {
-  version: 8;
+  version: 9;
   seed: number;
   rngState: number;
   clock: Clock;

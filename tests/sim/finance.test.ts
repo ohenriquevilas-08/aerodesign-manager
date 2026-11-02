@@ -18,11 +18,10 @@ const game = (): GameState => startedGame({ seed: 12, teamName: "Caixa" });
 
 /** Inicia a ação, finge que as horas acabaram e conclui. */
 function finish(state: GameState, actionId: string, targetId?: string): GameState {
-  const started = applyCommand(state, { type: "start-action", actionId, targetId });
+  const started = applyCommand(state, { type: "start-action", actionId, targetId, memberIds: ["founder-marina", "founder-caio"] });
   const task = started.tasks.at(-1)!;
   const worked = {
     ...started,
-    members: started.members.map((m) => (m.id === "founder-marina" ? { ...m, taskId: task.id } : m)),
     tasks: started.tasks.map((t) => (t.id === task.id ? { ...t, status: "active" as const, hoursDone: t.hoursTotal, contributions: { "founder-marina": Math.max(1, t.hoursTotal) } } : t))
   };
   return completeTask(worked, task.id).state;

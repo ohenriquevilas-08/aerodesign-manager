@@ -10,6 +10,8 @@ import {
   type SelectionFormatDef
 } from "./content/selection";
 import { TRAINEE_END } from "./content/season2026";
+import { BALANCE } from "./content/balance";
+import { drawBaseKnowledge, drawPreferences, preferencesOf } from "./aptitude";
 import { drawLook } from "./looks";
 import { drawPerson } from "./naming";
 import { dateToHours } from "./time";
@@ -26,15 +28,18 @@ export function findSelectionFormat(id: string | null): SelectionFormatDef | und
 /** Disciplinas que cada capitão fundador avalia. */
 const AERO_SIDE: readonly Discipline[] = ["conceptual", "aerodynamics", "performance", "stability"];
 
-function opinionFor(state: GameState, focus: Discipline, knowledge: number, fabrication: number): string {
+/** Parecer do capitão (Fase 8, S5): o que a pessoa diz curtir, não uma medida do que ela faz bem. */
+function opinionFor(state: GameState, focus: Discipline, stated: readonly Discipline[], fabrication: number): string {
   const captains = state.members.filter((member) => member.role === "captain");
   const side = AERO_SIDE.includes(focus);
   const captain =
     (captains.find((member) => member.area !== null && AERO_SIDE.includes(member.area) === side) ?? captains[0])?.name ?? "A equipe";
-  const level =
-    knowledge >= 30 ? "Chega sabendo; pode puxar a frente" : knowledge >= 15 ? "Tem base e aprende rápido" : "Vai precisar de tempo";
-  const shop = fabrication >= 35 ? " Mão boa na oficina." : "";
-  return `${captain}: "${level} em ${DISCIPLINE_LABELS[focus]}.${shop}"`;
+  const intent =
+    stated.length === 0
+      ? "Ainda não soube dizer do que gosta"
+      : `Diz que curte ${stated.map((discipline) => DISCIPLINE_LABELS[discipline]).join(" e ")}`;
+  const shop = fabrication >= 24 ? " Parece ter mão boa na oficina." : "";
+  return `${captain}: "${intent}. Só trabalhando para saber.${shop}"`;
 }
 
 /** Sorteia `count` candidatos do formato com rngState; nomes não repetem integrantes nem candidatos. */
@@ -57,9 +62,15 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
     rng = drawnName.rngState;
     const name = drawnName.name;
     taken.add(name);
-    const focus = pick(DISCIPLINES);
-    const knowledge = zeroKnowledge();
-    knowledge[focus] = between(format.focusKnowledge);
+    // Conhecimento baixo e parecido em tudo; um bônus pequeno na disciplina que ele diz gostar.
+    const base = drawBaseKnowledge(rng);
+    rng = base.rngState;
+    const drawnPrefs = drawPreferences(rng);
+    rng = drawnPrefs.rngState;
+    const prefs = drawnPrefs.prefs;
+    const focus = prefs.statedLikes[0] ?? pick(DISCIPLINES);
+    const knowledge = base.knowledge;
+    knowledge[focus] += between(format.focusKnowledge);
     const fabrication = between(format.fabrication);
     const classes = drawClassSlots(rng);
     rng = classes.rngState;
@@ -77,7 +88,8 @@ export function drawCandidates(state: GameState, formatId: SelectionFormat, coun
       motivation: between(format.motivation),
       hoursPerDay: between(CANDIDATE_HOURS_PER_DAY),
       graduation: pick(CANDIDATE_GRADUATIONS),
-      opinion: opinionFor(state, focus, knowledge[focus], fabrication),
+      ...prefs,
+      opinion: opinionFor(state, focus, prefs.statedLikes, fabrication),
       classSlots: classes.slots,
       look: looks.look
     });
@@ -105,7 +117,10 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     hoursPerDay: candidate.hoursPerDay,
     graduation: candidate.graduation,
     taskId: null,
-    workStreakHours: 0,
+    energy: BALANCE.energy.start,
+    ...preferencesOf(candidate),
+    revealedAptitude: [],
+    studyHours: zeroKnowledge(),
     classSlots: [...candidate.classSlots],
     area: null,
     look: { ...candidate.look },
