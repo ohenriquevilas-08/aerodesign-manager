@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lecture (dev)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html, body { margin: 0; height: 100%; background: #08121c; color: #e4f0f7; font: 13px Inter, sans-serif; }
+      #stage { position: absolute; inset: 0; }
+      #bar { position: absolute; bottom: 8px; left: 8px; right: 8px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 5; }
+      button { background: #15304a; color: #e4f0f7; border: 1px solid #2b6585; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+      button.on { background: #ff9f2e; color: #08121c; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="bar"></div>
+    <script type="module" src="/src/dev/lecturePreview.ts"></script>
+  </body>
+</html>

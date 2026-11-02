@@ -102,6 +102,30 @@ export function zoomFor(setting: StageSetting, focus: StageFocus): number {
   return FOCUS_ZOOM[effectiveFocus(setting, focus)];
 }
 
+/** A partir de quantos grupos a dinâmica é "cheia" (dezenas de pessoas, Fase 9): bonecos menores e câmera mais aberta. */
+export const CROWDED_GROUPS = 5;
+
+export function isCrowded(view: Pick<StageView, "selection">): boolean {
+  return (view.selection?.groups.length ?? 0) >= CROWDED_GROUPS;
+}
+
+/** Escala inteira dos bonecos: 2 normalmente, 1 na dinâmica cheia (trinta pessoas não cabem no pátio em 2x). */
+export function figureScale(view: Pick<StageView, "selection">): 1 | 2 {
+  return isCrowded(view) ? 1 : 2;
+}
+
+/** Zoom efetivo: a dinâmica cheia abre a câmera para mostrar todas as mesas. */
+export function zoomForView(view: Pick<StageView, "kind" | "blocks" | "blockIndex" | "selection">): number {
+  const setting = settingForEvent(view.kind);
+  const focus = effectiveFocus(setting, focusForView(view));
+  const zoom = zoomFor(setting, focus);
+  return isCrowded(view) && setting === "campus" ? Math.min(zoom, CROWDED_ZOOM) : zoom;
+}
+const CROWDED_ZOOM = 1.25;
+
+/** Altura (px) acima do centro da mesa onde fica a etiqueta do grupo (com fundo, para ler por cima da roda). */
+export const GROUP_LABEL_OFFSET = 30;
+
 // ------------------------------------------------------------------ céu
 
 export interface SkyState {
@@ -205,14 +229,21 @@ export function inspectorSlots(count: number = INSPECTOR_LOOKS.length): Cell[] {
 
 // ------------------------------------------------------------------ dinâmica da seletiva
 
-/** Mesas dos grupos: até duas fileiras no pátio, centradas. */
+/**
+ * Mesas dos grupos: duas fileiras no pátio, centradas. Com 5 ou mais grupos (30 pessoas em grupos de 5–6,
+ * Fase 9) as mesas chegam mais perto uma da outra e a fileira da frente desce um pouco.
+ */
 export function groupTables(count: number): Cell[] {
   const perRow = Math.max(1, Math.ceil(count / 2));
+  const crowded = count > 4;
+  const spacing = crowded ? 3.3 : 4.0;
+  const base = crowded ? { col: 10, row: 4.4 } : { col: 10.5, row: 3.6 };
+  const rowStep = crowded ? 2.5 : 2.6;
   return Array.from({ length: count }, (_, i) => {
     const inRow = Math.min(perRow, count - Math.floor(i / perRow) * perRow);
-    const lateral = ((i % perRow) - (inRow - 1) / 2) * 4.0;
+    const lateral = ((i % perRow) - (inRow - 1) / 2) * spacing;
     const depth = Math.floor(i / perRow);
-    return { col: 10.5 + lateral * 0.7 + depth * 2.6, row: 3.6 - lateral * 0.7 + depth * 2.6 };
+    return { col: base.col + lateral * 0.7 + depth * rowStep, row: base.row - lateral * 0.7 + depth * rowStep };
   });
 }
 
@@ -220,12 +251,13 @@ export interface Seat extends Cell {
   facing: 1 | -1;
 }
 
-/** Lugares dos integrantes em volta da mesa (de frente para ela). */
+/** Lugares dos integrantes em volta da mesa (de frente para ela); a roda abre para caber 5 ou 6. */
 export function seatsAround(table: Cell, count: number): Seat[] {
+  const radius = count > 4 ? 1.75 : 1.5;
   return Array.from({ length: count }, (_, k) => {
     const angle = Math.PI * 0.15 + (k / Math.max(1, count)) * Math.PI * 1.7;
-    const col = table.col + Math.cos(angle) * 1.5;
-    const row = table.row + Math.sin(angle) * 1.5;
+    const col = table.col + Math.cos(angle) * radius;
+    const row = table.row + Math.sin(angle) * radius;
     return { col, row, facing: col > table.col ? -1 : 1 };
   });
 }
@@ -257,6 +289,21 @@ export function assemblyParts(groupIndex: number, t: number): number {
 
 /** Linha de lançamento: a pista de cada grupo corre em col, uma por row. */
 export const LAUNCH_LANE = { col0: 3.2, length: 13, row0: 8.9, rowStep: 0.85 } as const;
+/** Grupos que a pista comporta com o espaçamento cheio (os de antes da Fase 9). */
+export const LANES_AT_FULL_STEP = 4;
+/** Fundo da pista (row): com mais grupos, as faixas se apertam para não passar daqui. */
+const LANE_BOTTOM = 11.8;
+
+/** Espaço entre as faixas: cheio até 4 grupos, depois comprimido para caber 5 ou 6 na mesma pista. */
+export function laneStep(groupCount: number): number {
+  if (groupCount <= LANES_AT_FULL_STEP) return LAUNCH_LANE.rowStep;
+  return Math.min(LAUNCH_LANE.rowStep, (LANE_BOTTOM - LAUNCH_LANE.row0) / (groupCount - 1));
+}
+
+/** Linha (row) da faixa do grupo. */
+export function laneRow(groupIndex: number, groupCount: number): number {
+  return LAUNCH_LANE.row0 + groupIndex * laneStep(groupCount);
+}
 /** Distância de lançamento que enche a pista inteira (m). */
 export const LANE_FULL_M = 25;
 
@@ -275,8 +322,8 @@ export function launchStart(groupIndex: number): number {
  * Trajetória do planador do grupo: sai da mão, sobe em arco e pousa a `distanceM` (da simulação)
  * do início da pista. `t` é o tempo do bloco; `landed` depois do pouso.
  */
-export function gliderFrame(groupIndex: number, distanceM: number, t: number): GliderFrame {
-  const row = LAUNCH_LANE.row0 + groupIndex * LAUNCH_LANE.rowStep;
+export function gliderFrame(groupIndex: number, distanceM: number, t: number, groupCount = LANES_AT_FULL_STEP): GliderFrame {
+  const row = laneRow(groupIndex, groupCount);
   const share = clamp01(distanceM / LANE_FULL_M);
   const duration = 1.6 + share * 2.4;
   const p = clamp01((t - launchStart(groupIndex)) / duration);
@@ -290,8 +337,8 @@ export function gliderFrame(groupIndex: number, distanceM: number, t: number): G
 }
 
 /** Planador pousado no fim da pista (blocos depois do lançamento). */
-export function landedGlider(groupIndex: number, distanceM: number): GliderFrame {
-  return gliderFrame(groupIndex, distanceM, 1e6);
+export function landedGlider(groupIndex: number, distanceM: number, groupCount = LANES_AT_FULL_STEP): GliderFrame {
+  return gliderFrame(groupIndex, distanceM, 1e6, groupCount);
 }
 
 export function formatDistance(meters: number): string {
@@ -299,8 +346,16 @@ export function formatDistance(meters: number): string {
 }
 
 /** Candidatos do grupo atrás da linha de lançamento, vendo o planador voar. */
-function launchSeats(groupIndex: number, group: SelectionGroupView): Seat[] {
-  const row = LAUNCH_LANE.row0 + groupIndex * LAUNCH_LANE.rowStep;
+function launchSeats(groupIndex: number, group: SelectionGroupView, groupCount: number): Seat[] {
+  const row = laneRow(groupIndex, groupCount);
+  // Grupos de 5 a 6 não cabem em fila única na faixa apertada: ficam em duas colunas, de dois em dois.
+  if (group.members.length > 4) {
+    return group.members.map((_, k) => ({
+      col: LAUNCH_LANE.col0 - 0.7 - Math.floor(k / 2) * 0.65,
+      row: row + (k % 2 === 0 ? -0.1 : 0.15),
+      facing: 1 as const
+    }));
+  }
   return group.members.map((_, k) => ({ col: LAUNCH_LANE.col0 - 0.8 - k * 0.5, row: row + 0.1, facing: 1 as const }));
 }
 
@@ -369,7 +424,7 @@ export function planFigures(view: StageView): FigurePlan[] {
     const phase = selectionPhase(view);
     view.selection.groups.forEach((group, g) => {
       const seats =
-        phase === "launching" || phase === "landed" ? launchSeats(g, group) : seatsAround(tables[g]!, group.members.length);
+        phase === "launching" || phase === "landed" ? launchSeats(g, group, view.selection!.groups.length) : seatsAround(tables[g]!, group.members.length);
       group.members.forEach((person, k) => {
         plans.push({
           id: `cand:${person.id}`,

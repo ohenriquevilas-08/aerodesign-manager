@@ -24,6 +24,11 @@ export interface SelectionView {
   groups: SelectionGroupView[];
   /** Grupo de que o jogador chegou perto (decisão da dinâmica); null = nenhum. */
   observedGroupId: string | null;
+  /**
+   * Fase 9: o jogador acompanha vários grupos (a S3 limita quantos). Soma-se a `observedGroupId`; a
+   * Simulação hoje entrega só um, então `source.ts` não preenche este campo até a S3 entrar.
+   */
+  observedGroupIds?: string[];
 }
 
 export type InspectionStatus = "ok" | "pending" | "fail";
